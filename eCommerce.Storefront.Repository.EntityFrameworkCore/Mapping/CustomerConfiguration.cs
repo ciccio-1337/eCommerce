@@ -1,4 +1,3 @@
-using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Model.Customers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
