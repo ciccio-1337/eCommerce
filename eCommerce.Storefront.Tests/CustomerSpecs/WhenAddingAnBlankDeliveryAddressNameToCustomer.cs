@@ -23,10 +23,12 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         }
 
         [TestMethod]
-        [ExpectedException(typeof(EntityBaseIsInvalidException))]
         public void ThenAnInvalidAddressExceptionWillBeThrown()
         {
-            sut.AddAddress(_address);
+            Assert.Throws<EntityBaseIsInvalidException>(() =>
+            {                
+                sut.AddAddress(_address);
+            });
         }
     }
 }

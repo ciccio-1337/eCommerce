@@ -35,7 +35,7 @@ builder.Services.AddDbContext<ShopDataContext>(options =>
     }
     else
     {
-        options.UseSqlServer(builder.Configuration?.GetConnectionString("DefaultConnection"), b => 
+        options.UseNpgsql(builder.Configuration?.GetConnectionString("DefaultConnection"), b => 
         {
             b.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             b.MigrationsAssembly("eCommerce.Storefront.Repository.EntityFrameworkCore");
@@ -126,7 +126,6 @@ var supportedCultures = new[] { "en-GB", "en-US", "it-IT" };
 var localizationOptions = new RequestLocalizationOptions().SetDefaultCulture(supportedCultures[0]).AddSupportedCultures(supportedCultures).AddSupportedUICultures(supportedCultures);
 
 app.UseRequestLocalization(localizationOptions);
-app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.Use(async (context, next) =>
@@ -160,9 +159,6 @@ app.Use(async (context, next) =>
 
     await next();
 });
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-});
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 app.Logger.LogInformation("Application Started");
 app.Run();

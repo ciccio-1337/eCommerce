@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace eCommerce.Storefront.Tests.CustomerSpecs
 {
+    [TestClass]
     public class WhenCreatingNewNameWithInvalidValuesForSecondName : WithValidCustomer
     {
         private dynamic _newName;

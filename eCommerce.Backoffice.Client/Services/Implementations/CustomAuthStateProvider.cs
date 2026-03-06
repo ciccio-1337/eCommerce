@@ -5,34 +5,34 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Blazored.LocalStorage;
 using eCommerce.Backoffice.Client.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
 
 namespace eCommerce.Backoffice.Client.Services.Implementations
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider, ILoginService
     {
-        private readonly ILocalStorageService _localStorage;
+        private readonly IJSRuntime _javaScriptRuntime;
         private readonly HttpClient _httpClient;
         private static readonly string _tokenkey = "TOKENKEY";
         private AuthenticationState _anonymous => new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
 
-        public CustomAuthStateProvider(ILocalStorageService localStorage, HttpClient httpClient)
+        public CustomAuthStateProvider(IJSRuntime javaScriptRuntime, HttpClient httpClient)
         {
-            _localStorage = localStorage;
+            _javaScriptRuntime = javaScriptRuntime;
             _httpClient = httpClient;
         }
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await _localStorage.GetItemAsync<string>(_tokenkey);
+            var token = await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _tokenkey);
 
             if (!TokenStatus(token))
             {
                 _httpClient.DefaultRequestHeaders.Authorization = null;
 
-                await _localStorage.RemoveItemAsync(_tokenkey);
+                await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
                 
                 return _anonymous;
             }
@@ -42,7 +42,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
 
         public async Task Login(string token)
         {
-            await _localStorage.SetItemAsync(_tokenkey, token);
+            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _tokenkey, token);
 
             var authState = BuildAuthenticationState(token);
 
@@ -53,7 +53,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
         {
             _httpClient.DefaultRequestHeaders.Authorization = null;
 
-            await _localStorage.RemoveItemAsync(_tokenkey);
+            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
 
             NotifyAuthenticationStateChanged(Task.FromResult(_anonymous));
         }

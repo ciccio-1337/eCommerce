@@ -15,10 +15,12 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         }
 
         [TestMethod]
-        [ExpectedException(typeof(NullReferenceException))]
         public void ThenNullReferenceExceptionWillBeThrown()
         {
-            sut.AddAddress(_invalidAddress);
+            Assert.Throws<NullReferenceException>(() =>
+            {                
+                sut.AddAddress(_invalidAddress);
+            });
         }        
     }
 }

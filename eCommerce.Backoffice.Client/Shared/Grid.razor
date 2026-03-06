@@ -9,43 +9,43 @@
         <RadzenButton Icon="add_circle_outline" style="margin-bottom: 10px" Text="Add" Click="@(() => OnCreate.InvokeAsync())" />
     }
 
-    <RadzenGrid Count="@Model.Rows.Count" Data="Model.Rows" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.Advanced" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="15">
+    <RadzenDataGrid Count="@Model.Rows.Count" Data="Model.Rows" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.Advanced" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="15">
         <Columns>
             @for (int col = 0; col < columns.Length; col++)
             {                
                 @if (!string.IsNullOrEmpty(displayFormat[col]))
                 {
-                    <RadzenGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true">
+                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true">
                         <Template Context="data">
                             @string.Format(displayFormat[col], properties[col].GetValue(data))
                         </Template>
-                    </RadzenGridColumn>
+                    </RadzenDataGridColumn>
                 }
                 else 
                 {
-                    <RadzenGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true" />
+                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true" />
                 }
             }
 
             @if (CanEdit)
             {
-                <RadzenGridColumn TItem="ElementsType" Context="item" Bubble="false" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
                     <Template Context="item">
                         <RadzenButton Icon="edit" Size="ButtonSize.Small" Click="@(() => OnEdit.InvokeAsync(item))" />
                     </Template>
-                </RadzenGridColumn>
+                </RadzenDataGridColumn>
             }
 
             @if (CanDelete)
             {
-                <RadzenGridColumn TItem="ElementsType" Context="item" Bubble="false" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
                     <Template Context="item">
                         <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="close" Size="ButtonSize.Small" Click="@(() => OnDelete.InvokeAsync(item))" />
                     </Template>
-                </RadzenGridColumn>
+                </RadzenDataGridColumn>
             }
         </Columns>
-    </RadzenGrid>
+    </RadzenDataGrid>
 }
 else
 {

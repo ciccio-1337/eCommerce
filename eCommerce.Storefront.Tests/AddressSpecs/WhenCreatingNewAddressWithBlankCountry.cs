@@ -8,21 +8,23 @@ namespace eCommerce.Storefront.Tests.AddressSpecs
     public class WhenCreatingNewAddressWithBlankContry
     {
         [TestMethod]
-        [ExpectedException(typeof(EntityBaseIsInvalidException))]
         public void ThenAnInvalidAddressExceptionWillBeThrown()
         {
-            DeliveryAddress invalidAddress = new DeliveryAddress()
+            Assert.Throws<EntityBaseIsInvalidException>(() =>
             {
-                AddressLine = "99 Old street", 
-                City = "City", 
-                State = "State", 
-                Country = string.Empty,
-                ZipCode = "PostCode",
-                Name = "Home",
-                Customer = new Customer()
-            };
+                DeliveryAddress invalidAddress = new DeliveryAddress()
+                {
+                    AddressLine = "99 Old street", 
+                    City = "City", 
+                    State = "State", 
+                    Country = string.Empty,
+                    ZipCode = "PostCode",
+                    Name = "Home",
+                    Customer = new Customer()
+                };
 
-            invalidAddress.ThrowExceptionIfInvalid();
+                invalidAddress.ThrowExceptionIfInvalid();
+            });
         }
     }
 }
