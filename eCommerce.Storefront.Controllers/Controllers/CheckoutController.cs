@@ -19,8 +19,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IBasketService _basketService;
         private readonly IOrderService _orderService;
 
-        public CheckoutController(ICookieStorageService cookieStorageService,
-                                  IBasketService basketService,
+        public CheckoutController(IBasketService basketService,
                                   ICustomerService customerService,
                                   IOrderService orderService,
                                   ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,

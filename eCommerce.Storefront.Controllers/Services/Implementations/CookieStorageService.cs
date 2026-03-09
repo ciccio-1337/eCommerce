@@ -19,7 +19,9 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             {
                 Expires = expires,
                 HttpOnly = true,
-                Secure = _httpContextAccessor?.HttpContext?.Request?.IsHttps ?? false
+                Secure = true,
+                IsEssential = true,
+                SameSite = SameSiteMode.Strict
             });
         }
         

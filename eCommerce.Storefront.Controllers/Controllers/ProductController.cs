@@ -14,8 +14,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
     {
         private readonly IConfiguration _configuration;
 
-        public ProductController(ICookieStorageService cookieStorageService,
-                                 IConfiguration configuration,
+        public ProductController(IConfiguration configuration,
                                  ICookieAuthentication cookieAuthentication,
                                  ICustomerService customerService,
                                  ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
