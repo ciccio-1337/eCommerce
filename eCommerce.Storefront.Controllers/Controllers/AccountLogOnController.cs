@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
-using eCommerce.Storefront.Controllers.Models;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -25,7 +24,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public IActionResult LogOn()
         {
-            AccountView accountView = InitializeAccountViewWithIssue(false, string.Empty);
+            var accountView = InitializeAccountViewWithIssue(false, string.Empty);
 
             return View(accountView);
         }
@@ -35,7 +34,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             try
             {
-                User user = await _authenticationService.Login(email, password);
+                var user = await _authenticationService.Login(email, password);
 
                 if (user.IsAuthenticated && user.Roles.Any(r => r.Equals("Customer")))
                 {
@@ -45,8 +44,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 }
                 else
                 {
-                    AccountView accountView = InitializeAccountViewWithIssue(true, "Sorry we could not log you in. Please try again.");
+                    var accountView = InitializeAccountViewWithIssue(true, "Sorry we could not log you in. Please try again.");
+
                     accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
+
                     ViewData["email"] = email;
                     ViewData["password"] = password;
                     
@@ -55,8 +56,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                AccountView accountView = InitializeAccountViewWithIssue(true, ex.Message);
+                var accountView = InitializeAccountViewWithIssue(true, ex.Message);
+
                 accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
+
                 ViewData["email"] = email;
                 ViewData["password"] = password;
 
@@ -73,12 +76,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         private AccountView InitializeAccountViewWithIssue(bool hasIssue, string message)
         {
-            AccountView accountView = new AccountView();
-            accountView.CallBackSettings.Action = "ReceiveTokenAndLogon";
+            var accountView = new AccountView();
+
+            accountView.CallBackSettings.Action = "LogOn";
             accountView.CallBackSettings.Controller = "AccountLogOn";
             accountView.HasIssue = hasIssue;
             accountView.Message = message;
-            string returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
+
+            var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
+
             accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
 
             return accountView;

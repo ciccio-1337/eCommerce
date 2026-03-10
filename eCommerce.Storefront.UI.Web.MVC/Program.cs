@@ -1,14 +1,11 @@
-using System.Linq;
 using eCommerce.Storefront.UI.Web.MVC;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,47 +45,7 @@ app.UseRequestLocalization(localizationOptions);
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.Use(async (context, next) =>
-{
-    if (!context.Response.Headers.ContainsKey(HeaderNames.XContentTypeOptions))
-    {
-        context.Response.Headers.Append(HeaderNames.XContentTypeOptions, "nosniff");
-    }
-
-    if (!context.Response.Headers.ContainsKey(HeaderNames.XFrameOptions))
-    {
-        context.Response.Headers.Append(HeaderNames.XFrameOptions, "DENY");
-    }
-
-    if (!context.Response.Headers.ContainsKey("Referrer-Policy"))
-    {
-        context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-    }
-
-    if (!context.Response.Headers.ContainsKey(HeaderNames.CacheControl))
-    {
-        context.Response.Headers.Append(HeaderNames.CacheControl, "no-cache, no-store, must-revalidate");
-    }
-
-    if (!context.Response.Headers.ContainsKey(HeaderNames.Pragma))
-    {
-        context.Response.Headers.Append(HeaderNames.Pragma, "no-cache");
-    }
-
-    if (!context.Response.Headers.ContainsKey(HeaderNames.Expires))
-    {
-        context.Response.Headers.Append(HeaderNames.Expires, "0");
-    }
-
-    if (context.Request.Path.StartsWithSegments("/admin"))
-    {
-        context.Response.Redirect("/index.html");
-
-        return;
-    }
-
-    await next();
-});
+app.UseSecurityHeaders();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 app.Logger.LogInformation("Application Started");
 app.Run();

@@ -16,7 +16,6 @@
 <p>
     Please enter your email and password. @Html.ActionLink("Register", "Register", "AccountRegister") if you don't have an account.
 </p>
-@Html.ValidationSummary("Login was unsuccessful. Please correct the errors and try again.")
 
 @using (Html.BeginForm()) 
 {
@@ -26,12 +25,10 @@
             <p>
                 <label for="email">Email</label><br />
                 @Html.TextBox("email")
-                @Html.ValidationMessage("email")
             </p>
             <p>
                 <label for="password">Password</label><br />
                 @Html.Password("password", null, new { @autocomplete = "off" })
-                @Html.ValidationMessage("password")
             </p>
             <p>
                 <input type="submit" value="Log On" />

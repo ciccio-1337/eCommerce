@@ -22,20 +22,23 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Net.Http.Headers;
+using SameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
 
 namespace eCommerce.Storefront.UI.Web.MVC
 {
     public static class BootStrapper
     {
-        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, IHostEnvironment env)
+        public static IServiceCollection AddInfrastructure(this IServiceCollection serviceCollection, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
-            services.AddAutoMapper(typeof(AutoMapperBootStrapper));
-            services.AddHttpContextAccessor();
-            services.AddDbContext<ShopDataContext>(options => 
+            serviceCollection.AddAutoMapper(typeof(AutoMapperBootStrapper));
+            serviceCollection.AddHttpContextAccessor();
+            serviceCollection.AddDbContext<ShopDataContext>(options => 
             {
-                if (env.IsDevelopment())
+                if (hostEnvironment.IsDevelopment())
                 {
-                    options.UseSqlite(configuration?.GetConnectionString("DefaultConnection"), b => 
+                    options.UseSqlite(configuration.GetConnectionString("DefaultConnection"), b => 
                     {
                         b.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
                         b.MigrationsAssembly("eCommerce.Storefront.Repository.EntityFrameworkCore");
@@ -43,7 +46,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 }
                 else
                 {
-                    options.UseNpgsql(configuration?.GetConnectionString("DefaultConnection"), b => 
+                    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"), b => 
                     {
                         b.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
                         b.MigrationsAssembly("eCommerce.Storefront.Repository.EntityFrameworkCore");
@@ -55,8 +58,8 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     warningsConfigurationBuilderAction.Ignore(RelationalEventId.AmbientTransactionWarning);
                 });
             });
-            services.AddDefaultIdentity<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>();
-            services.Configure<IdentityOptions>(options =>
+            serviceCollection.AddDefaultIdentity<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>();
+            serviceCollection.Configure<IdentityOptions>(options =>
             {
                 // Password settings.
                 options.Password.RequireDigit = true;
@@ -73,7 +76,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 options.User.RequireUniqueEmail = true;
             });
-            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
+            serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;
@@ -97,11 +100,11 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:SecurityKey"]))
                 };
             });
-            services.AddAntiforgery(options =>
+            serviceCollection.AddAntiforgery(options =>
             {
                 options.HeaderName = "RequestVerificationToken";
             });
-            services.AddLogging(configure => 
+            serviceCollection.AddLogging(configure => 
             {
                 configure.AddConfiguration(configuration.GetSection("Logging"));
                 configure.AddConsole();
@@ -109,7 +112,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 configure.AddEventSourceLogger();
             });
 
-            return services;
+            return serviceCollection;
         }
 
         public static IServiceCollection AddRepositories(this IServiceCollection serviceCollection)
@@ -152,6 +155,53 @@ namespace eCommerce.Storefront.UI.Web.MVC
             serviceCollection.AddScoped<IEmailService, SmtpService>();
 
             return serviceCollection;
+        }
+
+        public static WebApplication UseSecurityHeaders(this WebApplication webApplication)
+        {
+            webApplication.Use(async (context, next) =>
+            {
+                if (!context.Response.Headers.ContainsKey(HeaderNames.XContentTypeOptions))
+                {
+                    context.Response.Headers.Append(HeaderNames.XContentTypeOptions, "nosniff");
+                }
+
+                if (!context.Response.Headers.ContainsKey(HeaderNames.XFrameOptions))
+                {
+                    context.Response.Headers.Append(HeaderNames.XFrameOptions, "DENY");
+                }
+
+                if (!context.Response.Headers.ContainsKey("Referrer-Policy"))
+                {
+                    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+                }
+
+                if (!context.Response.Headers.ContainsKey(HeaderNames.CacheControl))
+                {
+                    context.Response.Headers.Append(HeaderNames.CacheControl, "no-cache, no-store, must-revalidate");
+                }
+
+                if (!context.Response.Headers.ContainsKey(HeaderNames.Pragma))
+                {
+                    context.Response.Headers.Append(HeaderNames.Pragma, "no-cache");
+                }
+
+                if (!context.Response.Headers.ContainsKey(HeaderNames.Expires))
+                {
+                    context.Response.Headers.Append(HeaderNames.Expires, "0");
+                }
+
+                if (context.Request.Path.StartsWithSegments("/admin"))
+                {
+                    context.Response.Redirect("/index.html");
+
+                    return;
+                }
+
+                await next();
+            });
+
+            return webApplication;
         }
     }
 }
