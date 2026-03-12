@@ -13,9 +13,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
         protected readonly IActionArguments _actionArguments;
 
         protected BaseAccountController(ILocalAuthenticationService authenticationService,
-                                        ICustomerService customerService,
-                                        ICookieAuthentication cookieAuthentication,
-                                        IActionArguments actionArguments)
+            ICustomerService customerService,
+            ICookieAuthentication cookieAuthentication,
+            IActionArguments actionArguments)
         {
             _authenticationService = authenticationService;
             _customerService = customerService;

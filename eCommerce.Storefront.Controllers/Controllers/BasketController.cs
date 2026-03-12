@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -18,40 +19,45 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IBasketService _basketService;
 
         public BasketController(ICachedProductCatalogService cachedProductCatalogService,
-                                IBasketService basketService,
-                                ICookieAuthentication cookieAuthentication,
-                                ICustomerService customerService) : base(cookieAuthentication, 
-                                                                         customerService,
-                                                                         cachedProductCatalogService)
+            IBasketService basketService,
+            ICookieAuthentication cookieAuthentication,
+            ICustomerService customerService) : base(cookieAuthentication, 
+                customerService,
+                cachedProductCatalogService)
         {
             _basketService = basketService;
         }
 
-        public IActionResult Detail()
+        public async Task<IActionResult> Detail()
         {
-            BasketDetailView basketView = new BasketDetailView();
-            Guid basketId = GetBasketId();
-            GetBasketRequest basketRequest = new GetBasketRequest() { BasketId = basketId };
-            GetBasketResponse basketResponse = _basketService.GetBasket(basketRequest);
-            GetAllDispatchOptionsResponse dispatchOptionsResponse = _basketService.GetAllDispatchOptions();
+            var basketView = new BasketDetailView();
+            var basketId = await GetBasketIdAsync();
+            var basketRequest = new GetBasketRequest() 
+            { 
+                BasketId = basketId 
+            };
+            var basketResponse = await _basketService.GetBasketAsync(basketRequest);
+            var dispatchOptionsResponse = _basketService.GetAllDispatchOptions();
+
             basketView.Basket = basketResponse.Basket;
             basketView.Categories = GetCategories();
-            basketView.BasketSummary = GetBasketSummaryView();
+            basketView.BasketSummary = await GetBasketSummaryViewAsync();
             basketView.DeliveryOptions = dispatchOptionsResponse.DeliveryOptions;
             
             return View("View", basketView);
         }
 
         [HttpPost]
-        public IActionResult RemoveItem(int productId)
+        public async Task<IActionResult> RemoveItem(int productId)
         {
-            ModifyBasketRequest request = new ModifyBasketRequest();
+            var request = new ModifyBasketRequest();
 
             request.ItemsToRemove.Add(productId);
 
-            request.BasketId = GetBasketId();
-            ModifyBasketResponse response = _basketService.ModifyBasket(request);
-            BasketDetailView basketDetailView = new BasketDetailView
+            request.BasketId = await GetBasketIdAsync();
+            
+            var response = await _basketService.ModifyBasketAsync(request);
+            var basketDetailView = new BasketDetailView
             {
                 BasketSummary = new BasketSummaryView
                 {
@@ -66,15 +72,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public IActionResult UpdateShipping(int shippingServiceId)
+        public async Task<IActionResult> UpdateShipping(int shippingServiceId)
         {
-            ModifyBasketRequest request = new ModifyBasketRequest
+            var request = new ModifyBasketRequest
             {
                 SetShippingServiceIdTo = shippingServiceId,
-                BasketId = GetBasketId()
+                BasketId = await GetBasketIdAsync()
             };
-            BasketDetailView basketDetailView = new BasketDetailView();
-            ModifyBasketResponse response = _basketService.ModifyBasket(request);            
+            var basketDetailView = new BasketDetailView();
+            var response = await _basketService.ModifyBasketAsync(request);
+
             basketDetailView.BasketSummary = new BasketSummaryView
             {
                 BasketTotal = response.Basket.BasketTotal,
@@ -87,15 +94,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public IActionResult UpdateItems([FromBody] BasketQtyUpdateRequest jsonBasketQtyUpdateRequest)
+        public async Task<IActionResult> UpdateItems([FromBody] BasketQtyUpdateRequest jsonBasketQtyUpdateRequest)
         {
-            ModifyBasketRequest request = new ModifyBasketRequest
+            var request = new ModifyBasketRequest
             {
-                BasketId = GetBasketId(),
+                BasketId = await GetBasketIdAsync(),
                 ItemsToUpdate = jsonBasketQtyUpdateRequest.ConvertToBasketItemUpdateRequests()
             };
-            BasketDetailView basketDetailView = new BasketDetailView();
-            ModifyBasketResponse response = _basketService.ModifyBasket(request);
+            var basketDetailView = new BasketDetailView();
+            var response = await _basketService.ModifyBasketAsync(request);
+
             basketDetailView.BasketSummary = new BasketSummaryView
             {
                 BasketTotal = response.Basket.BasketTotal,
@@ -108,15 +116,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddToBasket(int productId)
+        public async Task<IActionResult> AddToBasket(int productId)
         {
-            BasketSummaryView basketSummaryView = new BasketSummaryView();
-            Guid basketId = GetBasketId();
-            bool createNewBasket = basketId == Guid.Empty;
+            var basketSummaryView = new BasketSummaryView();
+            var basketId = await GetBasketIdAsync();
+            var createNewBasket = basketId == Guid.Empty;
 
             if (!createNewBasket)
             {
-                ModifyBasketRequest modifyBasketRequest = new ModifyBasketRequest();
+                var modifyBasketRequest = new ModifyBasketRequest();
 
                 modifyBasketRequest.ProductsToAdd.Add(productId);
 
@@ -124,7 +132,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 
                 try
                 {
-                    ModifyBasketResponse response = _basketService.ModifyBasket(modifyBasketRequest);
+                    var response = await _basketService.ModifyBasketAsync(modifyBasketRequest);
+
                     basketSummaryView = response.Basket.ConvertToSummary();
                 }
                 catch (BasketDoesNotExistException)
@@ -135,14 +144,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             if (createNewBasket)
             {
-                CreateBasketRequest createBasketRequest = new CreateBasketRequest
+                var createBasketRequest = new CreateBasketRequest
                 {
                     CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
                 };
 
                 createBasketRequest.ProductsToAdd.Add(productId);
 
-                CreateBasketResponse response = _basketService.CreateBasket(createBasketRequest);
+                var response = await _basketService.CreateBasketAsync(createBasketRequest);
+
                 basketSummaryView = response.Basket.ConvertToSummary();
             }
 

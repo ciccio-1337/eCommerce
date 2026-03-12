@@ -40,7 +40,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
             return BuildAuthenticationState(token);
         }
 
-        public async Task Login(string token)
+        public async Task LoginAsync(string token)
         {
             await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _tokenkey, token);
 
@@ -49,7 +49,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
             NotifyAuthenticationStateChanged(Task.FromResult(authState));
         }
 
-        public async Task Logout()
+        public async Task LogoutAsync()
         {
             _httpClient.DefaultRequestHeaders.Authorization = null;
 

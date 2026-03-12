@@ -14,10 +14,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using System.Transactions;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
+using eCommerce.Storefront.Repository.EntityFrameworkCore;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -31,18 +31,21 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IEntityService<Customer, long> _customerService;
+        private readonly ShopDataContext _shopDataContext;
 
         public AccountsController(UserManager<IdentityUser> userManager,
-                                  IEmailService emailService,
-                                  SignInManager<IdentityUser> signInManager,
-                                  IConfiguration configuration,
-                                  IEntityService<Customer, long> customerService)
+            IEmailService emailService,
+            SignInManager<IdentityUser> signInManager,
+            IConfiguration configuration,
+            IEntityService<Customer, long> customerService,
+            ShopDataContext shopDataContext)
         {
             _userManager = userManager;
             _emailService = emailService;
             _signInManager = signInManager;
             _configuration = configuration;
             _customerService = customerService;
+            _shopDataContext = shopDataContext;
         }
 
         [HttpGet]
@@ -50,7 +53,13 @@ namespace eCommerce.Backoffice.Server.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<RegisterRequest>>> GetAccounts()
         {
-            return await _userManager.Users.AsNoTracking().Select(u => new RegisterRequest { Id = u.Id, Email = u.Email, Password = u.PasswordHash, ConfirmPassword = u.PasswordHash }).ToListAsync();
+            return await _userManager.Users.AsNoTracking().Select(u => new RegisterRequest 
+            { 
+                Id = u.Id, 
+                Email = u.Email, 
+                Password = u.PasswordHash, 
+                ConfirmPassword = u.PasswordHash 
+            }).ToListAsync();
         }
 
         [HttpPost]
@@ -82,7 +91,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             {
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
 
-                _emailService.SendMail(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
+                _ = _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
             }
             else 
             {
@@ -90,13 +99,24 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 if (!result.Succeeded)
                 {
-                    return Ok(new RegisterResponse { IsSuccess = false, Errors = result.Errors.Select(x => x.Description) });
+                    return Ok(new RegisterResponse 
+                    { 
+                        IsSuccess = false, 
+                        Errors = result.Errors.Select(x => x.Description) 
+                    });
                 }
 
-                return Ok(new RegisterResponse { IsSuccess = true, EmailConfirmed = true });
+                return Ok(new RegisterResponse 
+                { 
+                    IsSuccess = true, 
+                    EmailConfirmed = true 
+                    });
             }
 
-            return Ok(new RegisterResponse { IsSuccess = true });
+            return Ok(new RegisterResponse 
+            { 
+                IsSuccess = true 
+            });
         }
 
         [HttpPut("{id}/[action]")]
@@ -146,7 +166,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 var code = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
 
-                _emailService.SendMail(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
+                _ = _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
 
                 response.IsSuccess = true;
             }
@@ -235,31 +255,30 @@ namespace eCommerce.Backoffice.Server.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> DeleteAccount(string id)
         {
-            using (TransactionScope transactionScope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
+            await _shopDataContext.Database.BeginTransactionAsync();
+
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null)
             {
-                var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id);
+                return NotFound();
+            }
 
-                if (user == null)
+            await _userManager.DeleteAsync(user);
+            
+            var customers = _customerService.Get(c => c.UserId.Equals(id));
+
+            if (customers?.Count() > 0) 
+            {
+                foreach (var customer in customers)
                 {
-                    return NotFound();
+                    await _customerService.DeleteAsync(customer.Id);
                 }
+            }
 
-                await _userManager.DeleteAsync(user);
-                
-                var customers = _customerService.Get(c => c.UserId.Equals(id));
+            await _shopDataContext.Database.CommitTransactionAsync();
 
-                if (customers?.Count() > 0) 
-                {
-                    foreach (var customer in customers)
-                    {
-                        _customerService.Delete(customer.Id);
-                    }
-                }
-
-                transactionScope.Complete();
-
-                return NoContent();
-            } 
+            return NoContent();
         }
     }
 }

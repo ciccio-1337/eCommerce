@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -36,24 +37,33 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public ActionResult<BrandDto> GetBrand(int id)
+        public async Task<ActionResult<BrandDto>> GetBrand(int id)
         {
-            var brand = _brandService.Get(id);
+            var brand = await _brandService.GetAsync(id);
 
             if (brand == null)
             { 
                 return NotFound();
             }
 
-            return new BrandDto { Id = brand.Id, Name = brand.Name };
+            return new BrandDto 
+            { 
+                Id = brand.Id, 
+                Name = brand.Name 
+            };
         }
 
         [HttpPost]
-        public ActionResult<BrandDto> CreateBrand(BrandDto brand)
+        public async Task<ActionResult<BrandDto>> CreateBrand(BrandDto brand)
         {
             try
             {
-                var b = _brandService.Create(new Brand { Id = brand.Id, Name = brand.Name });
+                var b = await _brandService.CreateAsync(new Brand 
+                { 
+                    Id = brand.Id, 
+                    Name = brand.Name 
+                });
+
                 brand.Id = b.Id;
             }
             catch (DbUpdateException ex)
@@ -72,7 +82,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateBrand(int id, BrandDto brand)
+        public async Task<IActionResult> UpdateBrand(int id, BrandDto brand)
         {
             if (id != brand.Id)
             {
@@ -81,7 +91,11 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                _brandService.Modify(new Brand { Id = brand.Id, Name = brand.Name });
+                await _brandService.ModifyAsync(new Brand 
+                { 
+                    Id = brand.Id, 
+                    Name = brand.Name 
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -103,11 +117,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteBrand(int id)
+        public async Task<IActionResult> DeleteBrand(int id)
         {            
             try
             {
-                _brandService.Delete(id);
+                await _brandService.DeleteAsync(id);
             }
             catch (DbUpdateException ex)
             {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model.Products;
@@ -36,9 +37,9 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public ActionResult<ProductSizeDto> GetSize(int id)
+        public async Task<ActionResult<ProductSizeDto>> GetSize(int id)
         {
-            var productSize = _sizeService.Get(id);
+            var productSize = await _sizeService.GetAsync(id);
 
             if (productSize == null)
             { 
@@ -49,11 +50,12 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost]
-        public ActionResult<ProductSizeDto> CreateSize(ProductSizeDto size)
+        public async Task<ActionResult<ProductSizeDto>> CreateSize(ProductSizeDto size)
         {
             try
             {
-                var productSize = _sizeService.Create(new ProductSize { Id = size.Id, Name = size.Name });
+                var productSize = await _sizeService.CreateAsync(new ProductSize { Id = size.Id, Name = size.Name });
+
                 size.Id = productSize.Id;
             }
             catch (DbUpdateException ex)
@@ -72,7 +74,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateSize(int id, ProductSizeDto size)
+        public async Task<IActionResult> UpdateSize(int id, ProductSizeDto size)
         {
             if (id != size.Id)
             {
@@ -81,7 +83,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                _sizeService.Modify(new ProductSize { Id = size.Id, Name = size.Name });
+                await _sizeService.ModifyAsync(new ProductSize { Id = size.Id, Name = size.Name });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -103,11 +105,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteSize(int id)
+        public async Task<IActionResult> DeleteSize(int id)
         {
             try
             {
-                _sizeService.Delete(id);
+                await _sizeService.DeleteAsync(id);
             }
             catch (DbUpdateException ex)
             {

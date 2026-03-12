@@ -7,7 +7,7 @@
 <div class="row">
     <div class="col-12">
         <h2>Login</h2>
-        <EditForm Model="model" OnValidSubmit="UserLogin">
+        <EditForm Model="model" OnValidSubmit="UserLoginAsync">
             <RadzenCard>
                 <div class="row">
                     <div class="col-md-12">
@@ -51,17 +51,17 @@
     {
         if (firstRender)
         {
-            await loginService.Logout();
+            await loginService.LogoutAsync();
         }
     }
 
-    public async Task UserLogin()
+    public async Task UserLoginAsync()
     {
         loginResponse = await (await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model))?.Content?.ReadFromJsonAsync<LoginResponse>();
 
         if (loginResponse.IsSuccess)
         {
-            await loginService.Login(loginResponse.Token);
+            await loginService.LoginAsync(loginResponse.Token);
             navManager.NavigateTo("/admin");
         }
     }

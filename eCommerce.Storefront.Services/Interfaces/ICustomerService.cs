@@ -1,13 +1,14 @@
+using System.Threading.Tasks;
 using eCommerce.Storefront.Services.Messaging.CustomerService;
 
 namespace eCommerce.Storefront.Services.Interfaces
 {
     public interface ICustomerService
     {
-        CreateCustomerResponse CreateCustomer(CreateCustomerRequest request);
-        GetCustomerResponse GetCustomer(GetCustomerRequest request);
-        ModifyCustomerResponse ModifyCustomer(ModifyCustomerRequest request);
-        DeliveryAddressModifyResponse ModifyDeliveryAddress(DeliveryAddressModifyRequest request);
-        DeliveryAddressAddResponse AddDeliveryAddress(DeliveryAddressAddRequest request);
+        Task<CreateCustomerResponse> CreateCustomerAsync(CreateCustomerRequest request);
+        Task<GetCustomerResponse> GetCustomerAsync(GetCustomerRequest request);
+        Task<ModifyCustomerResponse> ModifyCustomerAsync(ModifyCustomerRequest request);
+        Task<DeliveryAddressModifyResponse> ModifyDeliveryAddressAsync(DeliveryAddressModifyRequest request);
+        Task<DeliveryAddressAddResponse> AddDeliveryAddressAsync(DeliveryAddressAddRequest request);
     }
 }

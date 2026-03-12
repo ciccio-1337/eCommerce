@@ -3,7 +3,7 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
-<Grid Model="model" Title="Accounts" ElementsType="RegisterRequest" OnCreate="@(() => NavigationManager.NavigateTo("/admin/account/register"))" CanEdit="false" OnDelete="@((item) => DeleteAccount(item as RegisterRequest))" />
+<Grid Model="model" Title="Accounts" ElementsType="RegisterRequest" OnCreate="@(() => NavigationManager.NavigateTo("/admin/account/register"))" CanEdit="false" OnDelete="@((item) => DeleteAccountAsync(item as RegisterRequest))" />
 
 @code {
     string route = "api/accounts";
@@ -20,15 +20,16 @@
         };
     }
 
-    async Task DeleteAccount(RegisterRequest item)
+    async Task DeleteAccountAsync(RegisterRequest item)
     {
-        HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
+        var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
 
         if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
         {                
             model.Rows.Remove(item);
 
             var rows = model.Rows.ToList();
+            
             model = new GridModel<RegisterRequest>
             {
                 Rows = rows,

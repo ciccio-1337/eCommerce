@@ -9,7 +9,7 @@
     <div class="col-4">
         @if (roleResponses?.Count > 0)
         {
-            <RadzenListBox @bind-Value="@value" Data="@roleResponses" Style="width:100%;min-height:200px;" TextProperty="Name" ValueProperty="Id" Change="@(args => Selected(args))" />
+            <RadzenListBox @bind-Value="@value" Data="@roleResponses" Style="width:100%;min-height:200px;" TextProperty="Name" ValueProperty="Id" Change="@(args => SelectedAsync(args))" />
         }
         else
         {
@@ -21,7 +21,7 @@
     @if (model != null)
     {
         <div class="col-4">
-            <EditForm Model="model" OnValidSubmit="SaveRole">
+            <EditForm Model="model" OnValidSubmit="SaveRoleAsync">
                 <RadzenCard>
                     <div class="row">
                         <div class="col-md-12">
@@ -37,22 +37,22 @@
                     <Alert Title="Attention" ErrorList="editRoleResponse?.Errors" />
                     <div class="row row-cols-2">
                         <RadzenButton ButtonType="Radzen.ButtonType.Submit" Text="@buttonTitle" Icon="save" ButtonStyle="Radzen.ButtonStyle.Info" class="mr-2 col ml-3"></RadzenButton>
-                        <RadzenButton ButtonType="Radzen.ButtonType.Button" Click="DeleteRole" Text="Delete" Icon="delete" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-3 col"></RadzenButton>
+                        <RadzenButton ButtonType="Radzen.ButtonType.Button" Click="DeleteRoleAsync" Text="Delete" Icon="delete" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-3 col"></RadzenButton>
                     </div>
                 </RadzenCard>
             </EditForm>
 
-            @if (roleUserResponse != null && roleUserResponse.Any(x => x.OnRule)) 
+            @if (roleUserResponse != null && roleUserResponse.Any(x => x.InRole)) 
             {
                 <h4 class="mt-3">Users in role</h4>
-                <RadzenDataList Data="@roleUserResponse.Where(x => x.OnRule)" TItem="RoleUserResponse">
+                <RadzenDataList Data="@roleUserResponse.Where(x => x.InRole)" TItem="RoleUserResponse">
                     <Template Context="roleUser">
                         <div class="row">
                             <div class="col-10 mt-2">
                                 @roleUser.Name
                             </div>
                             <div class="col-2">
-                                <RadzenButton Icon="delete" Click="@((args) => RemoveRoleUser(roleUser.Id))" />
+                                <RadzenButton Icon="delete" Click="@((args) => RemoveRoleUserAsync(roleUser.Id))" />
                             </div>
                         </div>
                     </Template>
@@ -60,7 +60,7 @@
             }
         </div>
         <div class="col-4">
-            <EditForm Model="model" OnValidSubmit="SaveRoleUser">
+            <EditForm Model="model" OnValidSubmit="SaveRoleUserAsync">
                 <RadzenCard>
                     <div class="row">
                         <div class="col-md-12">
@@ -94,7 +94,7 @@
         StateHasChanged();
     }
 
-    async Task Selected(object value)
+    async Task SelectedAsync(object value)
     {
         buttonTitle = "Save";
         model = new EditRoleRequest
@@ -116,7 +116,7 @@
         StateHasChanged();
     }
 
-    public async Task SaveRole()
+    public async Task SaveRoleAsync()
     {
         if (string.IsNullOrEmpty(model.Id))
         {
@@ -146,9 +146,9 @@
         }
     }
 
-    public async Task SaveRoleUser()
+    public async Task SaveRoleUserAsync()
     {
-        bool isSuccess = false;
+        var isSuccess = false;
 
         if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(userId))
         {
@@ -163,9 +163,9 @@
         }
     }
 
-    public async Task RemoveRoleUser(string id)
+    public async Task RemoveRoleUserAsync(string id)
     {
-        bool isSuccess = false;
+        var isSuccess = false;
 
         if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(id))
         {
@@ -180,7 +180,7 @@
         }
     }
 
-    public async Task DeleteRole()
+    public async Task DeleteRoleAsync()
     {
         if (!string.IsNullOrEmpty(model.Id))
         {

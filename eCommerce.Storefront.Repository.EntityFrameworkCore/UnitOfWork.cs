@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore
 {
     public class UnitOfWork : IUnitOfWork
@@ -9,9 +11,9 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore
             _dataContext = dataContext;
         }
 
-        public void Commit()
+        public async Task CommitAsync()
         {
-            _dataContext.SaveChanges();
+            await _dataContext.SaveChangesAsync();
         }
     }
 }

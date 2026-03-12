@@ -9,6 +9,7 @@ using eCommerce.Storefront.Services.ViewModels;
 using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
@@ -19,18 +20,18 @@ namespace eCommerce.Storefront.Services.Implementations
         private readonly IMapper _mapper;
 
         public CustomerService(ICustomerRepository customerRepository,
-                               IUnitOfWork uow,
-                               IMapper mapper)
+            IUnitOfWork uow,
+            IMapper mapper)
         {
             _customerRepository = customerRepository;
             _uow = uow;
             _mapper = mapper;
         }
 
-        public CreateCustomerResponse CreateCustomer(CreateCustomerRequest request)
+        public async Task<CreateCustomerResponse> CreateCustomerAsync(CreateCustomerRequest request)
         {
-            CreateCustomerResponse response = new CreateCustomerResponse();
-            Customer customer = new Customer
+            var response = new CreateCustomerResponse();
+            var customer = new Customer
             {
                 UserId = request.UserId,
                 Email = request.Email,
@@ -39,18 +40,18 @@ namespace eCommerce.Storefront.Services.Implementations
             };
 
             customer.ThrowExceptionIfInvalid();
-            _customerRepository.Add(customer);
-            _uow.Commit();
+            await _customerRepository.AddAsync(customer);
+            await _uow.CommitAsync();
 
             response.Customer = _mapper.Map<Customer, CustomerView>(customer);
 
             return response;
         }
 
-        public GetCustomerResponse GetCustomer(GetCustomerRequest request)
+        public async Task<GetCustomerResponse> GetCustomerAsync(GetCustomerRequest request)
         {
-            GetCustomerResponse response = new GetCustomerResponse();
-            Customer customer = _customerRepository.FindBy(request.CustomerEmail);
+            var response = new GetCustomerResponse();
+            var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
 
             if (customer != null)
             {
@@ -76,35 +77,36 @@ namespace eCommerce.Storefront.Services.Implementations
             return response;
         }
 
-        public ModifyCustomerResponse ModifyCustomer(ModifyCustomerRequest request)
+        public async Task<ModifyCustomerResponse> ModifyCustomerAsync(ModifyCustomerRequest request)
         {
-            ModifyCustomerResponse response = new ModifyCustomerResponse();
-            Customer customer = _customerRepository.FindBy(request.CurrentEmail);
+            var response = new ModifyCustomerResponse();
+            var customer = await _customerRepository.FindByAsync(request.CurrentEmail);
+
             customer.FirstName = request.FirstName;
             customer.SecondName = request.SecondName;
             customer.Email = request.NewEmail;
 
             customer.ThrowExceptionIfInvalid();
             _customerRepository.Save(customer);
-            _customerRepository.SaveEmail(customer.UserId, customer.Email);
-            _uow.Commit();
+            await _customerRepository.SaveEmailAsync(customer.UserId, customer.Email);
+            await _uow.CommitAsync();
 
             response.Customer = _mapper.Map<Customer, CustomerView>(customer);
 
             return response;
         }
 
-        public DeliveryAddressModifyResponse ModifyDeliveryAddress(DeliveryAddressModifyRequest request)
+        public async Task<DeliveryAddressModifyResponse> ModifyDeliveryAddressAsync(DeliveryAddressModifyRequest request)
         {
-            DeliveryAddressModifyResponse response = new DeliveryAddressModifyResponse();
-            Customer customer = _customerRepository.FindBy(request.CustomerEmail);
-            DeliveryAddress deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id);
+            var response = new DeliveryAddressModifyResponse();
+            var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
+            var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id);
 
             if (deliveryAddress != null)
             {
                 UpdateDeliveryAddressFrom(request.Address, deliveryAddress);
                 _customerRepository.Save(customer);
-                _uow.Commit();
+                await _uow.CommitAsync();
             }
 
             response.DeliveryAddress = _mapper.Map<DeliveryAddress, DeliveryAddressView>(deliveryAddress);
@@ -112,11 +114,11 @@ namespace eCommerce.Storefront.Services.Implementations
             return response;
         }
 
-        public DeliveryAddressAddResponse AddDeliveryAddress(DeliveryAddressAddRequest request)
+        public async Task<DeliveryAddressAddResponse> AddDeliveryAddressAsync(DeliveryAddressAddRequest request)
         {
-            DeliveryAddressAddResponse response = new DeliveryAddressAddResponse();
-            Customer customer = _customerRepository.FindBy(request.CustomerEmail);
-            DeliveryAddress deliveryAddress = new DeliveryAddress
+            var response = new DeliveryAddressAddResponse();
+            var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
+            var deliveryAddress = new DeliveryAddress
             {
                 Customer = customer
             };
@@ -124,7 +126,7 @@ namespace eCommerce.Storefront.Services.Implementations
             UpdateDeliveryAddressFrom(request.Address, deliveryAddress);
             customer.AddAddress(deliveryAddress);
             _customerRepository.Save(customer);
-            _uow.Commit();
+            await _uow.CommitAsync();
 
             response.DeliveryAddress = _mapper.Map<DeliveryAddress, DeliveryAddressView>(deliveryAddress);
 

@@ -5,7 +5,7 @@
 
 <Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
 
-<Details Title="Brand" TItem="BrandDto" Item="brand" CanDelete="@(brand?.Id > 0)" OnSave="@((item) => SaveBrand(item as BrandDto))" OnDelete="@((item) => DeleteBrand(item as BrandDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/brand/list"))">       
+<Details Title="Brand" TItem="BrandDto" Item="brand" CanDelete="@(brand?.Id > 0)" OnSave="@((item) => SaveBrandAsync(item as BrandDto))" OnDelete="@((item) => DeleteBrandAsync(item as BrandDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/brand/list"))">       
     <FormFields Context="brand">
         <div class="row">
             <div class="col-md-12">
@@ -39,7 +39,7 @@
         }
     }
 
-    async Task SaveBrand(BrandDto item)
+    async Task SaveBrandAsync(BrandDto item)
     {
         if (item != null)
         {
@@ -72,7 +72,7 @@
         } 
     }
 
-    async Task DeleteBrand(BrandDto item)
+    async Task DeleteBrandAsync(BrandDto item)
     {
         if (item != null && item.Id > 0)
         {

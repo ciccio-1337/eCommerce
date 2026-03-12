@@ -5,7 +5,7 @@
 
 <Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
 
-<Details Title="Color" TItem="ProductColorDto" Item="color" CanDelete="@(color?.Id > 0)" OnSave="@((item) => SaveColor(item as ProductColorDto))" OnDelete="@((item) => DeleteColor(item as ProductColorDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/color/list"))">       
+<Details Title="Color" TItem="ProductColorDto" Item="color" CanDelete="@(color?.Id > 0)" OnSave="@((item) => SaveColorAsync(item as ProductColorDto))" OnDelete="@((item) => DeleteColorAsync(item as ProductColorDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/color/list"))">       
     <FormFields Context="color">
         <div class="row">
             <div class="col-md-12">
@@ -39,7 +39,7 @@
         }
     }
 
-    async Task SaveColor(ProductColorDto item)
+    async Task SaveColorAsync(ProductColorDto item)
     {
         if (item != null)
         {
@@ -58,7 +58,7 @@
             }
             else 
             {
-                HttpResponseMessage httpResponseMessage = await HttpClient.PostAsJsonAsync<ProductColorDto>(route, item);
+                var httpResponseMessage = await HttpClient.PostAsJsonAsync<ProductColorDto>(route, item);
 
                 if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
                 {
@@ -72,11 +72,11 @@
         } 
     }
 
-    async Task DeleteColor(ProductColorDto item)
+    async Task DeleteColorAsync(ProductColorDto item)
     {
         if (item != null && item.Id > 0)
         {
-            HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
+            var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
 
             if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
             {

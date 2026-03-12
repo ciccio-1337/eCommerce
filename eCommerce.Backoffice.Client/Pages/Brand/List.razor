@@ -3,7 +3,7 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
-<Grid Model="model" Title="Brands" ElementsType="BrandDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/brand/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/brand/detail/{(item as BrandDto)?.Id}"))" OnDelete="@((item) => DeleteBrand(item as BrandDto))" />
+<Grid Model="model" Title="Brands" ElementsType="BrandDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/brand/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/brand/detail/{(item as BrandDto)?.Id}"))" OnDelete="@((item) => DeleteBrandAsync(item as BrandDto))" />
 
 @code {
     string route = "api/brands";
@@ -20,15 +20,16 @@
         };
     }
 
-    async Task DeleteBrand(BrandDto item)
+    async Task DeleteBrandAsync(BrandDto item)
     {
-        HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
+        var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
 
         if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
         {                
             model.Rows.Remove(item);
 
             var rows = model.Rows.ToList();
+            
             model = new GridModel<BrandDto>
             {
                 Rows = rows,

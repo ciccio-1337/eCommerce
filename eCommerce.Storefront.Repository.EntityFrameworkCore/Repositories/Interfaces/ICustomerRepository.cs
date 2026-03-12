@@ -1,10 +1,11 @@
+using System.Threading.Tasks;
 using eCommerce.Storefront.Model.Customers;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces
 {
     public interface ICustomerRepository : IRepository<Customer, long>
     {
-        Customer FindBy(string email);
-        void SaveEmail(string userId, string email);
+        Task<Customer> FindByAsync(string email);
+        Task SaveEmailAsync(string userId, string email);
     }
 }

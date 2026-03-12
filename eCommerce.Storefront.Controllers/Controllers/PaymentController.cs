@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using eCommerce.Storefront.Model.Orders;
-using eCommerce.Storefront.Controllers.Models;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -21,10 +20,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly ICookieAuthentication _cookieAuthentication;
 
         public PaymentController(IPaymentService paymentService,
-                                 IOrderService orderService,
-                                 IMapper mapper,
-                                 ILogger<PaymentController> logger,
-                                 ICookieAuthentication cookieAuthentication)
+            IOrderService orderService,
+            IMapper mapper,
+            ILogger<PaymentController> logger,
+            ICookieAuthentication cookieAuthentication)
         {
             _paymentService = paymentService;
             _orderService = orderService;
@@ -37,18 +36,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [IgnoreAntiforgeryToken]
         public async Task PaymentCallBack(IFormCollection collection)
         {
-            int orderId = _paymentService.GetOrderIdFor(collection);
-            GetOrderRequest request = new GetOrderRequest 
+            var orderId = _paymentService.GetOrderIdFor(collection);
+            var request = new GetOrderRequest 
             { 
                 OrderId = orderId 
             };
-            GetOrderResponse response = _orderService.GetOrder(request);
-            OrderPaymentRequest orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
-            TransactionResult transactionResult = await _paymentService.HandleCallBack(orderPaymentRequest, collection);
+            var response = await _orderService.GetOrderAsync(request);
+            var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
+            var transactionResult = await _paymentService.HandleCallBackAsync(orderPaymentRequest, collection);
 
             if (transactionResult.PaymentOk)
             {
-                SetOrderPaymentRequest paymentRequest = new SetOrderPaymentRequest
+                var paymentRequest = new SetOrderPaymentRequest
                 {
                     Amount = transactionResult.Amount,
                     PaymentToken = transactionResult.PaymentToken,
@@ -57,7 +56,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
                 };
 
-                _orderService.SetOrderPayment(paymentRequest);
+                await _orderService.SetOrderPaymentAsync(paymentRequest);
             }
             else
             {
@@ -65,15 +64,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        public IActionResult CreatePaymentFor(int orderId)
+        public async Task<IActionResult> CreatePaymentFor(int orderId)
         {
-            GetOrderRequest request = new GetOrderRequest
+            var request = new GetOrderRequest
             { 
                 OrderId = orderId 
             };
-            GetOrderResponse response = _orderService.GetOrder(request);
-            OrderPaymentRequest orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
-            PaymentPostData paymentPostData = _paymentService.GeneratePostDataFor(orderPaymentRequest);
+            var response = await _orderService.GetOrderAsync(request);
+            var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
+            var paymentPostData = _paymentService.GeneratePostDataFor(orderPaymentRequest);
 
             return View("PaymentPost", paymentPostData);
         }

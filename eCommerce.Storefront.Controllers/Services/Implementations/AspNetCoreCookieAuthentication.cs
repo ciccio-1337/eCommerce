@@ -18,7 +18,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task SetAuthenticationToken(string email, IEnumerable<string> roles)
+        public async Task SetAuthenticationTokenAsync(string email, IEnumerable<string> roles)
         {
             var claims = new List<Claim>
             {
@@ -43,7 +43,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             return _httpContextAccessor?.HttpContext?.User?.Identity?.Name;
         }
 
-        public async Task SignOut()
+        public async Task SignOutAsync()
         {
             await _httpContextAccessor?.HttpContext?.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         }

@@ -20,7 +20,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly UserManager<IdentityUser> _userManager;
 
         public RolesController(RoleManager<IdentityRole> roleManager,
-                               UserManager<IdentityUser> userManager)
+            UserManager<IdentityUser> userManager)
         {
             _roleManager = roleManager;
             _userManager = userManager;
@@ -30,7 +30,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
-            return await _roleManager.Roles.AsNoTracking().Select(x => new RoleDto { Id = x.Id, Name = x.Name }).ToListAsync();
+            return await _roleManager.Roles.AsNoTracking().Select(x => new RoleDto 
+            { 
+                Id = x.Id, 
+                Name = x.Name 
+            }).ToListAsync();
         }
 
         [HttpGet("{id}/users")]
@@ -53,7 +57,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 {
                     Id = user.Id,
                     Name = user.UserName,
-                    OnRule = await _userManager.IsInRoleAsync(user, identityRole.Name)
+                    InRole = await _userManager.IsInRoleAsync(user, identityRole.Name)
                 };
 
                 roleUserResponses.Add(roleUserResponse);

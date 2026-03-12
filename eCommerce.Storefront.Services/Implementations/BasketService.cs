@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using System.Linq;
 using AutoMapper;
 using eCommerce.Storefront.Model.Basket;
-using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Model.Shipping;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
-using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
@@ -23,11 +23,11 @@ namespace eCommerce.Storefront.Services.Implementations
         private readonly ICustomerRepository _customerRepository;
 
         public BasketService(IBasketRepository basketRepository,
-                             IProductRepository productRepository,
-                             IDeliveryOptionRepository deliveryOptionRepository,
-                             IUnitOfWork uow,
-                             IMapper mapper,
-                             ICustomerRepository customerRepository)
+            IProductRepository productRepository,
+            IDeliveryOptionRepository deliveryOptionRepository,
+            IUnitOfWork uow,
+            IMapper mapper,
+            ICustomerRepository customerRepository)
         {
             _basketRepository = basketRepository;
             _productRepository = productRepository;
@@ -37,11 +37,12 @@ namespace eCommerce.Storefront.Services.Implementations
             _customerRepository = customerRepository;
         }
         
-        public GetBasketResponse GetBasket(GetBasketRequest basketRequest)
+        public async Task<GetBasketResponse> GetBasketAsync(GetBasketRequest basketRequest)
         {
-            GetBasketResponse response = new GetBasketResponse();
-            Basket basket = _basketRepository.FindBy(basketRequest.BasketId);
-            BasketView basketView = null;
+            var response = new GetBasketResponse();
+            var basket = await _basketRepository.FindByAsync(basketRequest.BasketId);
+
+            BasketView basketView;
             
             if (basket != null)
             {
@@ -57,68 +58,69 @@ namespace eCommerce.Storefront.Services.Implementations
             return response;
         }
 
-        public CreateBasketResponse CreateBasket(CreateBasketRequest basketRequest)
+        public async Task<CreateBasketResponse> CreateBasketAsync(CreateBasketRequest basketRequest)
         {
-            CreateBasketResponse response = new CreateBasketResponse();
-            Basket basket = new Basket();
-            Customer customer = _customerRepository.FindBy(basketRequest.CustomerEmail);
+            var response = new CreateBasketResponse();
+            var basket = new Basket();
+            var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail);
+
             customer.Email = basketRequest.CustomerEmail;
 
-            basket.SetDeliveryOption(GetCheapestDeliveryOption());
-            AddProductsToBasket(basketRequest.ProductsToAdd, basket);
+            basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
+            await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
             basket.SetCustomer(customer);
             basket.ThrowExceptionIfInvalid();
             _basketRepository.Save(basket);
             customer.AddBasket(basket);
             customer.ThrowExceptionIfInvalid();
             _customerRepository.Save(customer);
-            _uow.Commit();
+            await _uow.CommitAsync();
             
             response.Basket = _mapper.Map<Basket, BasketView>(basket);
             
             return response;
         }
         
-        private DeliveryOption GetCheapestDeliveryOption()
+        private async Task<DeliveryOption> GetCheapestDeliveryOptionAsync()
         {
-            return _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).FirstOrDefault();
+            return await _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).FirstOrDefaultAsync();
         }
 
-        public ModifyBasketResponse ModifyBasket(ModifyBasketRequest request)
+        public async Task<ModifyBasketResponse> ModifyBasketAsync(ModifyBasketRequest request)
         {
-            ModifyBasketResponse response = new ModifyBasketResponse();
-            Basket basket = _basketRepository.FindBy(request.BasketId);
+            var response = new ModifyBasketResponse();
+            var basket = await _basketRepository.FindByAsync(request.BasketId);
 
             if (basket == null)
             {
                 throw new BasketDoesNotExistException();
             }
             
-            AddProductsToBasket(request.ProductsToAdd, basket);
-            UpdateLineQtys(request.ItemsToUpdate, basket);
-            RemoveItemsFromBasket(request.ItemsToRemove, basket);
+            await AddProductsToBasketAsync(request.ProductsToAdd, basket);
+            await UpdateLineQtysAsync(request.ItemsToUpdate, basket);
+            await RemoveItemsFromBasketAsync(request.ItemsToRemove, basket);
             
             if (request.SetShippingServiceIdTo != 0)
             {
-                DeliveryOption deliveryOption =_deliveryOptionRepository.FindBy(request.SetShippingServiceIdTo);
+                var deliveryOption =await _deliveryOptionRepository.FindByAsync(request.SetShippingServiceIdTo);
                 
                 basket.SetDeliveryOption(deliveryOption);
             }
 
             basket.ThrowExceptionIfInvalid();
             _basketRepository.Save(basket);
-            _uow.Commit();
+            await _uow.CommitAsync();
 
             response.Basket = _mapper.Map<Basket, BasketView>(basket);
             
             return response;
         }
         
-        private void RemoveItemsFromBasket(IList<long> productsToRemove, Basket basket)
+        private async Task RemoveItemsFromBasketAsync(IList<long> productsToRemove, Basket basket)
         {
             foreach (int productId in productsToRemove)
             {
-                Product product = _productRepository.FindBy(productId);
+                var product = await _productRepository.FindByAsync(productId);
 
                 if (product != null)
                 {
@@ -127,11 +129,11 @@ namespace eCommerce.Storefront.Services.Implementations
             }
         }
 
-        private void UpdateLineQtys(IList<ProductQtyUpdateRequest> productQtyUpdateRequests, Basket basket)
+        private async Task UpdateLineQtysAsync(IList<ProductQtyUpdateRequest> productQtyUpdateRequests, Basket basket)
         {
             foreach (ProductQtyUpdateRequest productQtyUpdateRequest in productQtyUpdateRequests)
             {
-                Product product = _productRepository.FindBy(productQtyUpdateRequest.ProductId);
+                var product = await _productRepository.FindByAsync(productQtyUpdateRequest.ProductId);
                 
                 if (product != null)
                 {
@@ -140,15 +142,13 @@ namespace eCommerce.Storefront.Services.Implementations
             }
         }
 
-        private void AddProductsToBasket(IList<long> productsToAdd, Basket basket)
+        private async Task AddProductsToBasketAsync(IList<long> productsToAdd, Basket basket)
         {
-            Product product = null;
-
             if (productsToAdd.Any())
             {
                 foreach (int productId in productsToAdd)
                 {
-                    product = _productRepository.FindBy(productId);
+                    var product = await _productRepository.FindByAsync(productId);
 
                     basket.Add(product);
                 }
@@ -157,7 +157,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
         public GetAllDispatchOptionsResponse GetAllDispatchOptions()
         {
-            GetAllDispatchOptionsResponse response = new GetAllDispatchOptionsResponse
+            var response = new GetAllDispatchOptionsResponse
             {
                 DeliveryOptions = _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).Select(d => _mapper.Map<DeliveryOption, DeliveryOptionView>(d))
             };

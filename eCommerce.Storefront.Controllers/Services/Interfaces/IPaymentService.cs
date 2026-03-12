@@ -8,7 +8,7 @@ namespace eCommerce.Storefront.Controllers.Services.Interfaces
     public interface IPaymentService
     {
         PaymentPostData GeneratePostDataFor(OrderPaymentRequest orderRequest);
-        Task<TransactionResult> HandleCallBack(OrderPaymentRequest orderRequest, IFormCollection collection);
+        Task<TransactionResult> HandleCallBackAsync(OrderPaymentRequest orderRequest, IFormCollection collection);
         int GetOrderIdFor(IFormCollection collection);
     }
 }

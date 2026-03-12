@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Specialized;
-using System.IO;
-using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Models;
@@ -16,18 +15,22 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
 
         public PayPalPaymentService(IHttpContextAccessor httpContextAccessor, 
-                                    IConfiguration configuration)
+            IConfiguration configuration,
+            HttpClient httpClient)
         {
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
+            _httpClient = httpClient;
         }
 
         public PaymentPostData GeneratePostDataFor(OrderPaymentRequest orderRequest)
         {
-            PaymentPostData paymentPostData = new PaymentPostData();
-            NameValueCollection postDataAndValue = new NameValueCollection();
+            var paymentPostData = new PaymentPostData();
+            var postDataAndValue = new NameValueCollection();
+
             paymentPostData.PostDataAndValue = postDataAndValue;
             // When a real PayPal account is used, the form should be sent to 
             // https://www.paypal.com/cgi-bin/webscr.
@@ -86,18 +89,17 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             return paymentPostData;
         }
 
-        public async Task<TransactionResult> HandleCallBack(OrderPaymentRequest orderRequest, IFormCollection collection)
+        public async Task<TransactionResult> HandleCallBackAsync(OrderPaymentRequest orderRequest, IFormCollection collection)
         {
-            TransactionResult transactionResult = new TransactionResult();
-            string response = await ValidatePaymentNotification(collection);
+            var transactionResult = new TransactionResult();
+            var response = await ValidatePaymentNotificationAsync(collection);
 
             if (response == "VERIFIED")
             {
-                string sAmountPaid = collection["mc_gross"];
-                string transactionId = collection["txn_id"];
-                decimal amountPaid = 0;
+                var sAmountPaid = collection["mc_gross"];
+                var transactionId = collection["txn_id"];
 
-                decimal.TryParse(sAmountPaid, out amountPaid);
+                decimal.TryParse(sAmountPaid, out var amountPaid);
 
                 if (orderRequest.Total == amountPaid)
                 {
@@ -118,25 +120,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             return transactionResult;
         }
 
-        private async Task<string> ValidatePaymentNotification(IFormCollection formCollection)
+        private async Task<string> ValidatePaymentNotificationAsync(IFormCollection formCollection)
         {
-            string paypalUrl = _configuration["PayPalPaymentPostToUrl"];
-            #pragma warning disable
-            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(paypalUrl);
-            // Set values for the request back
-            req.Method = "POST";
-            req.ContentType = "application/x-www-form-urlencoded";
-            
-            using (MemoryStream memoryStream = new MemoryStream(Convert.ToInt32(_httpContextAccessor?.HttpContext?.Request?.ContentLength)))
-            {
-                await _httpContextAccessor?.HttpContext?.Request?.Body.CopyToAsync(memoryStream);
-            }
-            
-            StringBuilder postFormData = new StringBuilder();
+            var paypalUrl = _configuration["PayPalPaymentPostToUrl"];            
+            var postFormData = new StringBuilder();
 
             foreach (string key in formCollection.Keys)
             {
-                postFormData.AppendFormat("&{0}={1}", key, formCollection[key]);
+                postFormData.AppendFormat("&{0}={1}", Uri.EscapeDataString(key), Uri.EscapeDataString(formCollection[key]));
             }
 
             if (!formCollection.ContainsKey("cmd"))
@@ -144,22 +135,16 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 postFormData.AppendFormat("&{0}={1}", "cmd", "_notify-validate");
             }
 
-            string strRequest = postFormData.ToString();
-            req.ContentLength = strRequest.Length;
-            string response = string.Empty;
-
-            using (StreamWriter streamOut = new StreamWriter(req.GetRequestStream(), Encoding.ASCII))
+            var strRequest = postFormData.ToString();            
+            var content = new StringContent(strRequest, Encoding.UTF8, "application/x-www-form-urlencoded");
+            var response = await _httpClient.PostAsync(paypalUrl, content);
+            
+            if (response.IsSuccessStatusCode)
             {
-                streamOut.Write(strRequest);
-                streamOut.Close();
-
-                using (StreamReader streamIn = new StreamReader(req.GetResponse().GetResponseStream()))
-                {
-                    response = streamIn.ReadToEnd();
-                }
+                return await response.Content.ReadAsStringAsync();
             }
 
-            return response;
+            return string.Empty;
         }
 
         public int GetOrderIdFor(IFormCollection collection)

@@ -8,7 +8,7 @@
         @if ((registerResponse?.IsSuccess).GetValueOrDefault() == false)
         {
             <h2>Create new account</h2>
-            <EditForm Model="model" OnValidSubmit="RegisterUser">
+            <EditForm Model="model" OnValidSubmit="RegisterUserAsync">
                 <RadzenCard>
                     
                     <div class="row">
@@ -69,7 +69,7 @@
     RegisterRequest model = new RegisterRequest();
     RegisterResponse registerResponse = null;
         
-    public async Task RegisterUser()
+    public async Task RegisterUserAsync()
     {
         registerResponse = await (await HttpClient.PostAsJsonAsync<RegisterRequest>("api/accounts", model))?.Content?.ReadFromJsonAsync<RegisterResponse>();
 

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Controllers.ViewModels;
 using eCommerce.Storefront.Services.Interfaces;
@@ -13,21 +14,21 @@ namespace eCommerce.Storefront.Controllers.Controllers
         protected readonly ICustomerService _customerService;
         
         protected BaseController(ICookieAuthentication cookieAuthentication,
-                                 ICustomerService customerService)
+            ICustomerService customerService)
         {
             _cookieAuthentication = cookieAuthentication;
             _customerService = customerService;
         }
         
-        protected BasketSummaryView GetBasketSummaryView()
+        protected async Task<BasketSummaryView> GetBasketSummaryViewAsync()
         {
-            string basketTotal = string.Empty;
-            int numberOfItems = 0;
+            var basketTotal = string.Empty;
+            var numberOfItems = 0;
             var email = _cookieAuthentication.GetAuthenticationToken();
 
             if (!string.IsNullOrWhiteSpace(email))
             {
-                var response = _customerService.GetCustomer(new GetCustomerRequest
+                var response = await _customerService.GetCustomerAsync(new GetCustomerRequest
                 {
                     CustomerEmail = email,
                     LoadBasketSummary = true
@@ -47,14 +48,14 @@ namespace eCommerce.Storefront.Controllers.Controllers
             };
         }
         
-        protected Guid GetBasketId()
+        protected async Task<Guid> GetBasketIdAsync()
         {
-            Guid basketId = Guid.Empty;            
+            var basketId = Guid.Empty;            
             var email = _cookieAuthentication.GetAuthenticationToken();
 
             if (!string.IsNullOrWhiteSpace(email))
             {
-                var response = _customerService.GetCustomer(new GetCustomerRequest
+                var response = await _customerService.GetCustomerAsync(new GetCustomerRequest
                 {
                     CustomerEmail = email,
                     LoadBasketSummary = true

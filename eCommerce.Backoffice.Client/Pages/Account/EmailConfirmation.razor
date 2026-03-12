@@ -18,8 +18,7 @@
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        EmailConfirmationRequest emailConfirmationRequest = new EmailConfirmationRequest();
-
+        var emailConfirmationRequest = new EmailConfirmationRequest();
         var uri = navManager.ToAbsoluteUri(navManager.Uri);
 
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("userid", out var userid) && QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
@@ -30,7 +29,7 @@
 
         if (!String.IsNullOrEmpty(emailConfirmationRequest.UserId) && !String.IsNullOrEmpty(emailConfirmationRequest.Code))
         {
-            bool IsValid = await (await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest))?.Content?.ReadFromJsonAsync<bool>();
+            var IsValid = await (await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest))?.Content?.ReadFromJsonAsync<bool>();
                 
             if (IsValid)
             {

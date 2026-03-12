@@ -3,7 +3,7 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
-<Grid Model="model" Title="Sizes" ElementsType="ProductSizeDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/size/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/size/detail/{(item as ProductSizeDto)?.Id}"))" OnDelete="@((item) => DeleteSize(item as ProductSizeDto))" />
+<Grid Model="model" Title="Sizes" ElementsType="ProductSizeDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/size/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/size/detail/{(item as ProductSizeDto)?.Id}"))" OnDelete="@((item) => DeleteSizeAsync(item as ProductSizeDto))" />
 
 @code {
     string route = "api/sizes";
@@ -20,15 +20,16 @@
         };
     }
 
-    async Task DeleteSize(ProductSizeDto item)
+    async Task DeleteSizeAsync(ProductSizeDto item)
     {
-        HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
+        var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
 
         if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
         {                
             model.Rows.Remove(item);
 
             var rows = model.Rows.ToList();
+
             model = new GridModel<ProductSizeDto>
             {
                 Rows = rows,

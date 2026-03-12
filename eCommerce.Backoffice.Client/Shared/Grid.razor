@@ -105,6 +105,7 @@ else
             {  
                 var display = properties[col].GetCustomAttributes(typeof(DisplayAttribute), false).FirstOrDefault() as DisplayAttribute;
                 var format = properties[col].GetCustomAttributes(typeof(DisplayFormatAttribute), false).FirstOrDefault() as DisplayFormatAttribute;
+                
                 columns[col] = display == null ? properties[col].Name : display.ShortName;
                 displayFormat[col] = format != null ? format.DataFormatString  : null;
             }

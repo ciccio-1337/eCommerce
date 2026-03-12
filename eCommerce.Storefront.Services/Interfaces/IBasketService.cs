@@ -1,12 +1,13 @@
+using System.Threading.Tasks;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 
 namespace eCommerce.Storefront.Services.Interfaces
 {
     public interface IBasketService
     {
-        GetBasketResponse GetBasket(GetBasketRequest basketRequest);
-        CreateBasketResponse CreateBasket(CreateBasketRequest basketRequest);
-        ModifyBasketResponse ModifyBasket(ModifyBasketRequest request);
+        Task<GetBasketResponse> GetBasketAsync(GetBasketRequest basketRequest);
+        Task<CreateBasketResponse> CreateBasketAsync(CreateBasketRequest basketRequest);
+        Task<ModifyBasketResponse> ModifyBasketAsync(ModifyBasketRequest request);
         GetAllDispatchOptionsResponse GetAllDispatchOptions();
     }
 }

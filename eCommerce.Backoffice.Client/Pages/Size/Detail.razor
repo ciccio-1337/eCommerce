@@ -5,7 +5,7 @@
 
 <Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
 
-<Details Title="Size" TItem="ProductSizeDto" Item="size" CanDelete="@(size?.Id > 0)" OnSave="@((item) => SaveSize(item as ProductSizeDto))" OnDelete="@((item) => DeleteSize(item as ProductSizeDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/size/list"))">       
+<Details Title="Size" TItem="ProductSizeDto" Item="size" CanDelete="@(size?.Id > 0)" OnSave="@((item) => SaveSizeAsync(item as ProductSizeDto))" OnDelete="@((item) => DeleteSizeAsync(item as ProductSizeDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/size/list"))">       
     <FormFields Context="size">
         <div class="row">
             <div class="col-md-12">
@@ -39,13 +39,13 @@
         }
     }
 
-    async Task SaveSize(ProductSizeDto item)
+    async Task SaveSizeAsync(ProductSizeDto item)
     {
         if (item != null)
         {
             if (item.Id > 0)
             {
-                HttpResponseMessage httpResponseMessage = await HttpClient.PutAsJsonAsync<ProductSizeDto>($"{route}/{item.Id}", item);
+                var httpResponseMessage = await HttpClient.PutAsJsonAsync<ProductSizeDto>($"{route}/{item.Id}", item);
 
                 if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
                 {
@@ -58,7 +58,7 @@
             }
             else 
             {
-                HttpResponseMessage httpResponseMessage = await HttpClient.PostAsJsonAsync<ProductSizeDto>(route, item);
+                var httpResponseMessage = await HttpClient.PostAsJsonAsync<ProductSizeDto>(route, item);
 
                 if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
                 {
@@ -72,11 +72,11 @@
         } 
     }
 
-    async Task DeleteSize(ProductSizeDto item)
+    async Task DeleteSizeAsync(ProductSizeDto item)
     {
         if (item != null && item.Id > 0)
         {
-            HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
+            var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
 
             if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
             {

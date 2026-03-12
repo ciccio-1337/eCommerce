@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model.Products;
@@ -21,7 +22,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly ICacheStorage _cacheStorage;
 
         public CategoriesController(IEntityService<Category, long> categoryService,
-                                    ICacheStorage cacheStorage)
+            ICacheStorage cacheStorage)
         {
             _categoryService = categoryService;
             _cacheStorage = cacheStorage;
@@ -40,24 +41,33 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public ActionResult<CategoryDto> GetCategory(int id)
+        public async Task<ActionResult<CategoryDto>> GetCategory(int id)
         {
-            var category = _categoryService.Get(id);
+            var category = await _categoryService.GetAsync(id);
 
             if (category == null)
             { 
                 return NotFound();
             }
 
-            return new CategoryDto { Id = category.Id, Name = category.Name };
+            return new CategoryDto 
+            { 
+                Id = category.Id, 
+                Name = category.Name 
+            };
         }
 
         [HttpPost]
-        public ActionResult<CategoryDto> CreateCategory(CategoryDto category)
+        public async Task<ActionResult<CategoryDto>> CreateCategory(CategoryDto category)
         {
             try
             {
-                var c = _categoryService.Create(new Category { Id = category.Id, Name = category.Name });
+                var c = await _categoryService.CreateAsync(new Category 
+                { 
+                    Id = category.Id, 
+                    Name = category.Name 
+                });
+
                 category.Id = c.Id;
 
                 _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
@@ -78,7 +88,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateCategory(int id, CategoryDto category)
+        public async Task<IActionResult> UpdateCategory(int id, CategoryDto category)
         {
             if (id != category.Id)
             {
@@ -87,7 +97,11 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                _categoryService.Modify(new Category { Id = category.Id, Name = category.Name });
+                await _categoryService.ModifyAsync(new Category 
+                {
+                    Id = category.Id, 
+                    Name = category.Name 
+                });
                 _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
             }
             catch (DbUpdateConcurrencyException)
@@ -110,11 +124,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteCategory(int id)
+        public async Task<IActionResult> DeleteCategory(int id)
         {
             try
             {
-                _categoryService.Delete(id);
+                await _categoryService.DeleteAsync(id);
                 _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
             }
             catch (DbUpdateException ex)

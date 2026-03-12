@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model.Products;
@@ -36,24 +37,33 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public ActionResult<ProductColorDto> GetColor(int id)
+        public async Task<ActionResult<ProductColorDto>> GetColor(int id)
         {
-            var productColor = _colorService.Get(id);
+            var productColor = await _colorService.GetAsync(id);
 
             if (productColor == null)
             { 
                 return NotFound();
             }
 
-            return new ProductColorDto { Id = productColor.Id, Name = productColor.Name };
+            return new ProductColorDto 
+            { 
+                Id = productColor.Id, 
+                Name = productColor.Name 
+            };
         }
 
         [HttpPost]
-        public ActionResult<ProductColorDto> CreateColor(ProductColorDto color)
+        public async Task<ActionResult<ProductColorDto>> CreateColor(ProductColorDto color)
         {
             try
             {
-                var productColor = _colorService.Create(new ProductColor { Id = color.Id, Name = color.Name });
+                var productColor = await _colorService.CreateAsync(new ProductColor 
+                { 
+                    Id = color.Id, 
+                    Name = color.Name 
+                });
+
                 color.Id = productColor.Id;
             }
             catch (DbUpdateException ex)
@@ -72,7 +82,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateColor(int id, ProductColorDto color)
+        public async Task<IActionResult> UpdateColor(int id, ProductColorDto color)
         {
             if (id != color.Id)
             {
@@ -81,7 +91,11 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                _colorService.Modify(new ProductColor { Id = color.Id, Name = color.Name });
+                await _colorService.ModifyAsync(new ProductColor 
+                { 
+                    Id = color.Id, 
+                    Name = color.Name 
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -103,11 +117,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteColor(int id)
+        public async Task<IActionResult> DeleteColor(int id)
         {
             try
             {
-                _colorService.Delete(id);
+                await _colorService.DeleteAsync(id);
             }
             catch (DbUpdateException ex)
             {

@@ -20,7 +20,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             _userManager = userManager;
         }
 
-        public async Task<User> Login(string email, string password)
+        public async Task<User> LoginAsync(string email, string password)
         {
             var user = new User();
             var result = await _signInManager.PasswordSignInAsync(email ?? string.Empty, password ?? string.Empty, false, true);
@@ -28,6 +28,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             if (result.Succeeded)
             {
                 var identityUser = await _userManager.FindByEmailAsync(email);
+
                 user.Id = identityUser.Id;
                 user.Email = email;
                 user.IsAuthenticated = true;
@@ -41,7 +42,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             return user;
         }
 
-        public async Task<User> RegisterUser(string email, string password, bool confirmEmail, IEnumerable<string> roles)
+        public async Task<User> RegisterUserAsync(string email, string password, bool confirmEmail, IEnumerable<string> roles)
         {
             var user = new User();
             var identityUser = new IdentityUser { UserName = email ?? string.Empty, Email = email ?? string.Empty, EmailConfirmed = confirmEmail };

@@ -15,47 +15,47 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IOrderService _orderService;
 
         public OrderController(ICustomerService customerService,
-                               IOrderService orderService,
-                               ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,
-                                                                                  customerService)
+            IOrderService orderService,
+            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,
+                customerService)
         {
             _orderService = orderService;
         }
 
         public async Task<IActionResult> List()
         {
-            GetCustomerRequest request = new GetCustomerRequest
+            var request = new GetCustomerRequest
             {
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken(),
                 LoadOrderSummary = true
             };
-            GetCustomerResponse response = _customerService.GetCustomer(request);
+            var response = await _customerService.GetCustomerAsync(request);
 
             if (response.CustomerFound)
             {
-                CustomersOrderSummaryView customersOrderSummaryView = new CustomersOrderSummaryView
+                var customersOrderSummaryView = new CustomersOrderSummaryView
                 {
                     Orders = response.Orders,
-                    BasketSummary = GetBasketSummaryView()
+                    BasketSummary = await GetBasketSummaryViewAsync()
                 };
 
                 return View(customersOrderSummaryView);
             }
             else 
             {
-                await _cookieAuthentication.SignOut();
+                await _cookieAuthentication.SignOutAsync();
                 
                 return RedirectToAction("Register", "AccountRegister");
             }
         }
         
-        public IActionResult Detail(int orderId)
+        public async Task<IActionResult> Detail(int orderId)
         {
-            GetOrderRequest request = new GetOrderRequest() { OrderId = orderId };
-            GetOrderResponse response = _orderService.GetOrder(request);
-            CustomerOrderView orderView = new CustomerOrderView
+            var request = new GetOrderRequest() { OrderId = orderId };
+            var response = await _orderService.GetOrderAsync(request);
+            var orderView = new CustomerOrderView
             {
-                BasketSummary = GetBasketSummaryView(),
+                BasketSummary = await GetBasketSummaryViewAsync(),
                 Order = response.Order
             };
 

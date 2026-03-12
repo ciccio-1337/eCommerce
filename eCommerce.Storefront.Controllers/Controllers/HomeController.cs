@@ -1,32 +1,33 @@
 using eCommerce.Storefront.Controllers.ViewModels.ProductCatalog;
-using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Services.Cache;
 using eCommerce.Storefront.Controllers.ViewModels;
 using System.Diagnostics;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
     public class HomeController : ProductCatalogBaseController
     {
         public HomeController(ICookieAuthentication cookieAuthentication,
-                              ICustomerService customerService,
-                              ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
-                                                                                               customerService,
-                                                                                               cachedProductCatalogService)
+            ICustomerService customerService,
+            ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
+                customerService,
+                cachedProductCatalogService)
         {
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            HomePageView homePageView = new HomePageView
+            var homePageView = new HomePageView
             {
                 Categories = GetCategories(),
-                BasketSummary = GetBasketSummaryView()
+                BasketSummary = await GetBasketSummaryViewAsync()
             };
-            GetFeaturedProductsResponse response = _cachedProductCatalogService.GetFeaturedProducts();
+            var response = _cachedProductCatalogService.GetFeaturedProducts();
+
             homePageView.Products = response.Products;
             
             return View(homePageView);

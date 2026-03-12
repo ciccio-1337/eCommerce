@@ -5,7 +5,7 @@
 
 <Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
 
-<Details Title="Category" TItem="CategoryDto" Item="category" CanDelete="@(category?.Id > 0)" OnSave="@((item) => SaveCategory(item as CategoryDto))" OnDelete="@((item) => DeleteCategory(item as CategoryDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/category/list"))">       
+<Details Title="Category" TItem="CategoryDto" Item="category" CanDelete="@(category?.Id > 0)" OnSave="@((item) => SaveCategoryAsync(item as CategoryDto))" OnDelete="@((item) => DeleteCategoryAsync(item as CategoryDto))" OnCancel="@((item) => NavigationManager.NavigateTo("/admin/category/list"))">       
     <FormFields Context="category">
         <div class="row">
             <div class="col-md-12">
@@ -39,7 +39,7 @@
         }
     }
 
-    async Task SaveCategory(CategoryDto item)
+    async Task SaveCategoryAsync(CategoryDto item)
     {
         if (item != null)
         {
@@ -58,7 +58,7 @@
             }
             else 
             {
-                HttpResponseMessage httpResponseMessage = await HttpClient.PostAsJsonAsync<CategoryDto>(route, item);
+                var httpResponseMessage = await HttpClient.PostAsJsonAsync<CategoryDto>(route, item);
 
                 if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
                 {
@@ -72,7 +72,7 @@
         } 
     }
 
-    async Task DeleteCategory(CategoryDto item)
+    async Task DeleteCategoryAsync(CategoryDto item)
     {
         if (item != null && item.Id > 0)
         {

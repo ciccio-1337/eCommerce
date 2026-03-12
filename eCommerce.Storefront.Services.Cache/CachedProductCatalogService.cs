@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AutoMapper;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
@@ -7,6 +9,7 @@ using eCommerce.Storefront.Services.Cache.Specifications;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
+using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Services.Cache
 {
@@ -17,59 +20,71 @@ namespace eCommerce.Storefront.Services.Cache
         private readonly IProductTitleRepository _productTitleRepository;
         private readonly IProductRepository _productRepository;
         private readonly object _getTopSellingProductsLock;
-        private readonly object _getAllProductTitlesLock;
-        private readonly object _getAllProductsLock;
+        private readonly SemaphoreSlim _getAllProductTitlesLock;
+        private readonly SemaphoreSlim _getAllProductsLock;
         private readonly object _getAllCategoriesLock;
         private readonly IMapper _mapper;
 
         public CachedProductCatalogService(ICacheStorage cacheStorage,
-                                           IProductCatalogService productCatalogService,
-                                           IProductTitleRepository productTitleRepository,
-                                           IProductRepository productRepository,
-                                           IMapper mapper)
+            IProductCatalogService productCatalogService,
+            IProductTitleRepository productTitleRepository,
+            IProductRepository productRepository,
+            IMapper mapper)
         {
             _cacheStorage = cacheStorage;
             _productCatalogService = productCatalogService;
             _productTitleRepository = productTitleRepository;
             _productRepository = productRepository;
             _getTopSellingProductsLock = new object();
-            _getAllProductTitlesLock = new object();
-            _getAllProductsLock = new object();
+            _getAllProductTitlesLock = new SemaphoreSlim(1, 1);
+            _getAllProductsLock = new SemaphoreSlim(1, 1);
             _getAllCategoriesLock = new object();
             _mapper = mapper;
         }
 
-        private IEnumerable<ProductTitle> FindAllProductTitles()
+        private async Task<IEnumerable<ProductTitle>> FindAllProductTitlesAsync()
         {
-            lock (_getAllProductTitlesLock)
+            await _getAllProductTitlesLock.WaitAsync();
+
+            try
             {
-                IEnumerable<ProductTitle> allProductTitles = _cacheStorage.Retrieve<IEnumerable<ProductTitle>>(CacheKeys.AllProductTitles.ToString());
+                var allProductTitles = _cacheStorage.Retrieve<IEnumerable<ProductTitle>>(CacheKeys.AllProductTitles.ToString());
 
                 if (allProductTitles == null)
                 {
-                    allProductTitles = _productTitleRepository.FindAll().ToList();
+                    allProductTitles = await _productTitleRepository.FindAll().ToListAsync();
 
                     _cacheStorage.Store(CacheKeys.AllProductTitles.ToString(), allProductTitles);
                 }
 
                 return allProductTitles;
             }
+            finally
+            {
+                _getAllProductTitlesLock.Release();
+            }
         }
 
-        private IEnumerable<Product> FindAllProducts()
+        private async Task<IEnumerable<Product>> FindAllProductsAsync()
         {
-            lock (_getAllProductsLock)
+            await _getAllProductsLock.WaitAsync();
+
+            try
             {
-                IEnumerable<Product> allProducts = _cacheStorage.Retrieve<IEnumerable<Product>>(CacheKeys.AllProducts.ToString());
+                var allProducts = _cacheStorage.Retrieve<IEnumerable<Product>>(CacheKeys.AllProducts.ToString());
 
                 if (allProducts == null)
                 {
-                    allProducts = _productRepository.FindAll().ToList();
+                    allProducts = await _productRepository.FindAll().ToListAsync();
 
                     _cacheStorage.Store(CacheKeys.AllProducts.ToString(), allProducts);
                 }
 
                 return allProducts;
+            }
+            finally
+            {
+                _getAllProductsLock.Release();
             }
         }
 
@@ -77,8 +92,8 @@ namespace eCommerce.Storefront.Services.Cache
         {
             lock (_getTopSellingProductsLock)
             {
-                GetFeaturedProductsResponse response = new GetFeaturedProductsResponse();
-                IEnumerable<ProductSummaryView> productViews = _cacheStorage.Retrieve<IEnumerable<ProductSummaryView>>(CacheKeys.TopSellingProducts.ToString());
+                var response = new GetFeaturedProductsResponse();
+                var productViews = _cacheStorage.Retrieve<IEnumerable<ProductSummaryView>>(CacheKeys.TopSellingProducts.ToString());
 
                 if (productViews == null)
                 {
@@ -95,16 +110,16 @@ namespace eCommerce.Storefront.Services.Cache
             }
         }
 
-        public GetProductsByCategoryResponse GetProductsByCategory(GetProductsByCategoryRequest request)
+        public async Task<GetProductsByCategoryResponse> GetProductsByCategoryAsync(GetProductsByCategoryRequest request)
         {
-            IProductSearchSpecification colourSpecification = new ProductIsInColorSpecification(request.ColorIds);
-            IProductSearchSpecification brandSpecification = new ProductIsInBrandSpecification(request.BrandIds);
-            IProductSearchSpecification sizeSpecification = new ProductIsInSizeSpecification(request.SizeIds);
-            IProductSearchSpecification categorySpecification = new ProductIsInCategorySpecification(request.CategoryId);
-            IEnumerable<Product> matchingProducts = FindAllProducts().Where(colourSpecification.IsSatisfiedBy)
-                                                                     .Where(brandSpecification.IsSatisfiedBy)
-                                                                     .Where(sizeSpecification.IsSatisfiedBy)
-                                                                     .Where(categorySpecification.IsSatisfiedBy);
+            var colourSpecification = new ProductIsInColorSpecification(request.ColorIds);
+            var brandSpecification = new ProductIsInBrandSpecification(request.BrandIds);
+            var sizeSpecification = new ProductIsInSizeSpecification(request.SizeIds);
+            var categorySpecification = new ProductIsInCategorySpecification(request.CategoryId);
+            var matchingProducts = (await FindAllProductsAsync()).Where(colourSpecification.IsSatisfiedBy)
+                .Where(brandSpecification.IsSatisfiedBy)
+                .Where(sizeSpecification.IsSatisfiedBy)
+                .Where(categorySpecification.IsSatisfiedBy);
 
             switch (request.SortBy)
             {
@@ -118,17 +133,18 @@ namespace eCommerce.Storefront.Services.Cache
                     break;
             }
 
-            GetProductsByCategoryResponse response = CreateProductSearchResultFrom(matchingProducts, request);
+            var response = CreateProductSearchResultFrom(matchingProducts, request);
+
             response.SelectedCategoryName = GetAllCategories().Categories.FirstOrDefault(c => c.Id == request.CategoryId)?.Name;                                
 
             return response;
         }
         
-        public GetProductResponse GetProduct(GetProductRequest request)
+        public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
-            GetProductResponse response = new GetProductResponse
+            var response = new GetProductResponse
             {
-                Product = _mapper.Map<ProductTitle, ProductView>(FindAllProductTitles().FirstOrDefault(p => p.Id == request.ProductId))
+                Product = _mapper.Map<ProductTitle, ProductView>((await FindAllProductTitlesAsync()).FirstOrDefault(p => p.Id == request.ProductId))
             };
 
             return response;
@@ -138,7 +154,7 @@ namespace eCommerce.Storefront.Services.Cache
         {
             lock (_getAllCategoriesLock)
             {
-                GetAllCategoriesResponse response = _cacheStorage.Retrieve<GetAllCategoriesResponse>(CacheKeys.AllCategories.ToString());
+                var response = _cacheStorage.Retrieve<GetAllCategoriesResponse>(CacheKeys.AllCategories.ToString());
 
                 if (response == null)
                 {

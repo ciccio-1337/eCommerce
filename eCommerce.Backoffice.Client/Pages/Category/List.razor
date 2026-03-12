@@ -3,7 +3,7 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
-<Grid Model="model" Title="Categories" ElementsType="CategoryDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/category/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/category/detail/{(item as CategoryDto)?.Id}"))" OnDelete="@((item) => DeleteCategory(item as CategoryDto))" />
+<Grid Model="model" Title="Categories" ElementsType="CategoryDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/category/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/category/detail/{(item as CategoryDto)?.Id}"))" OnDelete="@((item) => DeleteCategoryAsync(item as CategoryDto))" />
 
 @code {
     string route = "api/categories";
@@ -20,15 +20,16 @@
         };
     }
 
-    async Task DeleteCategory(CategoryDto item)
+    async Task DeleteCategoryAsync(CategoryDto item)
     {
-        HttpResponseMessage httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
+        var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
 
         if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
         {                
             model.Rows.Remove(item);
 
             var rows = model.Rows.ToList();
+            
             model = new GridModel<CategoryDto>
             {
                 Rows = rows,

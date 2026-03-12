@@ -13,12 +13,12 @@ namespace eCommerce.Storefront.Controllers.Controllers
     public class AccountLogOnController : BaseAccountController
     {
         public AccountLogOnController(ILocalAuthenticationService authenticationService,
-                                      ICustomerService customerService,
-                                      ICookieAuthentication cookieAuthentication,
-                                      IActionArguments actionArguments) : base(authenticationService, 
-                                                                               customerService,
-                                                                               cookieAuthentication, 
-                                                                               actionArguments)
+            ICustomerService customerService,
+            ICookieAuthentication cookieAuthentication,
+            IActionArguments actionArguments) : base(authenticationService, 
+                customerService,
+                cookieAuthentication, 
+                actionArguments)
         {
         }
 
@@ -34,11 +34,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             try
             {
-                var user = await _authenticationService.Login(email, password);
+                var user = await _authenticationService.LoginAsync(email, password);
 
                 if (user.IsAuthenticated && user.Roles.Any(r => r.Equals("Customer")))
                 {
-                    await _cookieAuthentication.SetAuthenticationToken(user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Email, new List<string> { "Customer" });
 
                     return RedirectToAction("Index", "Home");
                 }
@@ -67,9 +67,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        public IActionResult SignOut()
+        public async Task<IActionResult> SignOut()
         {
-            _cookieAuthentication.SignOut();
+            await _cookieAuthentication.SignOutAsync();
             
             return RedirectToAction("Index", "Home");
         }

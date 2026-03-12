@@ -1,9 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
@@ -18,22 +19,22 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             _dataContext = dataContext;
         }
 
-        public T FindBy(TId id)
+        public async Task<T> FindByAsync(TId id)
         {
-            return AppendCriteria(_dataContext.Set<T>()).OrderBy(e => e.Id).FirstOrDefault(e => e.Id.Equals(id));
+            return await AppendCriteria(_dataContext.Set<T>()).OrderBy(e => e.Id).FirstOrDefaultAsync(e => e.Id.Equals(id));
         }
 
-        public IEnumerable<T> FindBy(Expression<Func<T, bool>> predicate)
+        public IQueryable<T> FindBy(Expression<Func<T, bool>> predicate)
         {
             return AppendCriteria(_dataContext.Set<T>()).Where(predicate);
         }
 
-        public IEnumerable<T> FindBy(Expression<Func<T, bool>> predicate, int index, int count)
+        public IQueryable<T> FindBy(Expression<Func<T, bool>> predicate, int index, int count)
         {
             return AppendCriteria(_dataContext.Set<T>()).Where(predicate).OrderBy(e => e.Id).Skip(index).Take(count);
         }
 
-        public IEnumerable<T> FindAll()
+        public IQueryable<T> FindAll()
         {
             return AppendCriteria(_dataContext.Set<T>());
         }
@@ -43,9 +44,9 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             return criteria;
         }
 
-        public void Add(T entity)
+        public async Task AddAsync(T entity)
         {
-            _dataContext.Add(entity);
+            await _dataContext.AddAsync(entity);
         }
 
         public void Save(T entity)

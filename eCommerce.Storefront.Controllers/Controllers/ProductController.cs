@@ -7,6 +7,7 @@ using eCommerce.Storefront.Services.Cache;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -15,29 +16,29 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IConfiguration _configuration;
 
         public ProductController(IConfiguration configuration,
-                                 ICookieAuthentication cookieAuthentication,
-                                 ICustomerService customerService,
-                                 ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
-                                                                                                  customerService,
-                                                                                                  cachedProductCatalogService)
+            ICookieAuthentication cookieAuthentication,
+            ICustomerService customerService,
+            ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
+                customerService,
+                cachedProductCatalogService)
         {
             _configuration = configuration;
         }
 
-        public IActionResult GetProductsByCategory(int categoryId)
+        public async Task<IActionResult> GetProductsByCategory(int categoryId)
         {
-            GetProductsByCategoryRequest productSearchRequest = GenerateInitialProductSearchRequestFrom(categoryId);
-            GetProductsByCategoryResponse response = _cachedProductCatalogService.GetProductsByCategory(productSearchRequest);
-            ProductSearchResultView productSearchResultView = GetProductSearchResultViewFrom(response);
+            var productSearchRequest = GenerateInitialProductSearchRequestFrom(categoryId);
+            var response = await _cachedProductCatalogService.GetProductsByCategoryAsync(productSearchRequest);
+            var productSearchResultView = await GetProductSearchResultViewFromAsync(response);
 
             return View("ProductSearchResults", productSearchResultView);
         }
 
-        private ProductSearchResultView GetProductSearchResultViewFrom(GetProductsByCategoryResponse response)
+        private async Task<ProductSearchResultView> GetProductSearchResultViewFromAsync(GetProductsByCategoryResponse response)
         {
-            ProductSearchResultView productSearchResultView = new ProductSearchResultView
+            var productSearchResultView = new ProductSearchResultView
             {
-                BasketSummary = GetBasketSummaryView(),
+                BasketSummary = await GetBasketSummaryViewAsync(),
                 Categories = GetCategories(),
                 CurrentPage = response.CurrentPage,
                 NumberOfTitlesFound = response.NumberOfTitlesFound,
@@ -53,7 +54,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         private GetProductsByCategoryRequest GenerateInitialProductSearchRequestFrom(int categoryId)
         {
-            GetProductsByCategoryRequest productSearchRequest = new GetProductsByCategoryRequest
+            var productSearchRequest = new GetProductsByCategoryRequest
             {
                 NumberOfResultsPerPage = int.Parse(_configuration["NumberOfResultsPerPage"]),
                 CategoryId = categoryId,
@@ -65,18 +66,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public IActionResult GetProducts([FromBody] ProductSearchRequest jsonProductSearchRequest)
+        public async Task<IActionResult> GetProducts([FromBody] ProductSearchRequest jsonProductSearchRequest)
         {
-            GetProductsByCategoryRequest productSearchRequest = GenerateProductSearchRequestFrom(jsonProductSearchRequest);
-            GetProductsByCategoryResponse response = _cachedProductCatalogService.GetProductsByCategory(productSearchRequest);
-            ProductSearchResultView productSearchResultView = GetProductSearchResultViewFrom(response);
+            var productSearchRequest = GenerateProductSearchRequestFrom(jsonProductSearchRequest);
+            var response = await _cachedProductCatalogService.GetProductsByCategoryAsync(productSearchRequest);
+            var productSearchResultView = await GetProductSearchResultViewFromAsync(response);
 
             return Ok(productSearchResultView);
         }
 
         private GetProductsByCategoryRequest GenerateProductSearchRequestFrom(ProductSearchRequest jsonProductSearchRequest)
         {
-            GetProductsByCategoryRequest productSearchRequest = new GetProductsByCategoryRequest
+            var productSearchRequest = new GetProductsByCategoryRequest
             {
                 NumberOfResultsPerPage = int.Parse(_configuration["NumberOfResultsPerPage"])
             };
@@ -112,17 +113,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return productSearchRequest;
         }
 
-        public IActionResult Detail(int id)
+        public async Task<IActionResult> Detail(int id)
         {
-            ProductDetailView productDetailView = new ProductDetailView();
-            GetProductRequest request = new GetProductRequest 
+            var productDetailView = new ProductDetailView();
+            var request = new GetProductRequest 
             { 
                 ProductId = id 
             };
-            GetProductResponse response = _cachedProductCatalogService.GetProduct(request);
-            ProductView productView = response.Product;
+            var response = await _cachedProductCatalogService.GetProductAsync(request);
+            var productView = response.Product;
+
             productDetailView.Product = productView;
-            productDetailView.BasketSummary = GetBasketSummaryView();
+            productDetailView.BasketSummary = await GetBasketSummaryViewAsync();
             productDetailView.Categories = GetCategories();
 
             return View(productDetailView);

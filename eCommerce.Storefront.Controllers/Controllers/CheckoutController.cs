@@ -20,10 +20,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IOrderService _orderService;
 
         public CheckoutController(IBasketService basketService,
-                                  ICustomerService customerService,
-                                  IOrderService orderService,
-                                  ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,
-                                                                                     customerService)
+            ICustomerService customerService,
+            IOrderService orderService,
+            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication, 
+                customerService)
         {
             _basketService = basketService;
             _orderService = orderService;
@@ -31,24 +31,25 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public async Task<IActionResult> Checkout()
         {
-            GetCustomerRequest customerRequest = new GetCustomerRequest
+            var customerRequest = new GetCustomerRequest
             {
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
-            GetCustomerResponse customerResponse = _customerService.GetCustomer(customerRequest);
+            var customerResponse = await _customerService.GetCustomerAsync(customerRequest);
 
             if (customerResponse.CustomerFound)
             {
-                CustomerView customerView = customerResponse.Customer;
+                var customerView = customerResponse.Customer;
 
                 if (customerView.DeliveryAddressBook.Any())
                 {
-                    OrderConfirmationView orderConfirmationView = new OrderConfirmationView();
-                    GetBasketRequest getBasketRequest = new GetBasketRequest
+                    var orderConfirmationView = new OrderConfirmationView();
+                    var getBasketRequest = new GetBasketRequest
                     {
-                        BasketId = GetBasketId()
+                        BasketId = await GetBasketIdAsync()
                     };
-                    GetBasketResponse basketResponse = _basketService.GetBasket(getBasketRequest);
+                    var basketResponse = await _basketService.GetBasketAsync(getBasketRequest);
+
                     orderConfirmationView.Basket = basketResponse.Basket;
                     orderConfirmationView.DeliveryAddresses = customerView.DeliveryAddressBook;
 
@@ -59,7 +60,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             else 
             {
-                await _cookieAuthentication.SignOut();
+                await _cookieAuthentication.SignOutAsync();
 
                 return RedirectToAction("Register", "AccountRegister");
             }
@@ -67,7 +68,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public IActionResult AddDeliveryAddress()
         {
-            DeliveryAddressView deliveryAddressView = new DeliveryAddressView();
+            var deliveryAddressView = new DeliveryAddressView();
 
             return View("AddDeliveryAddress", deliveryAddressView);
         }
@@ -75,26 +76,26 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> AddDeliveryAddress(DeliveryAddressView deliveryAddressView)
         {
-            DeliveryAddressAddRequest request = new DeliveryAddressAddRequest
+            var request = new DeliveryAddressAddRequest
             {
                 Address = deliveryAddressView,
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            _customerService.AddDeliveryAddress(request);
+            await _customerService.AddDeliveryAddressAsync(request);
 
             return await Checkout();
         }
 
-        public IActionResult PlaceOrder(IFormCollection collection)
+        public async Task<IActionResult> PlaceOrder(IFormCollection collection)
         {
-            CreateOrderRequest request = new CreateOrderRequest
+            var request = new CreateOrderRequest
             {
-                BasketId = GetBasketId(),
+                BasketId = await GetBasketIdAsync(),
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken(),
                 DeliveryId = int.Parse(collection[FormDataKeys.DeliveryAddress.ToString()])
             };
-            CreateOrderResponse response = _orderService.CreateOrder(request);
+            var response = await _orderService.CreateOrderAsync(request);
 
             return RedirectToAction("CreatePaymentFor", "Payment", new { orderId = response.Order.Id });
         }

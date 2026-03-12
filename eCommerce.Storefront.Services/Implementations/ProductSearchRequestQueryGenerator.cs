@@ -12,10 +12,11 @@ namespace eCommerce.Storefront.Services.Implementations
         public static Expression<Func<Product, bool>> CreateQueryFor(GetProductsByCategoryRequest getProductsByCategoryRequest)
         {
             Expression<Func<Product, bool>> productQuery = null;
-            List<Expression<Func<Product, bool>>> colorQuery = new List<Expression<Func<Product, bool>>>();
-            List<Expression<Func<Product, bool>>> brandQuery = new List<Expression<Func<Product, bool>>>();
-            List<Expression<Func<Product, bool>>> sizeQuery = new List<Expression<Func<Product, bool>>>();
             Expression<Func<Product, bool>> categoryQuery = null;
+
+            var colorQuery = new List<Expression<Func<Product, bool>>>();
+            var brandQuery = new List<Expression<Func<Product, bool>>>();
+            var sizeQuery = new List<Expression<Func<Product, bool>>>();
 
             foreach (int id in getProductsByCategoryRequest.ColorIds)
             {
@@ -24,7 +25,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
             if (colorQuery.Count > 0)
             {
-                foreach (Expression<Func<Product, bool>> predicate in colorQuery)
+                foreach (var predicate in colorQuery)
                 {
                     if (productQuery == null)
                     {
@@ -37,14 +38,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 }
             }
 
-            foreach (int id in getProductsByCategoryRequest.BrandIds)
+            foreach (var id in getProductsByCategoryRequest.BrandIds)
             {
                 brandQuery.Add(p => p.Title.Brand.Id == id);
             }
 
             if (brandQuery.Count > 0)
             {
-                foreach (Expression<Func<Product, bool>> predicate in brandQuery)
+                foreach (var predicate in brandQuery)
                 {
                     if (productQuery == null)
                     {
@@ -57,14 +58,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 }
             }
 
-            foreach (int id in getProductsByCategoryRequest.SizeIds)
+            foreach (var id in getProductsByCategoryRequest.SizeIds)
             {
                 sizeQuery.Add(p => p.Size.Id == id);
             }
 
             if (sizeQuery.Count > 0)
             {
-                foreach (Expression<Func<Product, bool>> predicate in sizeQuery)
+                foreach (var predicate in sizeQuery)
                 {
                     if (productQuery == null)
                     {
@@ -77,7 +78,7 @@ namespace eCommerce.Storefront.Services.Implementations
                 }
             }
 
-            categoryQuery = (p => p.Title.Category.Id == getProductsByCategoryRequest.CategoryId);
+            categoryQuery = p => p.Title.Category.Id == getProductsByCategoryRequest.CategoryId;
             
             if (productQuery == null)
             {

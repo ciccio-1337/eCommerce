@@ -18,13 +18,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly ShopDataContext _shopDataContext;
 
         public AccountRegisterController(ILocalAuthenticationService authenticationService,
-                                         ICustomerService customerService,
-                                         ICookieAuthentication cookieAuthentication,
-                                         IActionArguments actionArguments,
-                                         ShopDataContext shopDataContext) : base(authenticationService, 
-                                                                                 customerService,
-                                                                                 cookieAuthentication, 
-                                                                                 actionArguments)
+            ICustomerService customerService,
+            ICookieAuthentication cookieAuthentication,
+            IActionArguments actionArguments,
+            ShopDataContext shopDataContext) : base(authenticationService, 
+                customerService,
+                cookieAuthentication, 
+                actionArguments)
         {
             _shopDataContext = shopDataContext;
         }
@@ -45,7 +45,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             try
             {
-                user = await _authenticationService.RegisterUser(email, password, true, new List<string> { "Customer" });
+                user = await _authenticationService.RegisterUserAsync(email, password, true, new List<string> { "Customer" });
             }
             catch (InvalidOperationException ex)
             {
@@ -65,7 +65,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 try
                 {
-                    _customerService.CreateCustomer(new CreateCustomerRequest
+                    await _customerService.CreateCustomerAsync(new CreateCustomerRequest
                     {
                         UserId = user.Id,
                         Email = email,
@@ -73,7 +73,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                         SecondName = secondName
                     });
 
-                    await _cookieAuthentication.SetAuthenticationToken(user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Email, new List<string> { "Customer" });
                     await _shopDataContext.Database.CommitTransactionAsync();
 
                     return RedirectToAction("Detail", "Customer");

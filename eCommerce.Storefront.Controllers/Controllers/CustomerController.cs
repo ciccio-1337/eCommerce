@@ -16,32 +16,31 @@ namespace eCommerce.Storefront.Controllers.Controllers
     public class CustomerController : BaseController
     {
         public CustomerController(ICustomerService customerService,
-                                  ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,
-                                                                                     customerService)
+            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication, customerService)
         {
         }
 
         public async Task<IActionResult> Detail()
         {
-            GetCustomerRequest customerRequest = new GetCustomerRequest
+            var customerRequest = new GetCustomerRequest
             {
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
-            GetCustomerResponse response = _customerService.GetCustomer(customerRequest);
+            var response = await _customerService.GetCustomerAsync(customerRequest);
 
             if (response.CustomerFound)
             {
-                CustomerDetailView customerDetailView = new CustomerDetailView
+                var customerDetailView = new CustomerDetailView
                 {
                     Customer = response.Customer,
-                    BasketSummary = GetBasketSummaryView()
+                    BasketSummary = await GetBasketSummaryViewAsync()
                 };
 
                 return View(customerDetailView);
             }
             else 
             {
-                await _cookieAuthentication.SignOut();
+                await _cookieAuthentication.SignOutAsync();
 
                 return RedirectToAction("Register", "AccountRegister");
             }
@@ -50,24 +49,25 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> Detail(CustomerView customerView)
         {
-            ModifyCustomerRequest request = new ModifyCustomerRequest
+            var request = new ModifyCustomerRequest
             {
                 NewEmail = customerView.Email,
                 FirstName = customerView.FirstName,
                 SecondName = customerView.SecondName,
                 CurrentEmail = _cookieAuthentication.GetAuthenticationToken()
             };
-            CustomerDetailView customerDetailView = new CustomerDetailView
+            var customerDetailView = new CustomerDetailView
             {
-                BasketSummary = GetBasketSummaryView()
+                BasketSummary = await GetBasketSummaryViewAsync()
             };
 
             try
             {       
-                ModifyCustomerResponse response = _customerService.ModifyCustomer(request);  
+                var response = await _customerService.ModifyCustomerAsync(request);  
+
                 customerDetailView.Customer = response.Customer;
 
-                await _cookieAuthentication.SetAuthenticationToken(customerDetailView.Customer.Email, new List<string> { "Customer" });
+                await _cookieAuthentication.SetAuthenticationTokenAsync(customerDetailView.Customer.Email, new List<string> { "Customer" });
             }
             catch (EntityBaseIsInvalidException ex)
             {
@@ -80,25 +80,25 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public async Task<IActionResult> DeliveryAddresses()
         {
-            GetCustomerRequest customerRequest = new GetCustomerRequest
+            var customerRequest = new GetCustomerRequest
             {
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
-            GetCustomerResponse response = _customerService.GetCustomer(customerRequest);
+            var response = await _customerService.GetCustomerAsync(customerRequest);
 
             if (response.CustomerFound)
             {
-                CustomerDetailView customerDetailView = new CustomerDetailView
+                var customerDetailView = new CustomerDetailView
                 {
                     Customer = response.Customer,
-                    BasketSummary = GetBasketSummaryView()
+                    BasketSummary = await GetBasketSummaryViewAsync()
                 };
 
                 return View("DeliveryAddresses", customerDetailView);
             }
             else 
             {
-                await _cookieAuthentication.SignOut();
+                await _cookieAuthentication.SignOutAsync();
 
                 return RedirectToAction("Register", "AccountRegister");
             }
@@ -106,26 +106,26 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public async Task<IActionResult> EditDeliveryAddress(int deliveryAddressId)
         {
-            GetCustomerRequest customerRequest = new GetCustomerRequest
+            var customerRequest = new GetCustomerRequest
             {
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
-            GetCustomerResponse response = _customerService.GetCustomer(customerRequest);
+            var response = await _customerService.GetCustomerAsync(customerRequest);
 
             if (response.CustomerFound)
             {
-                CustomerDeliveryAddressView deliveryAddressView = new CustomerDeliveryAddressView
+                var deliveryAddressView = new CustomerDeliveryAddressView
                 {
                     CustomerView = response.Customer,
                     Address = response.Customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == deliveryAddressId),
-                    BasketSummary = GetBasketSummaryView()
+                    BasketSummary = await GetBasketSummaryViewAsync()
                 };
 
                 return View(deliveryAddressView);
             }
             else 
             {
-                await _cookieAuthentication.SignOut();
+                await _cookieAuthentication.SignOutAsync();
                 
                 return RedirectToAction("Register", "AccountRegister");
             }
@@ -134,23 +134,23 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> EditDeliveryAddress(DeliveryAddressView deliveryAddressView)
         {
-            DeliveryAddressModifyRequest request = new DeliveryAddressModifyRequest
+            var request = new DeliveryAddressModifyRequest
             {
                 Address = deliveryAddressView,
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            _customerService.ModifyDeliveryAddress(request);
+            await _customerService.ModifyDeliveryAddressAsync(request);
 
             return await DeliveryAddresses();
         }
 
-        public IActionResult AddDeliveryAddress()
+        public async Task<IActionResult> AddDeliveryAddress()
         {
-            CustomerDeliveryAddressView customerDeliveryAddressView = new CustomerDeliveryAddressView
+            var customerDeliveryAddressView = new CustomerDeliveryAddressView
             {
                 Address = new DeliveryAddressView(),
-                BasketSummary = GetBasketSummaryView()
+                BasketSummary = await GetBasketSummaryViewAsync()
             };
 
             return View(customerDeliveryAddressView);
@@ -159,13 +159,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> AddDeliveryAddress(DeliveryAddressView deliveryAddressView)
         {
-            DeliveryAddressAddRequest request = new DeliveryAddressAddRequest
+            var request = new DeliveryAddressAddRequest
             {
                 Address = deliveryAddressView,
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            _customerService.AddDeliveryAddress(request);
+            await _customerService.AddDeliveryAddressAsync(request);
 
             return await DeliveryAddresses();
         }

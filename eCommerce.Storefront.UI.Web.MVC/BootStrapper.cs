@@ -111,6 +111,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 configure.AddDebug();
                 configure.AddEventSourceLogger();
             });
+            serviceCollection.AddHttpClient<IPaymentService, PayPalPaymentService>();
 
             return serviceCollection;
         }

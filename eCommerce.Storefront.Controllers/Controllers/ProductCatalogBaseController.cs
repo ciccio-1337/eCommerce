@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
 using eCommerce.Storefront.Services.Cache;
 using eCommerce.Storefront.Services.Interfaces;
@@ -12,16 +11,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
         protected readonly ICachedProductCatalogService _cachedProductCatalogService;
 
         protected ProductCatalogBaseController(ICookieAuthentication cookieAuthentication,
-                                               ICustomerService customerService,
-                                               ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
-                                                                                                                customerService)
+            ICustomerService customerService,
+            ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
+                customerService)
         {
             _cachedProductCatalogService = cachedProductCatalogService;
         }
 
         protected IEnumerable<CategoryView> GetCategories()
         {
-            GetAllCategoriesResponse response = _cachedProductCatalogService.GetAllCategories();
+            var response = _cachedProductCatalogService.GetAllCategories();
 
             return response.Categories;
         }

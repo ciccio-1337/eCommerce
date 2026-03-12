@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Threading.Tasks;
 using eCommerce.Storefront.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 
@@ -14,9 +15,9 @@ namespace eCommerce.Storefront.Services.Implementations
             _configuration = configuration;
         }
 
-        public void SendMail(string from, string to, string subject, string body)
+        public Task SendMailAsync(string from, string to, string subject, string body)
         {
-            using (MailMessage message = new MailMessage())
+            using (var message = new MailMessage())
             {
                 message.From = new MailAddress(from);
                 
@@ -25,12 +26,12 @@ namespace eCommerce.Storefront.Services.Implementations
                 message.Subject = subject;
                 message.Body = body;
                 
-                using (SmtpClient smtp = new SmtpClient(_configuration["MailSettingsSmtpNetworkHost"], int.Parse(_configuration["MailSettingsSmtpNetworkPort"])))
+                using (var smtp = new SmtpClient(_configuration["MailSettingsSmtpNetworkHost"], int.Parse(_configuration["MailSettingsSmtpNetworkPort"])))
                 {
                     smtp.UseDefaultCredentials = bool.Parse(_configuration["MailSettingsSmtpNetworkDefaultCredentials"]);
                     smtp.Credentials = new NetworkCredential(_configuration["MailSettingsSmtpNetworkUserName"], _configuration["MailSettingsSmtpNetworkPassword"]);
                     
-                    smtp.Send(message);
+                    return smtp.SendMailAsync(message);
                 }      
             }
         }

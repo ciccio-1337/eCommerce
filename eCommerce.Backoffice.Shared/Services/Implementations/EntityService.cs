@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
@@ -19,9 +20,9 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
             _uow = uow;
         }
 
-        public T Get(TId id)
+        public async Task<T> GetAsync(TId id)
         {
-            return _repository.FindBy(id);
+            return await _repository.FindByAsync(id);
         }
 
         public IEnumerable<T> Get(Expression<Func<T, bool>> predicate)
@@ -39,30 +40,30 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
             return _repository.FindAll();
         }
 
-        public T Create(T entity)
+        public async Task<T> CreateAsync(T entity)
         {
             entity.ThrowExceptionIfInvalid();
-            _repository.Add(entity);
-            _uow.Commit();
+            await _repository.AddAsync(entity);
+            await _uow.CommitAsync();
 
             return entity;
         }
 
-        public T Modify(T entity)
+        public async Task<T> ModifyAsync(T entity)
         {            
             entity.ThrowExceptionIfInvalid();
             _repository.Save(entity);
-            _uow.Commit();
+            await _uow.CommitAsync();
 
             return entity;
         }
 
-        public void Delete(TId id)
+        public async Task DeleteAsync(TId id)
         {
-            T entity = _repository.FindBy(id);
+            T entity = await _repository.FindByAsync(id);
 
             _repository.Remove(entity);
-            _uow.Commit();
+            await _uow.CommitAsync();
         }
     }
 }
