@@ -51,6 +51,13 @@
     {
         if (firstRender)
         {
+            var token = await loginService.GetTokenAsync();
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await Http.PostAsync("api/accounts/logout", null);
+            }
+
             await loginService.LogoutAsync();
         }
     }

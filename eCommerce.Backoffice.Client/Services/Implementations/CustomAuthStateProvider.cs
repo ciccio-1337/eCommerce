@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Client.Services.Interfaces;
@@ -26,12 +23,11 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _tokenkey);
+            var token = await GetTokenAsync();
 
-            if (!TokenStatus(token))
+            if (string.IsNullOrWhiteSpace(token))
             {
-                _httpClient.DefaultRequestHeaders.Authorization = null;
-
+                _httpClient.DefaultRequestHeaders.Remove("RequestVerificationToken");
                 await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
                 
                 return _anonymous;
@@ -51,58 +47,26 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
 
         public async Task LogoutAsync()
         {
-            _httpClient.DefaultRequestHeaders.Authorization = null;
-
+            _httpClient.DefaultRequestHeaders.Remove("RequestVerificationToken");
             await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
 
             NotifyAuthenticationStateChanged(Task.FromResult(_anonymous));
         }
 
+        public async Task<string> GetTokenAsync()
+        {
+            return await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _tokenkey);
+        }
+
         private AuthenticationState BuildAuthenticationState(string token)
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("RequestVerificationToken", token.Substring(token.IndexOf(':') + 1));
             
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ClaimsFromJwt(token), "jwt")));
-        }
-
-        private bool TokenStatus(string token)
-        {
-            try
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
             {
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    return false;
-                }
-
-                var jwthandler = new JwtSecurityTokenHandler();
-                var jwttoken = jwthandler.ReadJwtToken(token);
-                
-                return jwttoken.ValidTo > DateTime.UtcNow;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private IEnumerable<Claim> ClaimsFromJwt(string token)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    return null;
-                }
-
-                var jwthandler = new JwtSecurityTokenHandler();
-                var jwttoken = jwthandler.ReadJwtToken(token);
-                
-                return jwttoken.Claims;
-            }
-            catch
-            {
-                return null;
-            }
+                new Claim(ClaimTypes.Name, token.Substring(0, token.IndexOf(':'))),
+                new Claim(ClaimTypes.Role, "Admin")
+            }, "jwt")));
         }
     }
 }

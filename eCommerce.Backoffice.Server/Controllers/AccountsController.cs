@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using eCommerce.Backoffice.Shared.Model.Accounts;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -18,6 +15,8 @@ using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -26,26 +25,26 @@ namespace eCommerce.Backoffice.Server.Controllers
     [IgnoreAntiforgeryToken]
     public class AccountsController : ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
         private readonly IEmailService _emailService;
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IEntityService<Customer, long> _customerService;
         private readonly ShopDataContext _shopDataContext;
+        private readonly IAntiforgery _antiforgery;
 
-        public AccountsController(UserManager<IdentityUser> userManager,
-            IEmailService emailService,
+        public AccountsController(IEmailService emailService,
             SignInManager<IdentityUser> signInManager,
             IConfiguration configuration,
             IEntityService<Customer, long> customerService,
-            ShopDataContext shopDataContext)
+            ShopDataContext shopDataContext,
+            IAntiforgery antiforgery)
         {
-            _userManager = userManager;
             _emailService = emailService;
             _signInManager = signInManager;
             _configuration = configuration;
             _customerService = customerService;
             _shopDataContext = shopDataContext;
+            _antiforgery = antiforgery;
         }
 
         [HttpGet]
@@ -53,7 +52,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<RegisterRequest>>> GetAccounts()
         {
-            return await _userManager.Users.AsNoTracking().Select(u => new RegisterRequest 
+            return await _signInManager.UserManager.Users.AsNoTracking().Select(u => new RegisterRequest 
             { 
                 Id = u.Id, 
                 Email = u.Email, 
@@ -71,7 +70,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 UserName = registerRequest.Email,
                 Email = registerRequest.Email
             };
-            var result = await _userManager.CreateAsync(user, registerRequest.Password);
+            var result = await _signInManager.UserManager.CreateAsync(user, registerRequest.Password);
 
             if (!result.Succeeded)
             {
@@ -85,7 +84,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return Ok(registerResponse);
             }
 
-            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var code = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
 
             if (!string.IsNullOrWhiteSpace(_configuration["MailSettingsSmtpNetworkPassword"]))
             {
@@ -95,7 +94,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             else 
             {
-                result = await _userManager.ConfirmEmailAsync(user, code);
+                result = await _signInManager.UserManager.ConfirmEmailAsync(user, code);
 
                 if (!result.Succeeded)
                 {
@@ -110,7 +109,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 { 
                     IsSuccess = true, 
                     EmailConfirmed = true 
-                    });
+                });
             }
 
             return Ok(new RegisterResponse 
@@ -120,6 +119,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}/[action]")]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> EmailConfirmation(string id, EmailConfirmationRequest confirmationRequest)
         {
             if (id != confirmationRequest.UserId)
@@ -127,7 +127,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return BadRequest();
             }
 
-            var user = await _userManager.FindByIdAsync(confirmationRequest.UserId);
+            var user = await _signInManager.UserManager.FindByIdAsync(confirmationRequest.UserId);
 
             if (user == null)
             {
@@ -136,34 +136,35 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                var result = await _userManager.ConfirmEmailAsync(user, confirmationRequest.Code);
+                var result = await _signInManager.UserManager.ConfirmEmailAsync(user, confirmationRequest.Code);
 
                 return Ok(result.Succeeded);
             }
-            catch (DbUpdateConcurrencyException) when (!_userManager.Users.AsNoTracking().Any(u => u.Id == id))
+            catch (DbUpdateConcurrencyException) when (!_signInManager.UserManager.Users.AsNoTracking().Any(u => u.Id == id))
             {
                 return NotFound();
             }
         }
 
         [HttpPost("forgotpassword")]
+        [IgnoreAntiforgeryToken]
         public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             var response = new ForgotPasswordResponse();
-            var user = await _userManager.FindByEmailAsync(forgotPasswordRequest.Email);
+            var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
             if (user == null)
             {
                 return NotFound();
             }
 
-            if (!await _userManager.IsEmailConfirmedAsync(user))
+            if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
             {
                 response.Errors = new List<string> { "Not confirmed email" };
             }
             else
             {
-                var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
 
                 _ = _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
@@ -175,23 +176,17 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost("login")]
+        [IgnoreAntiforgeryToken]
         public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
         {
             var response = new LoginResponse();
-            var result = await _signInManager.PasswordSignInAsync(loginRequest.Email, loginRequest.Password, false, false);
+            var user = await _signInManager.UserManager.FindByEmailAsync(loginRequest.Email);
 
-            if (!result.Succeeded)
+            if (user == null || !(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, false)).Succeeded)
             {
                 response.Errors = new List<string> { "Username and password are invalid." };
 
                 return Ok(response);
-            }
-
-            var user = await _signInManager.UserManager.FindByEmailAsync(loginRequest.Email);
-
-            if (user == null)
-            {
-                return NotFound();
             }
 
             var roles = await _signInManager.UserManager.GetRolesAsync(user);
@@ -213,21 +208,30 @@ namespace eCommerce.Backoffice.Server.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecurityKey"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiry = DateTime.Now.AddDays(Convert.ToInt32(_configuration["Jwt:ExpiryInDays"]));
-            var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: expiry, signingCredentials: creds);
+            var claimsIdentity = new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
+
+            await HttpContext?.SignInAsync(JwtBearerDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
             
-            response.Token = new JwtSecurityTokenHandler().WriteToken(token);
+            response.Token = $"{loginRequest.Email}:{_antiforgery.GetAndStoreTokens(HttpContext).RequestToken}";
             response.IsSuccess = true;
             
             return Ok(response);
         }
 
+        [HttpPost("logout")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        public async Task<ActionResult> Logout()
+        {
+            await HttpContext?.SignOutAsync(JwtBearerDefaults.AuthenticationScheme);
+
+            return Ok();
+        }
+
         [HttpPut("[action]")]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest changePasswordRequest)
         {
-            var user = await _userManager.FindByEmailAsync(changePasswordRequest.Email);
+            var user = await _signInManager.UserManager.FindByEmailAsync(changePasswordRequest.Email);
 
             if (user == null)
             {
@@ -236,7 +240,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                var result = await _userManager.ResetPasswordAsync(user, changePasswordRequest.Code, changePasswordRequest.Password);
+                var result = await _signInManager.UserManager.ResetPasswordAsync(user, changePasswordRequest.Code, changePasswordRequest.Password);
                 var changePasswordResponse = new ChangePasswordResponse
                 {
                     IsSuccess = result.Succeeded,
@@ -245,7 +249,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 return Ok(changePasswordResponse);
             }
-            catch (DbUpdateConcurrencyException) when (!_userManager.Users.AsNoTracking().Any(u => u.Email == changePasswordRequest.Email))
+            catch (DbUpdateConcurrencyException) when (!_signInManager.UserManager.Users.AsNoTracking().Any(u => u.Email == changePasswordRequest.Email))
             {
                 return NotFound();
             }
@@ -257,14 +261,14 @@ namespace eCommerce.Backoffice.Server.Controllers
         {
             await _shopDataContext.Database.BeginTransactionAsync();
 
-            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _signInManager.UserManager.Users.FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
             {
                 return NotFound();
             }
 
-            await _userManager.DeleteAsync(user);
+            await _signInManager.UserManager.DeleteAsync(user);
             
             var customers = _customerService.Get(c => c.UserId.Equals(id));
 

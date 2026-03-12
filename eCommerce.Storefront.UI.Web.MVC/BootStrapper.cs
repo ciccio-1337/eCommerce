@@ -18,13 +18,12 @@ using eCommerce.Storefront.Services;
 using Microsoft.AspNetCore.Identity;
 using System;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Net.Http.Headers;
 using SameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace eCommerce.Storefront.UI.Web.MVC
 {
@@ -58,7 +57,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     warningsConfigurationBuilderAction.Ignore(RelationalEventId.AmbientTransactionWarning);
                 });
             });
-            serviceCollection.AddDefaultIdentity<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>();
+            serviceCollection.AddIdentityCore<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>().AddSignInManager();
             serviceCollection.Configure<IdentityOptions>(options =>
             {
                 // Password settings.
@@ -76,34 +75,30 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 options.User.RequireUniqueEmail = true;
             });
-            serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
+            serviceCollection.AddAuthentication().AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(double.Parse(configuration["CookieAuthenticationTimeout"]));
                 options.LoginPath = "/AccountLogOn/LogOn";
-                options.AccessDeniedPath = "/AccountRegister/Register";
+                options.AccessDeniedPath = "/AccountLogOn/LogOn";
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            }).AddJwtBearer(options =>
+            }).AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["Jwt:Issuer"],
-                    ValidAudience = configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:SecurityKey"]))
-                };
+                // Cookie settings
+                options.Cookie.HttpOnly = true;
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(double.Parse(configuration["CookieAuthenticationTimeout"]));
+                options.LoginPath = "/admin/account/login";
+                options.AccessDeniedPath = "/admin/account/login";
+                options.SlidingExpiration = true;
+                options.Cookie.IsEssential = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             });
-            serviceCollection.AddAntiforgery(options =>
-            {
-                options.HeaderName = "RequestVerificationToken";
-            });
+            serviceCollection.AddAntiforgery();
             serviceCollection.AddLogging(configure => 
             {
                 configure.AddConfiguration(configuration.GetSection("Logging"));

@@ -6,5 +6,6 @@ namespace eCommerce.Backoffice.Client.Services.Interfaces
     {
         Task LoginAsync(string token);
         Task LogoutAsync();
+        Task<string> GetTokenAsync();
     }
 }
