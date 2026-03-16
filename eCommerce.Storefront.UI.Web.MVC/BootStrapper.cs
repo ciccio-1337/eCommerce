@@ -31,7 +31,10 @@ namespace eCommerce.Storefront.UI.Web.MVC
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection serviceCollection, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
-            serviceCollection.AddAutoMapper(typeof(AutoMapperBootStrapper));
+            serviceCollection.AddAutoMapper(options =>
+            {
+                options.AddProfile<AutoMapperBootStrapper>();
+            });
             serviceCollection.AddHttpContextAccessor();
             serviceCollection.AddDbContext<ShopDataContext>(options => 
             {
