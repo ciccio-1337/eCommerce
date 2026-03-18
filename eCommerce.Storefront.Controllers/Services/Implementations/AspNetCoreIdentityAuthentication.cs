@@ -11,28 +11,23 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
     public class AspNetCoreIdentityAuthentication : ILocalAuthenticationService
     {
         private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly UserManager<IdentityUser> _userManager;
 
-        public AspNetCoreIdentityAuthentication(SignInManager<IdentityUser> signInManager,
-                                                UserManager<IdentityUser> userManager)
+        public AspNetCoreIdentityAuthentication(SignInManager<IdentityUser> signInManager)
         {
             _signInManager = signInManager;
-            _userManager = userManager;
         }
 
         public async Task<User> LoginAsync(string email, string password)
         {
             var user = new User();
-            var result = await _signInManager.PasswordSignInAsync(email ?? string.Empty, password ?? string.Empty, false, true);
+            var identityUser = await _signInManager.UserManager.FindByEmailAsync(email);
 
-            if (result.Succeeded)
+            if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, false)).Succeeded)
             {
-                var identityUser = await _userManager.FindByEmailAsync(email);
-
                 user.Id = identityUser.Id;
                 user.Email = email;
                 user.IsAuthenticated = true;
-                user.Roles = await _userManager.GetRolesAsync(identityUser);
+                user.Roles = await _signInManager.UserManager.GetRolesAsync(identityUser);
             }
             else
             {
@@ -46,7 +41,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         {
             var user = new User();
             var identityUser = new IdentityUser { UserName = email ?? string.Empty, Email = email ?? string.Empty, EmailConfirmed = confirmEmail };
-            var result = await _userManager.CreateAsync(identityUser, password ?? string.Empty);
+            var result = await _signInManager.UserManager.CreateAsync(identityUser, password ?? string.Empty);
                   
             if (result.Succeeded)
             {
@@ -58,7 +53,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 {
                     foreach (var role in roles)
                     {
-                        result = await _userManager.AddToRoleAsync(identityUser, role);    
+                        result = await _signInManager.UserManager.AddToRoleAsync(identityUser, role);    
 
                         if (!result.Succeeded)
                         {
