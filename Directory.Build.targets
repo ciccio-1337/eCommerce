@@ -1,0 +1,24 @@
+<Project>
+
+  <!--
+    The Mono WASM workload's WorkloadManifest.targets emits a warning
+    (_CheckBrowserWorkloadNeededButNotAvailable, no error code) when a project
+    targets browser-wasm and has @(NativeFileReference) items but neither
+    WasmBuildNative nor RunAOTCompilation is true.
+
+    The eCommerce.Backoffice.Client Blazor WASM project never builds native
+    (it ships managed-only assemblies) and the NativeFileReference items come
+    from transitive packages (SourceGear.sqlite3 native assets carried in by
+    EF Core SQLite, which the client does not use at all). The warning is
+    therefore noise for this project specifically.
+
+    Rather than enabling WasmBuildNative (which would change build artifacts
+    and timings) or suppressing the property via NoWarn (the warning has no
+    error code, so NoWarn cannot target it), we override the target with a
+    condition that skips it for the Blazor Client project.
+  -->
+  <Target Name="_CheckBrowserWorkloadNeededButNotAvailable"
+          Condition="'$(MSBuildProjectName)' != 'eCommerce.Backoffice.Client'"
+          BeforeTargets="Build" />
+
+</Project>

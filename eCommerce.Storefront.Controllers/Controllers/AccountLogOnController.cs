@@ -67,10 +67,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        public async Task<IActionResult> SignOut()
+        public async Task<IActionResult> LogOff()
         {
             await _cookieAuthentication.SignOutAsync();
-            
+
             return RedirectToAction("Index", "Home");
         }
 
