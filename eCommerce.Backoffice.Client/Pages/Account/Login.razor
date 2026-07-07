@@ -64,9 +64,11 @@
 
     public async Task UserLoginAsync()
     {
-        loginResponse = await (await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model))?.Content?.ReadFromJsonAsync<LoginResponse>();
+        var httpResponse = await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model);
+        
+        loginResponse = await httpResponse.Content.ReadFromJsonAsync<LoginResponse>();
 
-        if (loginResponse.IsSuccess)
+        if (loginResponse != null && loginResponse.IsSuccess)
         {
             await loginService.LoginAsync(loginResponse.Token);
             navManager.NavigateTo("/admin");

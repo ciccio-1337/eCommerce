@@ -60,7 +60,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     warningsConfigurationBuilderAction.Ignore(RelationalEventId.AmbientTransactionWarning);
                 });
             });
-            serviceCollection.AddIdentityCore<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>().AddSignInManager();
+            serviceCollection.AddIdentityCore<IdentityUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<ShopDataContext>().AddSignInManager().AddDefaultTokenProviders();
             serviceCollection.Configure<IdentityOptions>(options =>
             {
                 // Password settings.

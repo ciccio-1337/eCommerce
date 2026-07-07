@@ -3,24 +3,24 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
-<Grid Model="model" Title="Accounts" ElementsType="RegisterRequest" OnCreate="@(() => NavigationManager.NavigateTo("/admin/account/register"))" CanEdit="false" OnDelete="@((item) => DeleteAccountAsync(item as RegisterRequest))" />
+<Grid Model="model" Title="Accounts" ElementsType="UserListItem" OnCreate="@(() => NavigationManager.NavigateTo("/admin/account/register"))" CanEdit="false" OnDelete="@((item) => DeleteAccountAsync(item as UserListItem))" />
 
 @code {
     string route = "api/accounts";
-    GridModel<RegisterRequest> model;
+    GridModel<UserListItem> model;
 
     protected override async Task OnInitializedAsync()
     {
-        var accounts = await HttpClient.GetFromJsonAsync<List<RegisterRequest>>(route);
+        var accounts = await HttpClient.GetFromJsonAsync<List<UserListItem>>(route);
 
-        model = new GridModel<RegisterRequest>
+        model = new GridModel<UserListItem>
         {
             Rows = accounts,
             UseAnnotations = true
         };
     }
 
-    async Task DeleteAccountAsync(RegisterRequest item)
+    async Task DeleteAccountAsync(UserListItem item)
     {
         var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
 
@@ -30,7 +30,7 @@
 
             var rows = model.Rows.ToList();
             
-            model = new GridModel<RegisterRequest>
+            model = new GridModel<UserListItem>
             {
                 Rows = rows,
                 UseAnnotations = true

@@ -50,14 +50,12 @@ namespace eCommerce.Backoffice.Server.Controllers
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<RegisterRequest>>> GetAccounts()
+        public async Task<ActionResult<IEnumerable<UserListItem>>> GetAccounts()
         {
-            return await _signInManager.UserManager.Users.AsNoTracking().Select(u => new RegisterRequest 
-            { 
-                Id = u.Id, 
-                Email = u.Email, 
-                Password = u.PasswordHash, 
-                ConfirmPassword = u.PasswordHash 
+            return await _signInManager.UserManager.Users.AsNoTracking().Select(u => new UserListItem
+            {
+                Id = u.Id,
+                Email = u.Email
             }).ToListAsync();
         }
 
@@ -182,7 +180,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             var response = new LoginResponse();
             var user = await _signInManager.UserManager.FindByEmailAsync(loginRequest.Email);
 
-            if (user == null || !(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, false)).Succeeded)
+            if (user == null || !(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, true)).Succeeded)
             {
                 response.Errors = new List<string> { "Username and password are invalid." };
 
@@ -197,7 +195,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 return Ok(response);
             }
-                        
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, loginRequest.Email)
@@ -211,10 +209,10 @@ namespace eCommerce.Backoffice.Server.Controllers
             var claimsIdentity = new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
 
             await HttpContext?.SignInAsync(JwtBearerDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
-            
+
             response.Token = $"{loginRequest.Email}:{_antiforgery.GetAndStoreTokens(HttpContext).RequestToken}";
             response.IsSuccess = true;
-            
+
             return Ok(response);
         }
 
@@ -259,8 +257,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> DeleteAccount(string id)
         {
-            await _shopDataContext.Database.BeginTransactionAsync();
-
             var user = await _signInManager.UserManager.Users.FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
@@ -268,21 +264,32 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
-            await _signInManager.UserManager.DeleteAsync(user);
-            
-            var customers = _customerService.Get(c => c.UserId.Equals(id));
+            await _shopDataContext.Database.BeginTransactionAsync();
 
-            if (customers?.Count() > 0) 
+            try
             {
-                foreach (var customer in customers)
+                await _signInManager.UserManager.DeleteAsync(user);
+
+                var customers = _customerService.Get(c => c.UserId.Equals(id));
+
+                if (customers?.Count() > 0)
                 {
-                    await _customerService.DeleteAsync(customer.Id);
+                    foreach (var customer in customers)
+                    {
+                        await _customerService.DeleteAsync(customer.Id);
+                    }
                 }
+
+                await _shopDataContext.Database.CommitTransactionAsync();
+
+                return NoContent();
             }
-
-            await _shopDataContext.Database.CommitTransactionAsync();
-
-            return NoContent();
+            catch
+            {
+                await _shopDataContext.Database.RollbackTransactionAsync();
+                
+                throw;
+            }
         }
     }
 }
