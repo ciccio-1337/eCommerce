@@ -39,7 +39,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
             var orderId = _paymentService.GetOrderIdFor(collection);
             var request = new GetOrderRequest 
             { 
-                OrderId = orderId 
+                OrderId = orderId,
+                CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
             var response = await _orderService.GetOrderAsync(request);
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
@@ -68,7 +69,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             var request = new GetOrderRequest
             { 
-                OrderId = orderId 
+                OrderId = orderId,
+                CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
             var response = await _orderService.GetOrderAsync(request);
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);

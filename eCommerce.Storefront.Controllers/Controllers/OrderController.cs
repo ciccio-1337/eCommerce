@@ -51,7 +51,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
         
         public async Task<IActionResult> Detail(int orderId)
         {
-            var request = new GetOrderRequest() { OrderId = orderId, CustomerEmail = _cookieAuthentication.GetAuthenticationToken() };
+            var request = new GetOrderRequest() 
+            { 
+                OrderId = orderId, 
+                CustomerEmail = _cookieAuthentication.GetAuthenticationToken() 
+            };
             var response = await _orderService.GetOrderAsync(request);
             var orderView = new CustomerOrderView
             {
