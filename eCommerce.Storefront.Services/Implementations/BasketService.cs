@@ -64,6 +64,11 @@ namespace eCommerce.Storefront.Services.Implementations
             var basket = new Basket();
             var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail);
 
+            if (customer == null)
+            {
+                throw new CustomerNotFoundException(basketRequest.CustomerEmail);
+            }
+
             customer.Email = basketRequest.CustomerEmail;
 
             basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
@@ -75,9 +80,9 @@ namespace eCommerce.Storefront.Services.Implementations
             customer.ThrowExceptionIfInvalid();
             _customerRepository.Save(customer);
             await _uow.CommitAsync();
-            
+
             response.Basket = _mapper.Map<Basket, BasketView>(basket);
-            
+
             return response;
         }
         
@@ -150,7 +155,10 @@ namespace eCommerce.Storefront.Services.Implementations
                 {
                     var product = await _productRepository.FindByAsync(productId);
 
-                    basket.Add(product);
+                    if (product != null)
+                    {
+                        basket.Add(product);
+                    }
                 }
             }
         }

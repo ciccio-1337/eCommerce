@@ -50,12 +50,24 @@ namespace eCommerce.Storefront.Services.Implementations
             var response = new CreateOrderResponse();
             var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
             var basket = await _basketRepository.FindByAsync(request.BasketId);
+
+            if (customer == null)
+            {
+                throw new CustomerNotFoundException(request.CustomerEmail);
+            }
+
+            if (basket == null)
+            {
+                throw new BasketDoesNotExistException();
+            }
+
             var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.DeliveryId);
             var order = ConvertToOrder(basket);
-            
+
             order.Customer = customer;
             order.DeliveryAddress = deliveryAddress;
 
+            order.ThrowExceptionIfInvalid();
             _orderRepository.Save(order);
             _basketRepository.Remove(basket);
             await _uow.CommitAsync();
@@ -70,22 +82,27 @@ namespace eCommerce.Storefront.Services.Implementations
             var paymentResponse = new SetOrderPaymentResponse();
             var order = await _orderRepository.FindByAsync(paymentRequest.OrderId);
 
+            if (order == null)
+            {
+                throw new OrderNotFoundException(paymentRequest.OrderId);
+            }
+
             try
             {
                 order.SetPayment(new Payment(DateTime.Now, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount));
-                Submit(order, paymentRequest.CustomerEmail);
+                await SubmitAsync(order, paymentRequest.CustomerEmail);
                 _orderRepository.Save(order);
                 await _uow.CommitAsync();
             }
             catch (OrderAlreadyPaidForException ex)
             {
                 // Refund the payment using the payment service.
-                _logger.LogError(ex.Message);
+                _logger.LogError(ex, "Order {OrderId} has already been paid for. Refund required.", order.Id);
             }
             catch (PaymentAmountDoesNotEqualOrderTotalException ex)
             {
                 // Refund the payment using the payment service.
-                _logger.LogError(ex.Message);
+                _logger.LogError(ex, "Payment amount mismatch for order {OrderId}. Refund required.", order.Id);
             }
 
             paymentResponse.Order = _mapper.Map<Order, OrderView>(order);
@@ -97,7 +114,13 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new GetOrderResponse();
             var order = await _orderRepository.FindByAsync(request.OrderId);
-            
+
+            if (order == null || order.Customer == null ||
+                !string.Equals(order.Customer.Email, request.CustomerEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return response;
+            }
+
             response.Order = _mapper.Map<Order, OrderView>(order);
 
             return response;
@@ -119,7 +142,7 @@ namespace eCommerce.Storefront.Services.Implementations
             return order;
         }
 
-        private void Submit(Order order, string customerEmail)
+        private async Task SubmitAsync(Order order, string customerEmail)
         {
             if (order.Status == OrderStatus.Open)
             {
@@ -135,13 +158,20 @@ namespace eCommerce.Storefront.Services.Implementations
                 emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));
                 emailBody.AppendLine();
                 emailBody.AppendLine("The following order will be packed and dispatched as soon as possible.");
-                emailBody.AppendLine(ToString());
+                emailBody.AppendLine(order.ToString());
                 emailBody.AppendLine();
                 emailBody.AppendLine("Thank you for your custom.");
 
                 if (!string.IsNullOrWhiteSpace(_configuration["MailSettingsSmtpNetworkPassword"]))
                 {
-                    _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], emailAddress, emailSubject, emailBody.ToString());                
+                    try
+                    {
+                        await _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], emailAddress, emailSubject, emailBody.ToString());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
+                    }
                 }
             }
             else

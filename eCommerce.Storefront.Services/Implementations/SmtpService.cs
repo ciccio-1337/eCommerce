@@ -1,38 +1,70 @@
+using System;
 using System.Net;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
     public class SmtpService : IEmailService
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<SmtpService> _logger;
 
-        public SmtpService(IConfiguration configuration)
+        public SmtpService(IConfiguration configuration, ILogger<SmtpService> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
-        public Task SendMailAsync(string from, string to, string subject, string body)
+        public async Task SendMailAsync(string from, string to, string subject, string body)
         {
+            var host = _configuration["MailSettingsSmtpNetworkHost"] ?? string.Empty;
+            var portText = _configuration["MailSettingsSmtpNetworkPort"] ?? "25";
+            var useDefaultText = _configuration["MailSettingsSmtpNetworkDefaultCredentials"] ?? bool.FalseString;
+            var userName = _configuration["MailSettingsSmtpNetworkUserName"] ?? string.Empty;
+            var password = _configuration["MailSettingsSmtpNetworkPassword"] ?? string.Empty;
+
+            if (!int.TryParse(portText, out var port))
+            {
+                port = 25;
+            }
+
+            if (!bool.TryParse(useDefaultText, out var useDefaultCredentials))
+            {
+                useDefaultCredentials = false;
+            }
+
             using (var message = new MailMessage())
             {
                 message.From = new MailAddress(from);
-                
-                message.To.Add(to);
-                
-                message.Subject = subject;
-                message.Body = body;
-                
-                using (var smtp = new SmtpClient(_configuration["MailSettingsSmtpNetworkHost"], int.Parse(_configuration["MailSettingsSmtpNetworkPort"])))
+
+                if (!string.IsNullOrWhiteSpace(to))
                 {
-                    smtp.UseDefaultCredentials = bool.Parse(_configuration["MailSettingsSmtpNetworkDefaultCredentials"]);
-                    smtp.Credentials = new NetworkCredential(_configuration["MailSettingsSmtpNetworkUserName"], _configuration["MailSettingsSmtpNetworkPassword"]);
-                    
-                    return smtp.SendMailAsync(message);
-                }      
+                    message.To.Add(to);
+                }
+
+                message.Subject = subject ?? string.Empty;
+                message.Body = body ?? string.Empty;
+
+                using (var smtp = new SmtpClient(host, port))
+                {
+                    smtp.UseDefaultCredentials = useDefaultCredentials;
+                    smtp.Credentials = new NetworkCredential(userName, password);
+
+                    try
+                    {
+                        await smtp.SendMailAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send email to {To} with subject '{Subject}'.", to, subject);
+                        
+                        throw;
+                    }
+                }
             }
         }
     }

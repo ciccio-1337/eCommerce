@@ -79,14 +79,14 @@ namespace eCommerce.Storefront.Services.Implementations
             }
 
             categoryQuery = p => p.Title.Category.Id == getProductsByCategoryRequest.CategoryId;
-            
+
             if (productQuery == null)
             {
                 productQuery = categoryQuery;
             }
             else
             {
-                productQuery = PredicateBuilder.Or(productQuery, categoryQuery);
+                productQuery = PredicateBuilder.And(productQuery, categoryQuery);
             }
 
             return productQuery;

@@ -21,7 +21,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
 
         public async Task<T> FindByAsync(TId id)
         {
-            return await AppendCriteria(_dataContext.Set<T>()).OrderBy(e => e.Id).FirstOrDefaultAsync(e => e.Id.Equals(id));
+            return await AppendCriteria(_dataContext.Set<T>()).FirstOrDefaultAsync(e => e.Id.Equals(id));
         }
 
         public IQueryable<T> FindBy(Expression<Func<T, bool>> predicate)
@@ -51,7 +51,36 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
 
         public void Save(T entity)
         {
-            _dataContext.Update(entity);
+            var entry = _dataContext.Entry(entity);
+
+            if (entry.State == EntityState.Detached)
+            {
+                var attached = _dataContext.Set<T>().Local.FirstOrDefault(e => e.Id.Equals(entity.Id));
+
+                if (attached != null)
+                {
+                    _dataContext.Entry(attached).CurrentValues.SetValues(entity);
+                    
+                    return;
+                }
+
+                _dataContext.Set<T>().Attach(entity);
+            }
+
+            foreach (var property in entry.Properties)
+            {
+                if (property.Metadata.IsKey())
+                {
+                    continue;
+                }
+
+                if (property.IsModified)
+                {
+                    continue;
+                }
+
+                property.IsModified = true;
+            }
         }
 
         public void Remove(T entity)

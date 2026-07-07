@@ -82,7 +82,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(double.Parse(configuration["CookieAuthenticationTimeout"]));
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<double?>("CookieAuthenticationTimeout") ?? 30);
                 options.LoginPath = "/AccountLogOn/LogOn";
                 options.AccessDeniedPath = "/AccountLogOn/LogOn";
                 options.SlidingExpiration = true;
@@ -93,7 +93,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(double.Parse(configuration["CookieAuthenticationTimeout"]));
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<double?>("CookieAuthenticationTimeout") ?? 30);
                 options.LoginPath = "/admin/account/login";
                 options.AccessDeniedPath = "/admin/account/login";
                 options.SlidingExpiration = true;

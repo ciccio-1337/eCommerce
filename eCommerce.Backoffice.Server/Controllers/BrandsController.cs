@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -18,10 +19,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     public class BrandsController : ControllerBase
     {
         private readonly IEntityService<Brand, long> _brandService;
+        private readonly ILogger<BrandsController> _logger;
 
-        public BrandsController(IEntityService<Brand, long> brandService)
+        public BrandsController(IEntityService<Brand, long> brandService, ILogger<BrandsController> logger)
         {
             _brandService = brandService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -42,14 +45,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             var brand = await _brandService.GetAsync(id);
 
             if (brand == null)
-            { 
+            {
                 return NotFound();
             }
 
-            return new BrandDto 
-            { 
-                Id = brand.Id, 
-                Name = brand.Name 
+            return new BrandDto
+            {
+                Id = brand.Id,
+                Name = brand.Name
             };
         }
 
@@ -58,25 +61,18 @@ namespace eCommerce.Backoffice.Server.Controllers
         {
             try
             {
-                var b = await _brandService.CreateAsync(new Brand 
-                { 
-                    Id = brand.Id, 
-                    Name = brand.Name 
+                var b = await _brandService.CreateAsync(new Brand
+                {
+                    Id = brand.Id,
+                    Name = brand.Name
                 });
 
                 brand.Id = b.Id;
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return CreatedAtAction(nameof(GetBrand), new { id = brand.Id }, brand);
         }
@@ -91,10 +87,10 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                await _brandService.ModifyAsync(new Brand 
-                { 
-                    Id = brand.Id, 
-                    Name = brand.Name 
+                await _brandService.ModifyAsync(new Brand
+                {
+                    Id = brand.Id,
+                    Name = brand.Name
                 });
             }
             catch (DbUpdateConcurrencyException)
@@ -103,39 +99,32 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBrand(int id)
-        {            
+        {
             try
             {
                 await _brandService.DeleteAsync(id);
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
+        }
+
+        private BadRequestObjectResult HandleDbUpdateException(DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database update failed.");
+
+            return BadRequest("The operation could not be completed. Please check your input and try again.");
         }
     }
 }

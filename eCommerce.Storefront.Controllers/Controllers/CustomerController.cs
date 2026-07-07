@@ -114,19 +114,26 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             if (response.CustomerFound)
             {
+                var address = response.Customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == deliveryAddressId);
+
+                if (address == null)
+                {
+                    return RedirectToAction("DeliveryAddresses");
+                }
+
                 var deliveryAddressView = new CustomerDeliveryAddressView
                 {
                     CustomerView = response.Customer,
-                    Address = response.Customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == deliveryAddressId),
+                    Address = address,
                     BasketSummary = await GetBasketSummaryViewAsync()
                 };
 
                 return View(deliveryAddressView);
             }
-            else 
+            else
             {
                 await _cookieAuthentication.SignOutAsync();
-                
+
                 return RedirectToAction("Register", "AccountRegister");
             }
         }

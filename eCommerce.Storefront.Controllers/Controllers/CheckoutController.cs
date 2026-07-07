@@ -89,11 +89,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public async Task<IActionResult> PlaceOrder(IFormCollection collection)
         {
+            if (!int.TryParse(collection[FormDataKeys.DeliveryAddress.ToString()], out var deliveryId))
+            {
+                return BadRequest("Invalid delivery address.");
+            }
+
             var request = new CreateOrderRequest
             {
                 BasketId = await GetBasketIdAsync(),
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken(),
-                DeliveryId = int.Parse(collection[FormDataKeys.DeliveryAddress.ToString()])
+                DeliveryId = deliveryId
             };
             var response = await _orderService.CreateOrderAsync(request);
 

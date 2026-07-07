@@ -42,6 +42,11 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
 
         public async Task<T> CreateAsync(T entity)
         {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
             entity.ThrowExceptionIfInvalid();
             await _repository.AddAsync(entity);
             await _uow.CommitAsync();
@@ -50,7 +55,12 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
         }
 
         public async Task<T> ModifyAsync(T entity)
-        {            
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
             entity.ThrowExceptionIfInvalid();
             _repository.Save(entity);
             await _uow.CommitAsync();
@@ -61,6 +71,11 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
         public async Task DeleteAsync(TId id)
         {
             T entity = await _repository.FindByAsync(id);
+
+            if (entity == null)
+            {
+                return;
+            }
 
             _repository.Remove(entity);
             await _uow.CommitAsync();

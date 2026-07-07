@@ -65,8 +65,9 @@ namespace eCommerce.Storefront.Services.Implementations
             var productQuery = ProductSearchRequestQueryGenerator.CreateQueryFor(request);
             var productsMatchingRefinement = GetAllProductsMatchingQueryAndSort(request, productQuery);
             var response = CreateProductSearchResultFrom(productsMatchingRefinement, request);
-
-            response.SelectedCategoryName = (await _categoryRepository.FindByAsync(request.CategoryId)).Name;
+            var category = await _categoryRepository.FindByAsync(request.CategoryId);
+            
+            response.SelectedCategoryName = category?.Name ?? "Unknown";
 
             return response;
         }

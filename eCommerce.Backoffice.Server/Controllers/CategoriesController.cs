@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -20,12 +21,15 @@ namespace eCommerce.Backoffice.Server.Controllers
     {
         private readonly IEntityService<Category, long> _categoryService;
         private readonly ICacheStorage _cacheStorage;
+        private readonly ILogger<CategoriesController> _logger;
 
         public CategoriesController(IEntityService<Category, long> categoryService,
-            ICacheStorage cacheStorage)
+            ICacheStorage cacheStorage,
+            ILogger<CategoriesController> logger)
         {
             _categoryService = categoryService;
             _cacheStorage = cacheStorage;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -46,14 +50,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             var category = await _categoryService.GetAsync(id);
 
             if (category == null)
-            { 
+            {
                 return NotFound();
             }
 
-            return new CategoryDto 
-            { 
-                Id = category.Id, 
-                Name = category.Name 
+            return new CategoryDto
+            {
+                Id = category.Id,
+                Name = category.Name
             };
         }
 
@@ -62,10 +66,10 @@ namespace eCommerce.Backoffice.Server.Controllers
         {
             try
             {
-                var c = await _categoryService.CreateAsync(new Category 
-                { 
-                    Id = category.Id, 
-                    Name = category.Name 
+                var c = await _categoryService.CreateAsync(new Category
+                {
+                    Id = category.Id,
+                    Name = category.Name
                 });
 
                 category.Id = c.Id;
@@ -74,15 +78,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
@@ -97,10 +94,10 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                await _categoryService.ModifyAsync(new Category 
+                await _categoryService.ModifyAsync(new Category
                 {
-                    Id = category.Id, 
-                    Name = category.Name 
+                    Id = category.Id,
+                    Name = category.Name
                 });
                 _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
             }
@@ -110,15 +107,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
         }
@@ -133,17 +123,17 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
+        }
+
+        private BadRequestObjectResult HandleDbUpdateException(DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database update failed.");
+
+            return BadRequest("The operation could not be completed. Please check your input and try again.");
         }
     }
 }

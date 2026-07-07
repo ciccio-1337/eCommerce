@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -18,10 +19,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     public class SizesController : ControllerBase
     {
         private readonly IEntityService<ProductSize, long> _sizeService;
+        private readonly ILogger<SizesController> _logger;
 
-        public SizesController(IEntityService<ProductSize, long> sizeService)
+        public SizesController(IEntityService<ProductSize, long> sizeService, ILogger<SizesController> logger)
         {
             _sizeService = sizeService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -42,7 +45,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             var productSize = await _sizeService.GetAsync(id);
 
             if (productSize == null)
-            { 
+            {
                 return NotFound();
             }
 
@@ -60,15 +63,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }            
+                return HandleDbUpdateException(ex);
+            }
 
             return CreatedAtAction(nameof(GetSize), new { id = size.Id }, size);
         }
@@ -91,15 +87,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
         }
@@ -113,17 +102,17 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
+        }
+
+        private BadRequestObjectResult HandleDbUpdateException(DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database update failed.");
+
+            return BadRequest("The operation could not be completed. Please check your input and try again.");
         }
     }
 }

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -18,10 +19,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     public class ColorsController : ControllerBase
     {
         private readonly IEntityService<ProductColor, long> _colorService;
+        private readonly ILogger<ColorsController> _logger;
 
-        public ColorsController(IEntityService<ProductColor, long> colorService)
+        public ColorsController(IEntityService<ProductColor, long> colorService, ILogger<ColorsController> logger)
         {
             _colorService = colorService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -42,14 +45,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             var productColor = await _colorService.GetAsync(id);
 
             if (productColor == null)
-            { 
+            {
                 return NotFound();
             }
 
-            return new ProductColorDto 
-            { 
-                Id = productColor.Id, 
-                Name = productColor.Name 
+            return new ProductColorDto
+            {
+                Id = productColor.Id,
+                Name = productColor.Name
             };
         }
 
@@ -58,25 +61,18 @@ namespace eCommerce.Backoffice.Server.Controllers
         {
             try
             {
-                var productColor = await _colorService.CreateAsync(new ProductColor 
-                { 
-                    Id = color.Id, 
-                    Name = color.Name 
+                var productColor = await _colorService.CreateAsync(new ProductColor
+                {
+                    Id = color.Id,
+                    Name = color.Name
                 });
 
                 color.Id = productColor.Id;
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return CreatedAtAction(nameof(GetColor), new { id = color.Id }, color);
         }
@@ -91,10 +87,10 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                await _colorService.ModifyAsync(new ProductColor 
-                { 
-                    Id = color.Id, 
-                    Name = color.Name 
+                await _colorService.ModifyAsync(new ProductColor
+                {
+                    Id = color.Id,
+                    Name = color.Name
                 });
             }
             catch (DbUpdateConcurrencyException)
@@ -103,15 +99,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
         }
@@ -125,17 +114,17 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateException ex)
             {
-                if (ex?.InnerException?.Message != null)
-                {
-                    return BadRequest(ex?.InnerException?.Message);
-                }
-                else
-                {
-                    return BadRequest(ex?.Message);
-                }
-            }   
+                return HandleDbUpdateException(ex);
+            }
 
             return NoContent();
+        }
+
+        private BadRequestObjectResult HandleDbUpdateException(DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database update failed.");
+
+            return BadRequest("The operation could not be completed. Please check your input and try again.");
         }
     }
 }

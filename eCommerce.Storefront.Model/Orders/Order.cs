@@ -12,6 +12,7 @@ namespace eCommerce.Storefront.Model.Orders
     {
         private readonly IList<OrderItem> _items;
         private readonly DateTime _created;
+        private readonly object _paymentLock = new object();
         private Payment _payment;
 
         public Order()
@@ -47,18 +48,21 @@ namespace eCommerce.Storefront.Model.Orders
 
         public void SetPayment(Payment payment)
         {
-            if (OrderHasBeenPaidFor())
+            lock (_paymentLock)
             {
-                throw new OrderAlreadyPaidForException(GetDetailsOnExisitingPayment());
-            }
+                if (OrderHasBeenPaidFor())
+                {
+                    throw new OrderAlreadyPaidForException(GetDetailsOnExisitingPayment());
+                }
 
-            if (OrderTotalMatches(payment))
-            {
-                _payment = payment;
-            }
-            else
-            {
-                throw new PaymentAmountDoesNotEqualOrderTotalException(GetDetailsOnIssueWith(payment));
+                if (OrderTotalMatches(payment))
+                {
+                    _payment = payment;
+                }
+                else
+                {
+                    throw new PaymentAmountDoesNotEqualOrderTotalException(GetDetailsOnIssueWith(payment));
+                }
             }
         }
 
@@ -74,7 +78,10 @@ namespace eCommerce.Storefront.Model.Orders
 
         public bool OrderHasBeenPaidFor()
         {
-            return Payment != null && OrderTotalMatches(Payment);
+            lock (_paymentLock)
+            {
+                return Payment != null && OrderTotalMatches(Payment);
+            }
         }
 
         private bool OrderTotalMatches(Payment payment)

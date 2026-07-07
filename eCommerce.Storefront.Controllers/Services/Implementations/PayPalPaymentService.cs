@@ -8,6 +8,7 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model.Orders;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
@@ -16,14 +17,22 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
+        private readonly ILogger<PayPalPaymentService> _logger;
 
-        public PayPalPaymentService(IHttpContextAccessor httpContextAccessor, 
+        public PayPalPaymentService(IHttpContextAccessor httpContextAccessor,
             IConfiguration configuration,
-            HttpClient httpClient)
+            HttpClient httpClient,
+            ILogger<PayPalPaymentService> logger)
         {
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
             _httpClient = httpClient;
+            _logger = logger;
+
+            if (_httpClient.Timeout == System.Threading.Timeout.InfiniteTimeSpan)
+            {
+                _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            }
         }
 
         public PaymentPostData GeneratePostDataFor(OrderPaymentRequest orderRequest)
@@ -92,29 +101,45 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         public async Task<TransactionResult> HandleCallBackAsync(OrderPaymentRequest orderRequest, IFormCollection collection)
         {
             var transactionResult = new TransactionResult();
-            var response = await ValidatePaymentNotificationAsync(collection);
+
+            string response;
+
+            try
+            {
+                response = await ValidatePaymentNotificationAsync(collection);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PayPal IPN validation failed with an exception for order {OrderId}.", orderRequest.Id);
+                
+                return transactionResult;
+            }
 
             if (response == "VERIFIED")
             {
                 var sAmountPaid = collection["mc_gross"];
                 var transactionId = collection["txn_id"];
 
-                decimal.TryParse(sAmountPaid, out var amountPaid);
+                if (!decimal.TryParse(sAmountPaid, out var amountPaid))
+                {
+                    _logger.LogWarning("PayPal IPN: invalid mc_gross '{AmountPaid}' for order {OrderId}.", sAmountPaid, orderRequest.Id);
+                    
+                    return transactionResult;
+                }
 
-                if (orderRequest.Total == amountPaid)
+                transactionResult.PaymentToken = transactionId;
+                transactionResult.Amount = amountPaid;
+                transactionResult.PaymentMerchant = "PayPal";
+                transactionResult.PaymentOk = orderRequest.Total == amountPaid;
+
+                if (!transactionResult.PaymentOk)
                 {
-                    transactionResult.PaymentToken = transactionId;
-                    transactionResult.Amount = amountPaid;
-                    transactionResult.PaymentMerchant = "PayPal";
-                    transactionResult.PaymentOk = true;
+                    _logger.LogWarning("PayPal IPN: amount mismatch for order {OrderId}. Expected {Expected}, got {Actual}.", orderRequest.Id, orderRequest.Total, amountPaid);
                 }
-                else
-                {
-                    transactionResult.PaymentToken = transactionId;
-                    transactionResult.Amount = amountPaid;
-                    transactionResult.PaymentMerchant = "PayPal";
-                    transactionResult.PaymentOk = false;
-                }
+            }
+            else
+            {
+                _logger.LogWarning("PayPal IPN not verified for order {OrderId}: {Response}.", orderRequest.Id, response);
             }
 
             return transactionResult;
@@ -149,7 +174,12 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
         public int GetOrderIdFor(IFormCollection collection)
         {
-            return int.Parse(collection["custom"]);
+            if (!int.TryParse(collection["custom"], out var orderId))
+            {
+                throw new FormatException("PayPal 'custom' field is missing or not a valid integer.");
+            }
+
+            return orderId;
         }
     }
 }

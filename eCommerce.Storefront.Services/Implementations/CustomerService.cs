@@ -82,6 +82,11 @@ namespace eCommerce.Storefront.Services.Implementations
             var response = new ModifyCustomerResponse();
             var customer = await _customerRepository.FindByAsync(request.CurrentEmail);
 
+            if (customer == null)
+            {
+                throw new CustomerNotFoundException(request.CurrentEmail);
+            }
+
             customer.FirstName = request.FirstName;
             customer.SecondName = request.SecondName;
             customer.Email = request.NewEmail;
@@ -100,14 +105,22 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new DeliveryAddressModifyResponse();
             var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
+
+            if (customer == null)
+            {
+                throw new CustomerNotFoundException(request.CustomerEmail);
+            }
+
             var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id);
 
-            if (deliveryAddress != null)
+            if (deliveryAddress == null)
             {
-                UpdateDeliveryAddressFrom(request.Address, deliveryAddress);
-                _customerRepository.Save(customer);
-                await _uow.CommitAsync();
+                return response;
             }
+
+            UpdateDeliveryAddressFrom(request.Address, deliveryAddress);
+            _customerRepository.Save(customer);
+            await _uow.CommitAsync();
 
             response.DeliveryAddress = _mapper.Map<DeliveryAddress, DeliveryAddressView>(deliveryAddress);
 
@@ -118,6 +131,12 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new DeliveryAddressAddResponse();
             var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
+
+            if (customer == null)
+            {
+                throw new CustomerNotFoundException(request.CustomerEmail);
+            }
+
             var deliveryAddress = new DeliveryAddress
             {
                 Customer = customer
