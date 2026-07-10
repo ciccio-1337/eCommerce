@@ -4,8 +4,8 @@ namespace eCommerce.Backoffice.Client.Services.Interfaces
 {
     public interface ILoginService
     {
-        Task LoginAsync(string token);
+        Task LoginAsync(string email);
         Task LogoutAsync();
-        Task<string> GetTokenAsync();
+        Task<string> GetAuthStateAsync();
     }
 }

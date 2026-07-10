@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
+using System.Security.Claims;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -67,7 +68,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 customerDetailView.Customer = response.Customer;
 
-                await _cookieAuthentication.SetAuthenticationTokenAsync(customerDetailView.Customer.Email, new List<string> { "Customer" });
+                await _cookieAuthentication.SetAuthenticationTokenAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), customerDetailView.Customer.Email, new List<string> { "Customer" });
             }
             catch (EntityBaseIsInvalidException ex)
             {

@@ -73,7 +73,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                         SecondName = secondName
                     });
 
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, new List<string> { "Customer" });
                     await _shopDataContext.Database.CommitTransactionAsync();
 
                     return RedirectToAction("Detail", "Customer");

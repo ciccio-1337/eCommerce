@@ -1,6 +1,7 @@
+using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Client.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -11,60 +12,54 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
     public class CustomAuthStateProvider : AuthenticationStateProvider, ILoginService
     {
         private readonly IJSRuntime _javaScriptRuntime;
-        private readonly HttpClient _httpClient;
-        private static readonly string _tokenkey = "TOKENKEY";
+        private static readonly string _authenticationStateKey = "AuthenticationState";
         private AuthenticationState _anonymous => new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
 
-        public CustomAuthStateProvider(IJSRuntime javaScriptRuntime, HttpClient httpClient)
+        public CustomAuthStateProvider(IJSRuntime javaScriptRuntime)
         {
             _javaScriptRuntime = javaScriptRuntime;
-            _httpClient = httpClient;
         }
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await GetTokenAsync();
+            var authState = await GetAuthStateAsync();
 
-            if (string.IsNullOrWhiteSpace(token))
+            if (string.IsNullOrWhiteSpace(authState))
             {
-                _httpClient.DefaultRequestHeaders.Remove("RequestVerificationToken");
-                await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
+                await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
                 
                 return _anonymous;
             }
 
-            return BuildAuthenticationState(token);
+            return BuildAuthenticationState(Encoding.UTF8.GetString(Convert.FromBase64String(authState)));
         }
 
-        public async Task LoginAsync(string token)
+        public async Task LoginAsync(string email)
         {
-            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _tokenkey, token);
-
-            var authState = BuildAuthenticationState(token);
+            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _authenticationStateKey, Convert.ToBase64String(Encoding.UTF8.GetBytes(email)));
+            
+            var authState = BuildAuthenticationState(email);
 
             NotifyAuthenticationStateChanged(Task.FromResult(authState));
         }
 
         public async Task LogoutAsync()
         {
-            _httpClient.DefaultRequestHeaders.Remove("RequestVerificationToken");
-            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _tokenkey);
+            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
 
             NotifyAuthenticationStateChanged(Task.FromResult(_anonymous));
         }
 
-        public async Task<string> GetTokenAsync()
+        public async Task<string> GetAuthStateAsync()
         {
-            return await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _tokenkey);
+            return await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _authenticationStateKey);
         }
 
-        private AuthenticationState BuildAuthenticationState(string token)
-        {
-            _httpClient.DefaultRequestHeaders.Add("RequestVerificationToken", token.Substring(token.IndexOf(':') + 1));
-            
+        private AuthenticationState BuildAuthenticationState(string email)
+        {            
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
             {
-                new Claim(ClaimTypes.Name, token.Substring(0, token.IndexOf(':'))),
+                new Claim(ClaimTypes.Name, email),
                 new Claim(ClaimTypes.Role, "Admin")
             }, "jwt")));
         }

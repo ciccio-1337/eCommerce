@@ -18,10 +18,11 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task SetAuthenticationTokenAsync(string email, IEnumerable<string> roles)
+        public async Task SetAuthenticationTokenAsync(string userId, string email, IEnumerable<string> roles)
         {
             var claims = new List<Claim>
             {
+                new Claim(ClaimTypes.NameIdentifier, userId),
                 new Claim(ClaimTypes.Name, email)
             };
 

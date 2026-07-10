@@ -16,7 +16,6 @@ using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Antiforgery;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -30,21 +29,18 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly IConfiguration _configuration;
         private readonly IEntityService<Customer, long> _customerService;
         private readonly ShopDataContext _shopDataContext;
-        private readonly IAntiforgery _antiforgery;
 
         public AccountsController(IEmailService emailService,
             SignInManager<IdentityUser> signInManager,
             IConfiguration configuration,
             IEntityService<Customer, long> customerService,
-            ShopDataContext shopDataContext,
-            IAntiforgery antiforgery)
+            ShopDataContext shopDataContext)
         {
             _emailService = emailService;
             _signInManager = signInManager;
             _configuration = configuration;
             _customerService = customerService;
             _shopDataContext = shopDataContext;
-            _antiforgery = antiforgery;
         }
 
         [HttpGet]
@@ -117,7 +113,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}/[action]")]
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> EmailConfirmation(string id, EmailConfirmationRequest confirmationRequest)
         {
             if (id != confirmationRequest.UserId)
@@ -145,7 +140,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost("forgotpassword")]
-        [IgnoreAntiforgeryToken]
         public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             var response = new ForgotPasswordResponse();
@@ -174,7 +168,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost("login")]
-        [IgnoreAntiforgeryToken]
         public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
         {
             var response = new LoginResponse();
@@ -198,7 +191,8 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, loginRequest.Email)
+                new Claim(ClaimTypes.Name, loginRequest.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
             };
 
             foreach (var role in roles)
@@ -210,7 +204,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             await HttpContext?.SignInAsync(JwtBearerDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
 
-            response.Token = $"{loginRequest.Email}:{_antiforgery.GetAndStoreTokens(HttpContext).RequestToken}";
+            response.Email = loginRequest.Email;
             response.IsSuccess = true;
 
             return Ok(response);
@@ -226,7 +220,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("[action]")]
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest changePasswordRequest)
         {
             var user = await _signInManager.UserManager.FindByEmailAsync(changePasswordRequest.Email);

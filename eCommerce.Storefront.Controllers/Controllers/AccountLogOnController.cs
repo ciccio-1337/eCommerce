@@ -38,7 +38,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 if (user.IsAuthenticated && user.Roles.Any(r => r.Equals("Customer")))
                 {
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, new List<string> { "Customer" });
 
                     return RedirectToAction("Index", "Home");
                 }

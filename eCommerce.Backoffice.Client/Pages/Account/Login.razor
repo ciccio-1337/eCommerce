@@ -51,9 +51,9 @@
     {
         if (firstRender)
         {
-            var token = await loginService.GetTokenAsync();
+            var authState = await loginService.GetAuthStateAsync();
 
-            if (!string.IsNullOrWhiteSpace(token))
+            if (!string.IsNullOrWhiteSpace(authState))
             {
                 await Http.PostAsync("api/accounts/logout", null);
             }
@@ -70,7 +70,7 @@
 
         if (loginResponse != null && loginResponse.IsSuccess)
         {
-            await loginService.LoginAsync(loginResponse.Token);
+            await loginService.LoginAsync(loginResponse.Email);
             navManager.NavigateTo("/admin");
         }
     }

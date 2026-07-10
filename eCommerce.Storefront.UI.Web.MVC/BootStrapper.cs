@@ -192,6 +192,11 @@ namespace eCommerce.Storefront.UI.Web.MVC
 
                 if (context.Request.Path.StartsWithSegments("/admin"))
                 {
+                    foreach (var key in context.Request.Cookies.Keys)
+                    {
+                        context.Response.Cookies.Delete(key);
+                    }
+
                     context.Response.Redirect("/index.html");
 
                     return;
