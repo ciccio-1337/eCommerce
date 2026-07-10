@@ -24,6 +24,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Net.Http.Headers;
 using SameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Mapster;
+using MapsterMapper;
 
 namespace eCommerce.Storefront.UI.Web.MVC
 {
@@ -31,10 +33,12 @@ namespace eCommerce.Storefront.UI.Web.MVC
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection serviceCollection, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
-            serviceCollection.AddAutoMapper(options =>
-            {
-                options.AddProfile<AutoMapperBootStrapper>();
-            });
+            var config = TypeAdapterConfig.GlobalSettings;
+            
+            config.Scan(typeof(MapsterBootStrapper).Assembly); 
+            
+            serviceCollection.AddSingleton(config);
+            serviceCollection.AddScoped<IMapper, ServiceMapper>();
             serviceCollection.AddHttpContextAccessor();
             serviceCollection.AddDbContext<ShopDataContext>(options => 
             {
@@ -78,7 +82,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 options.User.RequireUniqueEmail = true;
             });
-            serviceCollection.AddAuthentication().AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+            serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;
@@ -88,7 +92,8 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.Path = "/";
             }).AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
@@ -99,9 +104,13 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.Path = "/";
             });
-            serviceCollection.AddAntiforgery();
+            serviceCollection.AddAntiforgery(options =>
+            {
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            });
             serviceCollection.AddLogging(configure => 
             {
                 configure.AddConfiguration(configuration.GetSection("Logging"));

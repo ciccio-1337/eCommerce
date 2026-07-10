@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using AutoMapper;
+using MapsterMapper;
 using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Model.Shipping;
 using eCommerce.Storefront.Services.Interfaces;

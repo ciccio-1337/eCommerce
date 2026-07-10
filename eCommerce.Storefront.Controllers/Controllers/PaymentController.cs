@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using AutoMapper;
+using MapsterMapper;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.OrderService;
 using eCommerce.Storefront.Services.ViewModels;

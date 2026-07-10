@@ -1,5 +1,5 @@
 using System.Linq;
-using AutoMapper;
+using MapsterMapper;
 using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Model.Orders;
 using eCommerce.Storefront.Services.Interfaces;

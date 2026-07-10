@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
+using MapsterMapper;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
 using eCommerce.Storefront.Services.Cache.Specifications;
