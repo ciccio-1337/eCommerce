@@ -10,21 +10,18 @@ namespace eCommerce.Storefront.Tests.AddressSpecs
         [TestMethod]
         public void ThenAnInvalidAddressExceptionWillBeThrown()
         {
-            Assert.Throws<EntityBaseIsInvalidException>(() =>
+            var invalidAddress = new DeliveryAddress()
             {
-                DeliveryAddress invalidAddress = new DeliveryAddress()
-                {
-                    AddressLine = "99 Old street", 
-                    City = "City", 
-                    State = "State", 
-                    Country = string.Empty,
-                    ZipCode = "PostCode",
-                    Name = "Home",
-                    Customer = new Customer()
-                };
+                AddressLine = "99 Old street",
+                City = "City",
+                State = "State",
+                Country = string.Empty,
+                ZipCode = "PostCode",
+                Name = "Home",
+                Customer = new Customer()
+            };
 
-                invalidAddress.ThrowExceptionIfInvalid();
-            });
+            Assert.Throws<EntityBaseIsInvalidException>(invalidAddress.ThrowExceptionIfInvalid);
         }
     }
 }

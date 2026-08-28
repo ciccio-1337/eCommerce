@@ -7,11 +7,11 @@ namespace eCommerce.Storefront.Services.Messaging.ProductCatalogService
     {
         public ModifyBasketRequest()
         {
-            ItemsToRemove = new List<long>();
-            ProductsToAdd = new List<long>();
-            ItemsToUpdate = new List<ProductQtyUpdateRequest>();
+            ItemsToRemove = [];
+            ProductsToAdd = [];
+            ItemsToUpdate = [];
         }
-        
+
         public Guid BasketId { get; set; }
         public IList<long> ItemsToRemove { get; set; }
         public IList<ProductQtyUpdateRequest> ItemsToUpdate { get; set; }

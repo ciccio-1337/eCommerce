@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Model.Shipping;
@@ -12,13 +13,13 @@ namespace eCommerce.Storefront.Model.Orders
     {
         private readonly IList<OrderItem> _items;
         private readonly DateTime _created;
-        private readonly object _paymentLock = new object();
+        private readonly Lock _paymentLock = new();
         private Payment _payment;
 
         public Order()
         {
             _created = DateTime.Now;
-            _items = new List<OrderItem>();
+            _items = [];
             Status = OrderStatus.Open;
         }
 
@@ -108,7 +109,7 @@ namespace eCommerce.Storefront.Model.Orders
                 {
                     _items.Add(new OrderItem(product, this, qty));
                 }
-            }   
+            }
             else
             {
                 throw new CannotAmendOrderException(string.Format("You cannot add an item to an order with the status of '{0}'.", Status.ToString()));
@@ -151,7 +152,7 @@ namespace eCommerce.Storefront.Model.Orders
 
             if (Items == null || !Items.Any())
             {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Items), Rule = "An order must contain at least one order item." }); 
+                AddBrokenRule(new BusinessRule() { Property = nameof(Items), Rule = "An order must contain at least one order item." });
             }
             else
             {
@@ -165,7 +166,7 @@ namespace eCommerce.Storefront.Model.Orders
                         }
                     }
                 }
-            } 
+            }
 
             if (ShippingService == null)
             {
@@ -175,7 +176,7 @@ namespace eCommerce.Storefront.Model.Orders
 
         public override string ToString()
         {
-            StringBuilder orderInfo = new StringBuilder();
+            var orderInfo = new StringBuilder();
 
             foreach (OrderItem item in _items)
             {

@@ -6,12 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class CustomerRepository : Repository<Customer, long>, ICustomerRepository
+    public class CustomerRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<Customer, long>(uow, dataContext), ICustomerRepository
     {
-        public CustomerRepository(IUnitOfWork uow, ShopDataContext dataContext) : base(uow, dataContext)
-        {
-        }
-
         public async Task<Customer> FindByAsync(string email)
         {
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email));
@@ -20,7 +16,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             {
                 return await FindBy(c => c.UserId.Equals(user.Id)).FirstOrDefaultAsync();
             }
-            else 
+            else
             {
                 return null;
             }
@@ -46,7 +42,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             {
                 user.UserName = user.Email = email;
                 user.NormalizedUserName = user.NormalizedEmail = email.ToUpper();
-                
+
                 _dataContext.Users.Update(user);
             }
         }

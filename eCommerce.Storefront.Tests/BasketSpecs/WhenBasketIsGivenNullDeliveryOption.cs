@@ -7,20 +7,20 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
     [TestClass]
     public class WhenBasketIsGivenNullDeliveryOption
     {
-        private Basket _basket;        
+        private Basket _basket;
 
         [TestInitialize]
         public void Given()
         {
             _basket = new Basket();
 
-            _basket.SetDeliveryOption(null);            
+            _basket.SetDeliveryOption(null);
         }
 
         [TestMethod]
         public void ThenTheBasketShouldHaveTwoBrokenRules()
         {
-            Assert.AreEqual(2, _basket.GetBrokenRules().Count());
+            Assert.HasCount(2, _basket.GetBrokenRules());
         }
 
         [TestMethod]

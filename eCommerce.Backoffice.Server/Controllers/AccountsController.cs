@@ -145,7 +145,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
             {
-                response.Errors = new List<string> { "Not confirmed email" };
+                response.Errors = ["Not confirmed email"];
             }
             else
             {

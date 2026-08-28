@@ -12,8 +12,8 @@ namespace eCommerce.Storefront.Controllers.DTOs
 
         public static IList<ProductQtyUpdateRequest> ConvertToBasketItemUpdateRequests(this BasketItemUpdateRequest[] basketItemUpdateRequests)
         {
-            IList<ProductQtyUpdateRequest> productQtyUpdateRequest = new List<ProductQtyUpdateRequest>();
-            
+            var productQtyUpdateRequest = new List<ProductQtyUpdateRequest>();
+
             for (int i = 0; i < basketItemUpdateRequests.Length; i++)
             {
                 productQtyUpdateRequest.Add(basketItemUpdateRequests[i].ConvertToBasketItemUpdateRequest());

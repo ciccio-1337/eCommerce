@@ -6,9 +6,9 @@ namespace eCommerce.Storefront.Services.Messaging.ProductCatalogService
     {
         public CreateBasketRequest()
         {
-            ProductsToAdd = new List<long>();
+            ProductsToAdd = [];
         }
-        
+
         public IList<long> ProductsToAdd { get; set; }
         public string CustomerEmail { get; set; }
     }

@@ -8,14 +8,9 @@ using Microsoft.AspNetCore.Identity;
 
 namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
-    public class AspNetCoreIdentityAuthentication : ILocalAuthenticationService
+    public class AspNetCoreIdentityAuthentication(SignInManager<IdentityUser> signInManager) : ILocalAuthenticationService
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
-
-        public AspNetCoreIdentityAuthentication(SignInManager<IdentityUser> signInManager)
-        {
-            _signInManager = signInManager;
-        }
+        private readonly SignInManager<IdentityUser> _signInManager = signInManager;
 
         public async Task<User> LoginAsync(string email, string password)
         {
@@ -31,7 +26,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             }
             else
             {
-                throw new InvalidOperationException("Sorry we could not log you in. Please try again.");            
+                throw new InvalidOperationException("Sorry we could not log you in. Please try again.");
             }
 
             return user;
@@ -40,9 +35,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         public async Task<User> RegisterUserAsync(string email, string password, bool confirmEmail, IEnumerable<string> roles)
         {
             var user = new User();
-            var identityUser = new IdentityUser { UserName = email ?? string.Empty, Email = email ?? string.Empty, EmailConfirmed = confirmEmail };
+            var identityUser = new IdentityUser
+            {
+                UserName = email ?? string.Empty,
+                Email = email ?? string.Empty,
+                EmailConfirmed = confirmEmail
+            };
             var result = await _signInManager.UserManager.CreateAsync(identityUser, password ?? string.Empty);
-                  
+
             if (result.Succeeded)
             {
                 user.Id = identityUser.Id;
@@ -53,7 +53,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 {
                     foreach (var role in roles)
                     {
-                        result = await _signInManager.UserManager.AddToRoleAsync(identityUser, role);    
+                        result = await _signInManager.UserManager.AddToRoleAsync(identityUser, role);
 
                         if (!result.Succeeded)
                         {
@@ -64,17 +64,17 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                             {
                                 throw new InvalidOperationException(result.Errors?.FirstOrDefault()?.Description);
                             }
-                            else 
+                            else
                             {
                                 break;
                             }
                         }
-                    }       
+                    }
 
                     if (user.IsAuthenticated)
                     {
                         user.Roles = roles;
-                    }             
+                    }
                 }
             }
             else
@@ -86,7 +86,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 else
                 {
                     throw new InvalidOperationException("There was a problem creating your account. Please try again.");
-                }                
+                }
             }
 
             return user;

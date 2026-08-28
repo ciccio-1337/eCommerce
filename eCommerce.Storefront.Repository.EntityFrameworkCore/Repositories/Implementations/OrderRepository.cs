@@ -5,12 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class OrderRepository : Repository<Order, long>, IOrderRepository
+    public class OrderRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<Order, long>(uow, dataContext), IOrderRepository
     {
-        public OrderRepository(IUnitOfWork uow, ShopDataContext dataContext) : base(uow, dataContext)
-        {
-        }
-
         public override IQueryable<Order> AppendCriteria(IQueryable<Order> criteria)
         {
             return criteria.Include(o => o.Items)
@@ -22,7 +18,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
                            .Include(o => o.ShippingService)
                            .ThenInclude(s => s.Courier)
                            .Include(o => o.DeliveryAddress)
-                           .Include(o => o.Customer)                           
+                           .Include(o => o.Customer)
                            .ThenInclude(c => c.DeliveryAddressBook);
         }
     }

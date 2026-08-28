@@ -7,9 +7,9 @@ namespace eCommerce.Storefront.Controllers.ViewModels.ProductCatalog
     {
         public ProductSearchResultView()
         {
-            RefinementGroups = new List<RefinementGroup>();
+            RefinementGroups = [];
         }
-        
+
         public string SelectedCategoryName { get; set; }
         public int SelectedCategory { get; set; }
         public IEnumerable<RefinementGroup> RefinementGroups { get; set; }

@@ -5,12 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class ProductTitleRepository : Repository<ProductTitle, long>, IProductTitleRepository
+    public class ProductTitleRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<ProductTitle, long>(uow, dataContext), IProductTitleRepository
     {
-        public ProductTitleRepository(IUnitOfWork uow, ShopDataContext dataContext) : base(uow, dataContext)
-        {
-        }
-
         public override IQueryable<ProductTitle> AppendCriteria(IQueryable<ProductTitle> criteria)
         {
             return criteria.Include(p => p.Brand)

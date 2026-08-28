@@ -9,16 +9,10 @@ using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interface
 
 namespace eCommerce.Backoffice.Shared.Services.Implementations
 {
-    public class EntityService<T, TId> : IEntityService<T, TId> where T : EntityBase<TId>
+    public class EntityService<T, TId>(IRepository<T, TId> repository, IUnitOfWork uow) : IEntityService<T, TId> where T : EntityBase<TId>
     {
-        private readonly IRepository<T, TId> _repository;
-        private readonly IUnitOfWork _uow;
-
-        public EntityService(IRepository<T, TId> repository, IUnitOfWork uow)
-        {
-            _repository = repository;
-            _uow = uow;
-        }
+        private readonly IRepository<T, TId> _repository = repository;
+        private readonly IUnitOfWork _uow = uow;
 
         public async Task<T> GetAsync(TId id)
         {
@@ -42,10 +36,7 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
 
         public async Task<T> CreateAsync(T entity)
         {
-            if (entity == null)
-            {
-                throw new ArgumentNullException(nameof(entity));
-            }
+            ArgumentNullException.ThrowIfNull(entity, nameof(entity));
 
             entity.ThrowExceptionIfInvalid();
             await _repository.AddAsync(entity);
@@ -56,10 +47,7 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
 
         public async Task<T> ModifyAsync(T entity)
         {
-            if (entity == null)
-            {
-                throw new ArgumentNullException(nameof(entity));
-            }
+            ArgumentNullException.ThrowIfNull(entity, nameof(entity));
 
             entity.ThrowExceptionIfInvalid();
             _repository.Save(entity);

@@ -21,14 +21,14 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore
             base.OnModelCreating(builder);
             builder.Entity<IdentityRole>().HasData(new List<IdentityRole>
             {
-                new IdentityRole
+                new()
                 {
                     Id = "f01eb6e7-a59f-4094-a38e-db1acb888a27",
                     Name = "Admin",
                     NormalizedName = "ADMIN",
                     ConcurrencyStamp = "c25e7311-4d62-4cd1-a42a-43fadecdac0a"
                 },
-                new IdentityRole
+                new()
                 {
                     Id = "4c93af0c-9921-4abb-a5eb-26f8e01b2249",
                     Name = "Customer",

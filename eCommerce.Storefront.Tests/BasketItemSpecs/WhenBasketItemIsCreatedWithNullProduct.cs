@@ -17,14 +17,14 @@ namespace eCommerce.Storefront.Tests.BasketItemSpecs
 
         [TestMethod]
         public void ThenItShouldHaveBrokenRuleHighlightingTheRequirementForProduct()
-        {            
-            Assert.AreEqual("Product", _basketItem.GetBrokenRules().First(x => true).Property);        
+        {
+            Assert.AreEqual("Product", _basketItem.GetBrokenRules().First(x => true).Property);
         }
 
         [TestMethod]
         public void ThenItShouldHaveOneBrokenRule()
         {
-            Assert.AreEqual(1, _basketItem.GetBrokenRules().Count());
+            Assert.HasCount(1, _basketItem.GetBrokenRules());
         }
     }
 }

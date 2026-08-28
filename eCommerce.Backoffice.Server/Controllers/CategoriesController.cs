@@ -17,20 +17,13 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class CategoriesController : ControllerBase
+    public class CategoriesController(IEntityService<Category, long> categoryService,
+        ICacheStorage cacheStorage,
+        ILogger<CategoriesController> logger) : ControllerBase
     {
-        private readonly IEntityService<Category, long> _categoryService;
-        private readonly ICacheStorage _cacheStorage;
-        private readonly ILogger<CategoriesController> _logger;
-
-        public CategoriesController(IEntityService<Category, long> categoryService,
-            ICacheStorage cacheStorage,
-            ILogger<CategoriesController> logger)
-        {
-            _categoryService = categoryService;
-            _cacheStorage = cacheStorage;
-            _logger = logger;
-        }
+        private readonly IEntityService<Category, long> _categoryService = categoryService;
+        private readonly ICacheStorage _cacheStorage = cacheStorage;
+        private readonly ILogger<CategoriesController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]

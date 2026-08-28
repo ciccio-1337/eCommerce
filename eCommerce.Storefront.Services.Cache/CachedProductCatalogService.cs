@@ -13,34 +13,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Services.Cache
 {
-    public class CachedProductCatalogService : ICachedProductCatalogService
+    public class CachedProductCatalogService(ICacheStorage cacheStorage,
+        IProductCatalogService productCatalogService,
+        IProductTitleRepository productTitleRepository,
+        IProductRepository productRepository,
+        IMapper mapper) : ICachedProductCatalogService
     {
-        private readonly ICacheStorage _cacheStorage;
-        private readonly IProductCatalogService _productCatalogService;
-        private readonly IProductTitleRepository _productTitleRepository;
-        private readonly IProductRepository _productRepository;
-        private readonly object _getTopSellingProductsLock;
-        private readonly SemaphoreSlim _getAllProductTitlesLock;
-        private readonly SemaphoreSlim _getAllProductsLock;
-        private readonly object _getAllCategoriesLock;
-        private readonly IMapper _mapper;
-
-        public CachedProductCatalogService(ICacheStorage cacheStorage,
-            IProductCatalogService productCatalogService,
-            IProductTitleRepository productTitleRepository,
-            IProductRepository productRepository,
-            IMapper mapper)
-        {
-            _cacheStorage = cacheStorage;
-            _productCatalogService = productCatalogService;
-            _productTitleRepository = productTitleRepository;
-            _productRepository = productRepository;
-            _getTopSellingProductsLock = new object();
-            _getAllProductTitlesLock = new SemaphoreSlim(1, 1);
-            _getAllProductsLock = new SemaphoreSlim(1, 1);
-            _getAllCategoriesLock = new object();
-            _mapper = mapper;
-        }
+        private readonly ICacheStorage _cacheStorage = cacheStorage;
+        private readonly IProductCatalogService _productCatalogService = productCatalogService;
+        private readonly IProductTitleRepository _productTitleRepository = productTitleRepository;
+        private readonly IProductRepository _productRepository = productRepository;
+        private readonly Lock _getTopSellingProductsLock = new();
+        private readonly SemaphoreSlim _getAllProductTitlesLock = new(1, 1);
+        private readonly SemaphoreSlim _getAllProductsLock = new(1, 1);
+        private readonly Lock _getAllCategoriesLock = new();
+        private readonly IMapper _mapper = mapper;
 
         private async Task<IEnumerable<ProductTitle>> FindAllProductTitlesAsync()
         {
@@ -135,11 +122,11 @@ namespace eCommerce.Storefront.Services.Cache
 
             var response = CreateProductSearchResultFrom(matchingProducts, request);
 
-            response.SelectedCategoryName = GetAllCategories().Categories.FirstOrDefault(c => c.Id == request.CategoryId)?.Name;                                
+            response.SelectedCategoryName = GetAllCategories().Categories.FirstOrDefault(c => c.Id == request.CategoryId)?.Name;
 
             return response;
         }
-        
+
         public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
             var response = new GetProductResponse
@@ -159,8 +146,8 @@ namespace eCommerce.Storefront.Services.Cache
                 if (response == null)
                 {
                     response = _productCatalogService.GetAllCategories();
-                    response.Categories = response.Categories.ToList();
-                    
+                    response.Categories = [.. response.Categories];
+
                     _cacheStorage.Store(CacheKeys.AllCategories.ToString(), response);
                 }
 

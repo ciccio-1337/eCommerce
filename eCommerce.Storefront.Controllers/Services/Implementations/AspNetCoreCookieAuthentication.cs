@@ -9,24 +9,19 @@ using Microsoft.AspNetCore.Http;
 
 namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
-    public class AspNetCoreCookieAuthentication : ICookieAuthentication
+    public class AspNetCoreCookieAuthentication(IHttpContextAccessor httpContextAccessor) : ICookieAuthentication
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public AspNetCoreCookieAuthentication(IHttpContextAccessor httpContextAccessor)
-        {
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         public async Task SetAuthenticationTokenAsync(string userId, string email, IEnumerable<string> roles)
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim(ClaimTypes.Name, email)
+                new(ClaimTypes.NameIdentifier, userId),
+                new(ClaimTypes.Name, email)
             };
 
-            if (roles?.Count() > 0)
+            if (roles is not null && roles.Any())
             {
                 foreach (var role in roles)
                 {

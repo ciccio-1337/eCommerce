@@ -2,14 +2,9 @@ using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork(ShopDataContext dataContext) : IUnitOfWork
     {
-        private readonly ShopDataContext _dataContext;
-
-        public UnitOfWork(ShopDataContext dataContext)
-        {
-            _dataContext = dataContext;
-        }
+        private readonly ShopDataContext _dataContext = dataContext;
 
         public async Task CommitAsync()
         {

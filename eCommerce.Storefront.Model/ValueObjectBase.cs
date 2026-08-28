@@ -5,7 +5,7 @@ namespace eCommerce.Storefront.Model
 {
     public abstract class ValueObjectBase
     {
-        private readonly List<BusinessRule> _brokenRules = new List<BusinessRule>();
+        private readonly List<BusinessRule> _brokenRules = [];
 
         protected ValueObjectBase()
         {
@@ -20,7 +20,7 @@ namespace eCommerce.Storefront.Model
 
             if (_brokenRules.Count > 0)
             {
-                StringBuilder issues = new StringBuilder();
+                var issues = new StringBuilder();
 
                 foreach (BusinessRule businessRule in _brokenRules)
                 {
@@ -30,7 +30,7 @@ namespace eCommerce.Storefront.Model
                 throw new ValueObjectIsInvalidException(issues.ToString());
             }
         }
-        
+
         protected void AddBrokenRule(BusinessRule businessRule)
         {
             _brokenRules.Add(businessRule);

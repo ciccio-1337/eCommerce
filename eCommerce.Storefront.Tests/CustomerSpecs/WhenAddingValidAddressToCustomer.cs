@@ -1,4 +1,3 @@
-using System.Linq;
 using eCommerce.Storefront.Model.Customers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -13,24 +12,23 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         {
             _address = new DeliveryAddress()
             {
-                AddressLine = "99 Old street", 
-                City = "City", 
-                State = "State", 
+                AddressLine = "99 Old street",
+                City = "City",
+                State = "State",
                 Country = "Country",
                 ZipCode = "PostCode",
                 Name = "My Work Pad",
-                Customer = sut
+                Customer = Customer
             };
 
-            sut.AddAddress(_address);
+            Customer.AddAddress(_address);
         }
 
         [TestMethod]
         public void ThenTheAddressShouldAppearInTheCustomersList()
         {
-            Assert.AreEqual(1, sut.DeliveryAddressBook.Count());
-
-            Assert.IsTrue(sut.DeliveryAddressBook.Any(a => a == _address));            
+            Assert.HasCount(1, Customer.DeliveryAddressBook);
+            Assert.Contains(_address, Customer.DeliveryAddressBook);
         }
     }
 }

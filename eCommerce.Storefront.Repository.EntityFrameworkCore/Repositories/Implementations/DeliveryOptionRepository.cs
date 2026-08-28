@@ -5,12 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class DeliveryOptionRepository : Repository<DeliveryOption, long>, IDeliveryOptionRepository
+    public class DeliveryOptionRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<DeliveryOption, long>(uow, dataContext), IDeliveryOptionRepository
     {
-        public DeliveryOptionRepository(IUnitOfWork uow, ShopDataContext dataContext) : base(uow, dataContext)
-        {
-        }
-
         public override IQueryable<DeliveryOption> AppendCriteria(IQueryable<DeliveryOption> criteria)
         {
             return criteria.Include(d => d.ShippingService);

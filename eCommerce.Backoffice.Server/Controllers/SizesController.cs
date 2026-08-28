@@ -16,16 +16,10 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class SizesController : ControllerBase
+    public class SizesController(IEntityService<ProductSize, long> sizeService, ILogger<SizesController> logger) : ControllerBase
     {
-        private readonly IEntityService<ProductSize, long> _sizeService;
-        private readonly ILogger<SizesController> _logger;
-
-        public SizesController(IEntityService<ProductSize, long> sizeService, ILogger<SizesController> logger)
-        {
-            _sizeService = sizeService;
-            _logger = logger;
-        }
+        private readonly IEntityService<ProductSize, long> _sizeService = sizeService;
+        private readonly ILogger<SizesController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]

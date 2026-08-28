@@ -7,7 +7,7 @@ namespace eCommerce.Storefront.Tests.BasketItemSpecs
 {
     [TestClass]
     public class WhenBasketItemIsCreatedWithNullBasket
-    {        
+    {
         private BasketItem _basketItem;
 
         [TestInitialize]
@@ -19,12 +19,12 @@ namespace eCommerce.Storefront.Tests.BasketItemSpecs
         [TestMethod]
         public void ThenItShouldHaveOneBrokenRule()
         {
-            Assert.AreEqual(1, _basketItem.GetBrokenRules().Count());            
+            Assert.HasCount(1, _basketItem.GetBrokenRules());
         }
 
         [TestMethod]
         public void ThenItShouldHaveBrokenRuleHighlightingTheRequirementForBasket()
-        {            
+        {
             Assert.AreEqual("Basket", _basketItem.GetBrokenRules().First(x => true).Property);
         }
     }

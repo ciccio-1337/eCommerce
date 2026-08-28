@@ -14,26 +14,20 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class RolesController : ControllerBase
+    public class RolesController(RoleManager<IdentityRole> roleManager,
+        UserManager<IdentityUser> userManager) : ControllerBase
     {
-        private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly UserManager<IdentityUser> _userManager;
-
-        public RolesController(RoleManager<IdentityRole> roleManager,
-            UserManager<IdentityUser> userManager)
-        {
-            _roleManager = roleManager;
-            _userManager = userManager;
-        }
+        private readonly RoleManager<IdentityRole> _roleManager = roleManager;
+        private readonly UserManager<IdentityUser> _userManager = userManager;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
-            return await _roleManager.Roles.AsNoTracking().Select(x => new RoleDto 
-            { 
-                Id = x.Id, 
-                Name = x.Name 
+            return await _roleManager.Roles.AsNoTracking().Select(x => new RoleDto
+            {
+                Id = x.Id,
+                Name = x.Name
             }).ToListAsync();
         }
 
@@ -124,7 +118,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             catch (DbUpdateConcurrencyException) when (!_roleManager.Roles.AsNoTracking().Any(r => r.Id == id))
             {
                 return NotFound();
-            }        
+            }
         }
 
         [HttpPut("{roleId}/user/{userId}")]
@@ -168,7 +162,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             catch (DbUpdateConcurrencyException) when (!_roleManager.Roles.AsNoTracking().Any(r => r.Id == addRemoveRoleRequest.RoleId) || !_userManager.Users.AsNoTracking().Any(u => u.Id == addRemoveRoleRequest.UserId))
             {
                 return NotFound();
-            } 
+            }
 
             return Ok(true);
         }

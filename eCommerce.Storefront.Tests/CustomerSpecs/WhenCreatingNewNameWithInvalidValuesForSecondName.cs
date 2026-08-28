@@ -1,4 +1,3 @@
-using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace eCommerce.Storefront.Tests.CustomerSpecs
@@ -10,20 +9,20 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
 
         public override void When()
         {
-            _newName = new 
+            _newName = new
             {
                 FirstName = "Mickey",
                 SecondName = string.Empty
             };
 
-            sut.FirstName = _newName.FirstName;
-            sut.SecondName = _newName.SecondName;
+            Customer.FirstName = _newName.FirstName;
+            Customer.SecondName = _newName.SecondName;
         }
 
         [TestMethod]
         public void ThenTheCustomerShouldHaveOneBrokenRule()
         {
-            Assert.AreEqual(1, sut.GetBrokenRules().Count());
+            Assert.HasCount(1, Customer.GetBrokenRules());
         }
     }
 }

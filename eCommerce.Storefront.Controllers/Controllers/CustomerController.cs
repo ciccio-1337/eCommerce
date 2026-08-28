@@ -6,21 +6,16 @@ using eCommerce.Storefront.Services.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using System.Security.Claims;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    [Authorize(Roles = "Customer")]    
-    public class CustomerController : BaseController
+    [Authorize(Roles = "Customer")]
+    public class CustomerController(ICustomerService customerService,
+        ICookieAuthentication cookieAuthentication) : BaseController(cookieAuthentication, customerService)
     {
-        public CustomerController(ICustomerService customerService,
-            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication, customerService)
-        {
-        }
-
         public async Task<IActionResult> Detail()
         {
             var customerRequest = new GetCustomerRequest
@@ -39,7 +34,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 return View(customerDetailView);
             }
-            else 
+            else
             {
                 await _cookieAuthentication.SignOutAsync();
 
@@ -63,19 +58,19 @@ namespace eCommerce.Storefront.Controllers.Controllers
             };
 
             try
-            {       
-                var response = await _customerService.ModifyCustomerAsync(request);  
+            {
+                var response = await _customerService.ModifyCustomerAsync(request);
 
                 customerDetailView.Customer = response.Customer;
 
-                await _cookieAuthentication.SetAuthenticationTokenAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), customerDetailView.Customer.Email, new List<string> { "Customer" });
+                await _cookieAuthentication.SetAuthenticationTokenAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), customerDetailView.Customer.Email, ["Customer"]);
             }
             catch (EntityBaseIsInvalidException ex)
             {
                 ViewData["IssueMessage"] = ex.Message;
                 customerDetailView.Customer = customerView;
             }
-        
+
             return View(customerDetailView);
         }
 
@@ -97,7 +92,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 return View("DeliveryAddresses", customerDetailView);
             }
-            else 
+            else
             {
                 await _cookieAuthentication.SignOutAsync();
 

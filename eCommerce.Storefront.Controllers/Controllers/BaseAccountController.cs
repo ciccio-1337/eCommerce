@@ -1,3 +1,4 @@
+using System;
 using eCommerce.Storefront.Controllers.ActionArguments;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Services.Interfaces;
@@ -5,23 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public abstract class BaseAccountController : Controller
+    public abstract class BaseAccountController(ILocalAuthenticationService authenticationService,
+        ICustomerService customerService,
+        ICookieAuthentication cookieAuthentication,
+        IActionArguments actionArguments) : Controller
     {
-        protected readonly ILocalAuthenticationService _authenticationService;
-        protected readonly ICustomerService _customerService;
-        protected readonly ICookieAuthentication _cookieAuthentication;
-        protected readonly IActionArguments _actionArguments;
-
-        protected BaseAccountController(ILocalAuthenticationService authenticationService,
-            ICustomerService customerService,
-            ICookieAuthentication cookieAuthentication,
-            IActionArguments actionArguments)
-        {
-            _authenticationService = authenticationService;
-            _customerService = customerService;
-            _cookieAuthentication = cookieAuthentication;
-            _actionArguments = actionArguments;
-        }
+        protected readonly ILocalAuthenticationService _authenticationService = authenticationService;
+        protected readonly ICustomerService _customerService = customerService;
+        protected readonly ICookieAuthentication _cookieAuthentication = cookieAuthentication;
+        protected readonly IActionArguments _actionArguments = actionArguments;
 
         protected IActionResult RedirectBasedOn(string returnUrl)
         {
@@ -35,9 +28,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        protected ActionArgumentKey GetReturnActionFrom(string returnUrl)
+        protected static ActionArgumentKey GetReturnActionFrom(string returnUrl)
         {
-            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.ToLower().Contains("checkout"))
+            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.Contains("checkout", StringComparison.OrdinalIgnoreCase))
             {
                 return ActionArgumentKey.GoToCheckout;
             }
@@ -46,5 +39,5 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return ActionArgumentKey.GoToAccount;
             }
         }
-    }     
+    }
 }

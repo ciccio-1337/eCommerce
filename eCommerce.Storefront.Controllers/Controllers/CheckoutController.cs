@@ -14,20 +14,14 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 namespace eCommerce.Storefront.Controllers.Controllers
 {
     [Authorize(Roles = "Customer")]
-    public class CheckoutController : BaseController
+    public class CheckoutController(IBasketService basketService,
+        ICustomerService customerService,
+        IOrderService orderService,
+        ICookieAuthentication cookieAuthentication) : BaseController(cookieAuthentication,
+            customerService)
     {
-        private readonly IBasketService _basketService;
-        private readonly IOrderService _orderService;
-
-        public CheckoutController(IBasketService basketService,
-            ICustomerService customerService,
-            IOrderService orderService,
-            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication, 
-                customerService)
-        {
-            _basketService = basketService;
-            _orderService = orderService;
-        }
+        private readonly IBasketService _basketService = basketService;
+        private readonly IOrderService _orderService = orderService;
 
         public async Task<IActionResult> Checkout()
         {
@@ -58,7 +52,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 return AddDeliveryAddress();
             }
-            else 
+            else
             {
                 await _cookieAuthentication.SignOutAsync();
 

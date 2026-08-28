@@ -4,11 +4,14 @@ using System.Text.RegularExpressions;
 
 namespace eCommerce.Storefront.Model.Customers
 {
-    public class Customer : EntityBase<long>
+    public partial class Customer : EntityBase<long>
     {
-        private readonly IList<DeliveryAddress> _deliveryAddressBook = new List<DeliveryAddress>();
+        [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+        public static partial Regex EmailRegex();
+
+        private readonly IList<DeliveryAddress> _deliveryAddressBook = [];
         private Basket.Basket _basket;
-      
+
         public string UserId { get; set; }
         public string FirstName { get; set; }
         public string SecondName { get; set; }
@@ -29,7 +32,7 @@ namespace eCommerce.Storefront.Model.Customers
         public void AddBasket(Basket.Basket basket)
         {
             basket.ThrowExceptionIfInvalid();
-            
+
             _basket = basket;
         }
 
@@ -39,7 +42,7 @@ namespace eCommerce.Storefront.Model.Customers
         }
 
         protected override void Validate()
-        {    
+        {
             if (string.IsNullOrWhiteSpace(FirstName))
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(FirstName), Rule = "A customer must have a first name." });
@@ -50,7 +53,7 @@ namespace eCommerce.Storefront.Model.Customers
                 AddBrokenRule(new BusinessRule() { Property = nameof(SecondName), Rule = "A customer must have a second name." });
             }
 
-            if (!Regex.IsMatch(Email ?? string.Empty, @"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*"))
+            if (!EmailRegex().IsMatch(Email ?? string.Empty))
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(Email), Rule = "A customer must have a valid email address." });
             }

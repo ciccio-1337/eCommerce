@@ -7,7 +7,7 @@ namespace eCommerce.Storefront.Services.ViewModels
     {
         public BasketView()
         {
-            Items = new List<BasketItemView>();
+            Items = [];
         }
 
         public Guid Id { get; set; }

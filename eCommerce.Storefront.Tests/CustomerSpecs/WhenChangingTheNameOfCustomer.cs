@@ -9,21 +9,21 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
 
         public override void When()
         {
-            _newName = new 
+            _newName = new
             {
                 FirstName = "Mickey",
                 SecondName = "Mouse"
             };
 
-            sut.FirstName = _newName.FirstName;
-            sut.SecondName = _newName.SecondName;
+            Customer.FirstName = _newName.FirstName;
+            Customer.SecondName = _newName.SecondName;
         }
 
         [TestMethod]
         public void ThenThePropertiesShouldMatchTheNewName()
         {
-            Assert.AreEqual(_newName.FirstName, sut.FirstName);
-            Assert.AreEqual(_newName.SecondName, sut.SecondName);
+            Assert.AreEqual(_newName.FirstName, Customer.FirstName);
+            Assert.AreEqual(_newName.SecondName, Customer.SecondName);
         }
     }
 }

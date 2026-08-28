@@ -2,14 +2,9 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace eCommerce.Storefront.Services.Cache
 {
-    public class MemoryCacheAdapter : ICacheStorage
+    public class MemoryCacheAdapter(IMemoryCache memoryCache) : ICacheStorage
     {
-        private readonly IMemoryCache _memoryCache;
-
-        public MemoryCacheAdapter(IMemoryCache memoryCache)
-        {
-            _memoryCache = memoryCache;
-        }
+        private readonly IMemoryCache _memoryCache = memoryCache;
 
         public void Remove(string key)
         {
@@ -23,12 +18,7 @@ namespace eCommerce.Storefront.Services.Cache
 
         public T Retrieve<T>(string storageKey)
         {
-            T itemStored = _memoryCache.Get<T>(storageKey);
-
-            if (itemStored == null)
-            {
-                itemStored = default(T);
-            }
+            T itemStored = _memoryCache.Get<T>(storageKey) ?? default;
 
             return itemStored;
         }

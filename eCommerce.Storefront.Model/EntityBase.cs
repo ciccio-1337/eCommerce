@@ -5,7 +5,7 @@ namespace eCommerce.Storefront.Model
 {
     public abstract class EntityBase<TId>
     {
-        private readonly List<BusinessRule> _brokenRules = new List<BusinessRule>();
+        private readonly List<BusinessRule> _brokenRules = [];
 
         public TId Id { get; set; }
 
@@ -18,7 +18,7 @@ namespace eCommerce.Storefront.Model
 
             if (_brokenRules.Count > 0)
             {
-                StringBuilder issues = new StringBuilder();
+                var issues = new StringBuilder();
 
                 foreach (BusinessRule businessRule in _brokenRules)
                 {
@@ -44,12 +44,12 @@ namespace eCommerce.Storefront.Model
 
         public override bool Equals(object obj)
         {
-            return obj is EntityBase<TId> && this == (EntityBase<TId>)obj;
+            return obj is EntityBase<TId> other && this == other;
         }
 
         public override int GetHashCode()
         {
-            return this.Id.GetHashCode();
+            return Id.GetHashCode();
         }
     }
 }

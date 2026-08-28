@@ -8,18 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public abstract class BaseController : Controller
+    public abstract class BaseController(ICookieAuthentication cookieAuthentication,
+        ICustomerService customerService) : Controller
     {
-        protected readonly ICookieAuthentication _cookieAuthentication;
-        protected readonly ICustomerService _customerService;
-        
-        protected BaseController(ICookieAuthentication cookieAuthentication,
-            ICustomerService customerService)
-        {
-            _cookieAuthentication = cookieAuthentication;
-            _customerService = customerService;
-        }
-        
+        protected readonly ICookieAuthentication _cookieAuthentication = cookieAuthentication;
+        protected readonly ICustomerService _customerService = customerService;
+
         protected async Task<BasketSummaryView> GetBasketSummaryViewAsync()
         {
             var basketTotal = string.Empty;
@@ -47,10 +41,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 NumberOfItems = numberOfItems
             };
         }
-        
+
         protected async Task<Guid> GetBasketIdAsync()
         {
-            var basketId = Guid.Empty;            
+            var basketId = Guid.Empty;
             var email = _cookieAuthentication.GetAuthenticationToken();
 
             if (!string.IsNullOrWhiteSpace(email))
@@ -66,7 +60,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     basketId = response.Basket.Id;
                 }
             }
-            
+
             return basketId;
         }
     }

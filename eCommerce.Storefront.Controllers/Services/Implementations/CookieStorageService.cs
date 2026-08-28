@@ -4,14 +4,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
-    public class CookieStorageService : ICookieStorageService
+    public class CookieStorageService(IHttpContextAccessor httpContextAccessor) : ICookieStorageService
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public CookieStorageService(IHttpContextAccessor httpContextAccessor)
-        {
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         public void Save(string key, string value, DateTime expires)
         {
@@ -25,11 +20,11 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 Path = "/"
             });
         }
-        
+
         public string Retrieve(string key)
         {
             string cookie = _httpContextAccessor?.HttpContext?.Request?.Cookies?[key];
-            
+
             if (cookie != null)
             {
                 return cookie;
@@ -37,7 +32,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             else
             {
                 return string.Empty;
-            }                           
+            }
         }
     }
 }

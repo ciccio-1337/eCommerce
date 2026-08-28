@@ -13,12 +13,12 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         {
             _address = new DeliveryAddress()
             {
-                AddressLine = "99 Old street", 
-                City = "City", 
-                State = "State", 
+                AddressLine = "99 Old street",
+                City = "City",
+                State = "State",
                 Country = "Country",
                 ZipCode = "PostCode",
-                Customer = sut
+                Customer = Customer
             };
         }
 
@@ -26,8 +26,8 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         public void ThenAnInvalidAddressExceptionWillBeThrown()
         {
             Assert.Throws<EntityBaseIsInvalidException>(() =>
-            {                
-                sut.AddAddress(_address);
+            {
+                Customer.AddAddress(_address);
             });
         }
     }

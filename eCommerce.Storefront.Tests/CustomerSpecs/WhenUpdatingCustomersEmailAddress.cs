@@ -6,18 +6,18 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
     public class WhenUpdatingCustomersEmailAddress : WithValidCustomer
     {
         private string _email;
-        
+
         public override void When()
         {
             _email = new string("Scott@elbandit.co.uk");
 
-            sut.Email = _email;
+            Customer.Email = _email;
         }
 
         [TestMethod]
         public void ThenTheCustomerEmailPropertyWillBeSet()
         {
-            Assert.AreEqual(_email, sut.Email); 
-        } 
+            Assert.AreEqual(_email, Customer.Email);
+        }
     }
 }

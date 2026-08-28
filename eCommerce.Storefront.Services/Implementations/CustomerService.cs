@@ -13,20 +13,13 @@ using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
-    public class CustomerService : ICustomerService
+    public class CustomerService(ICustomerRepository customerRepository,
+        IUnitOfWork uow,
+        IMapper mapper) : ICustomerService
     {
-        private readonly ICustomerRepository _customerRepository;
-        private readonly IUnitOfWork _uow;
-        private readonly IMapper _mapper;
-
-        public CustomerService(ICustomerRepository customerRepository,
-            IUnitOfWork uow,
-            IMapper mapper)
-        {
-            _customerRepository = customerRepository;
-            _uow = uow;
-            _mapper = mapper;
-        }
+        private readonly ICustomerRepository _customerRepository = customerRepository;
+        private readonly IUnitOfWork _uow = uow;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<CreateCustomerResponse> CreateCustomerAsync(CreateCustomerRequest request)
         {
@@ -58,7 +51,7 @@ namespace eCommerce.Storefront.Services.Implementations
                 response.CustomerFound = true;
                 response.Customer = _mapper.Map<Customer, CustomerView>(customer);
                 response.Customer.Email = request.CustomerEmail;
-                
+
                 if (request.LoadOrderSummary)
                 {
                     response.Orders = _mapper.Map<IEnumerable<Order>, IEnumerable<OrderSummaryView>>(customer.Orders.OrderByDescending(o => o.Created));
@@ -80,13 +73,8 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<ModifyCustomerResponse> ModifyCustomerAsync(ModifyCustomerRequest request)
         {
             var response = new ModifyCustomerResponse();
-            var customer = await _customerRepository.FindByAsync(request.CurrentEmail);
-
-            if (customer == null)
-            {
+            var customer = await _customerRepository.FindByAsync(request.CurrentEmail) ??
                 throw new CustomerNotFoundException(request.CurrentEmail);
-            }
-
             customer.FirstName = request.FirstName;
             customer.SecondName = request.SecondName;
             customer.Email = request.NewEmail;
@@ -104,13 +92,8 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<DeliveryAddressModifyResponse> ModifyDeliveryAddressAsync(DeliveryAddressModifyRequest request)
         {
             var response = new DeliveryAddressModifyResponse();
-            var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
-
-            if (customer == null)
-            {
+            var customer = await _customerRepository.FindByAsync(request.CustomerEmail) ??
                 throw new CustomerNotFoundException(request.CustomerEmail);
-            }
-
             var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id);
 
             if (deliveryAddress == null)
@@ -130,13 +113,8 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<DeliveryAddressAddResponse> AddDeliveryAddressAsync(DeliveryAddressAddRequest request)
         {
             var response = new DeliveryAddressAddResponse();
-            var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
-
-            if (customer == null)
-            {
+            var customer = await _customerRepository.FindByAsync(request.CustomerEmail) ??
                 throw new CustomerNotFoundException(request.CustomerEmail);
-            }
-
             var deliveryAddress = new DeliveryAddress
             {
                 Customer = customer
@@ -152,7 +130,7 @@ namespace eCommerce.Storefront.Services.Implementations
             return response;
         }
 
-        private void UpdateDeliveryAddressFrom(DeliveryAddressView deliveryAddressSource, DeliveryAddress deliveryAddressToUpdate)
+        private static void UpdateDeliveryAddressFrom(DeliveryAddressView deliveryAddressSource, DeliveryAddress deliveryAddressToUpdate)
         {
             deliveryAddressToUpdate.Name = deliveryAddressSource.Name;
             deliveryAddressToUpdate.AddressLine = deliveryAddressSource.AddressLine;

@@ -18,9 +18,9 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         public void ThenNullReferenceExceptionWillBeThrown()
         {
             Assert.Throws<NullReferenceException>(() =>
-            {                
-                sut.AddAddress(_invalidAddress);
+            {
+                Customer.AddAddress(_invalidAddress);
             });
-        }        
+        }
     }
 }

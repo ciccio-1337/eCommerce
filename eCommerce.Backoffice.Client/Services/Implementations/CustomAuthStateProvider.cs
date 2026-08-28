@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,16 +8,11 @@ using Microsoft.JSInterop;
 
 namespace eCommerce.Backoffice.Client.Services.Implementations
 {
-    public class CustomAuthStateProvider : AuthenticationStateProvider, ILoginService
+    public class CustomAuthStateProvider(IJSRuntime javaScriptRuntime) : AuthenticationStateProvider, ILoginService
     {
-        private readonly IJSRuntime _javaScriptRuntime;
+        private readonly IJSRuntime _javaScriptRuntime = javaScriptRuntime;
         private static readonly string _authenticationStateKey = "AuthenticationState";
-        private AuthenticationState _anonymous => new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
-
-        public CustomAuthStateProvider(IJSRuntime javaScriptRuntime)
-        {
-            _javaScriptRuntime = javaScriptRuntime;
-        }
+        private static AuthenticationState Anonymous => new(new ClaimsPrincipal(new ClaimsIdentity()));
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
@@ -27,8 +21,8 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
             if (string.IsNullOrWhiteSpace(authState))
             {
                 await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
-                
-                return _anonymous;
+
+                return Anonymous;
             }
 
             return BuildAuthenticationState(Encoding.UTF8.GetString(Convert.FromBase64String(authState)));
@@ -37,7 +31,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
         public async Task LoginAsync(string email)
         {
             await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _authenticationStateKey, Convert.ToBase64String(Encoding.UTF8.GetBytes(email)));
-            
+
             var authState = BuildAuthenticationState(email);
 
             NotifyAuthenticationStateChanged(Task.FromResult(authState));
@@ -47,7 +41,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
         {
             await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
 
-            NotifyAuthenticationStateChanged(Task.FromResult(_anonymous));
+            NotifyAuthenticationStateChanged(Task.FromResult(Anonymous));
         }
 
         public async Task<string> GetAuthStateAsync()
@@ -55,13 +49,12 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
             return await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _authenticationStateKey);
         }
 
-        private AuthenticationState BuildAuthenticationState(string email)
-        {            
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, email),
-                new Claim(ClaimTypes.Role, "Admin")
-            }, "jwt")));
+        private static AuthenticationState BuildAuthenticationState(string email)
+        {
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([
+                new(ClaimTypes.Name, email),
+                new(ClaimTypes.Role, "Admin")
+            ], "jwt")));
         }
     }
 }

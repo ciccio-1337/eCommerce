@@ -16,16 +16,10 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class ColorsController : ControllerBase
+    public class ColorsController(IEntityService<ProductColor, long> colorService, ILogger<ColorsController> logger) : ControllerBase
     {
-        private readonly IEntityService<ProductColor, long> _colorService;
-        private readonly ILogger<ColorsController> _logger;
-
-        public ColorsController(IEntityService<ProductColor, long> colorService, ILogger<ColorsController> logger)
-        {
-            _colorService = colorService;
-            _logger = logger;
-        }
+        private readonly IEntityService<ProductColor, long> _colorService = colorService;
+        private readonly ILogger<ColorsController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]

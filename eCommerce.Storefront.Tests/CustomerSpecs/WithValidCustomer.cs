@@ -4,13 +4,14 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace eCommerce.Storefront.Tests.CustomerSpecs
 {
-    [TestClass]
     public abstract class WithValidCustomer
     {
+        protected Customer Customer { get; set; } = null;
+
         [TestInitialize]
         public void Context()
         {
-            sut = new Customer()
+            Customer = new Customer()
             {
                 FirstName = "Francesco",
                 SecondName = "Guagnano",
@@ -21,8 +22,6 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
             When();
         }
 
-        public abstract void When();        
-
-        public Customer sut { get; set; }
+        public abstract void When();
     }
 }

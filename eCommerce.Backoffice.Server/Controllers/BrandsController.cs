@@ -16,16 +16,10 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class BrandsController : ControllerBase
+    public class BrandsController(IEntityService<Brand, long> brandService, ILogger<BrandsController> logger) : ControllerBase
     {
-        private readonly IEntityService<Brand, long> _brandService;
-        private readonly ILogger<BrandsController> _logger;
-
-        public BrandsController(IEntityService<Brand, long> brandService, ILogger<BrandsController> logger)
-        {
-            _brandService = brandService;
-            _logger = logger;
-        }
+        private readonly IEntityService<Brand, long> _brandService = brandService;
+        private readonly ILogger<BrandsController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]

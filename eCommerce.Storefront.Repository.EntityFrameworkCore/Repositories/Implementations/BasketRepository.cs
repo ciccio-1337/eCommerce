@@ -6,12 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class BasketRepository : Repository<Basket, Guid>, IBasketRepository
+    public class BasketRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<Basket, Guid>(uow, dataContext), IBasketRepository
     {
-        public BasketRepository(IUnitOfWork uow, ShopDataContext dataContext) : base(uow, dataContext)
-        {
-        }
-
         public override IQueryable<Basket> AppendCriteria(IQueryable<Basket> criteria)
         {
             return criteria.Include(b => b.Items)

@@ -9,11 +9,11 @@ namespace eCommerce.Storefront.Tests.AddressSpecs
         [TestMethod]
         public void ThenAnInvalidAddressExceptionWillNotBeThrown()
         {
-            DeliveryAddress validAddress = new DeliveryAddress()
+            var validAddress = new DeliveryAddress()
             {
                 AddressLine = "99 Old street",
-                City = "City", 
-                State = string.Empty, 
+                City = "City",
+                State = string.Empty,
                 Country = "Country",
                 ZipCode = "PostCode",
                 Name = "Home",

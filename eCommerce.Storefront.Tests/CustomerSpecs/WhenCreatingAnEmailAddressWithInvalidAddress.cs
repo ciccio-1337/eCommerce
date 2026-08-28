@@ -1,4 +1,3 @@
-using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace eCommerce.Storefront.Tests.CustomerSpecs
@@ -11,13 +10,13 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         public override void When()
         {
             _email = "scott@";
-            sut.Email = _email;
+            Customer.Email = _email;
         }
 
         [TestMethod]
         public void ThenTheCustomerShouldHaveOneBrokenRule()
         {
-            Assert.AreEqual(1, sut.GetBrokenRules().Count());
+            Assert.HasCount(1, Customer.GetBrokenRules());
         }
     }
 }
