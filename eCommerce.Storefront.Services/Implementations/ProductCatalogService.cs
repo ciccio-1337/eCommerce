@@ -12,29 +12,21 @@ using eCommerce.Storefront.Services.ViewModels;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
-    public class ProductCatalogService : IProductCatalogService
+    public class ProductCatalogService(IProductTitleRepository productTitleRepository,
+        IProductRepository productRepository,
+        IReadOnlyRepository<Category, long> categoryRepository,
+        IMapper mapper) : IProductCatalogService
     {
-        private readonly IProductTitleRepository _productTitleRepository;
-        private readonly IProductRepository _productRepository;
-        private readonly IReadOnlyRepository<Category, long> _categoryRepository;
-        private readonly IMapper _mapper;
-
-        public ProductCatalogService(IProductTitleRepository productTitleRepository,
-            IProductRepository productRepository,
-            IReadOnlyRepository<Category, long> categoryRepository,
-            IMapper mapper)
-        {
-            _productTitleRepository = productTitleRepository;
-            _productRepository = productRepository;
-            _categoryRepository = categoryRepository;
-            _mapper = mapper;
-        }
+        private readonly IProductTitleRepository _productTitleRepository = productTitleRepository;
+        private readonly IProductRepository _productRepository = productRepository;
+        private readonly IReadOnlyRepository<Category, long> _categoryRepository = categoryRepository;
+        private readonly IMapper _mapper = mapper;
 
         public GetAllCategoriesResponse GetAllCategories()
         {
             var response = new GetAllCategoriesResponse
             {
-                Categories = _categoryRepository.FindAll().Select(c => _mapper.Map<Category, CategoryView>(c))
+                Categories = [.. _categoryRepository.FindAll().AsEnumerable().Select(_mapper.Map<Category, CategoryView>)]
             };
 
             return response;
@@ -44,7 +36,7 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new GetFeaturedProductsResponse
             {
-                Products = _productTitleRepository.FindAll().OrderByDescending(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name).Take(6).Select(p => _mapper.Map<ProductTitle, ProductSummaryView>(p))
+                Products = [.. _productTitleRepository.FindAll().OrderByDescending(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name).Take(6).AsEnumerable().Select(_mapper.Map<ProductTitle, ProductSummaryView>)]
             };
 
             return response;
@@ -53,7 +45,7 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
             var response = new GetProductResponse();
-            var productTitle = await _productTitleRepository.FindByAsync(request.ProductId);            
+            var productTitle = await _productTitleRepository.FindByAsync(request.ProductId);
 
             response.Product = _mapper.Map<ProductTitle, ProductView>(productTitle);
 
@@ -66,7 +58,7 @@ namespace eCommerce.Storefront.Services.Implementations
             var productsMatchingRefinement = GetAllProductsMatchingQueryAndSort(request, productQuery);
             var response = CreateProductSearchResultFrom(productsMatchingRefinement, request);
             var category = await _categoryRepository.FindByAsync(request.CategoryId);
-            
+
             response.SelectedCategoryName = category?.Name ?? "Unknown";
 
             return response;
@@ -80,14 +72,14 @@ namespace eCommerce.Storefront.Services.Implementations
             {
                 case ProductsSortBy.PriceLowToHigh:
                     productsMatchingRefinement = productsMatchingRefinement.OrderBy(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name);
-                    
+
                     break;
                 case ProductsSortBy.PriceHighToLow:
                     productsMatchingRefinement = productsMatchingRefinement.OrderByDescending(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name);
-                    
+
                     break;
             }
-            
+
             return productsMatchingRefinement;
         }
 
@@ -119,19 +111,17 @@ namespace eCommerce.Storefront.Services.Implementations
             }
         }
 
-        private int NoOfResultPagesGiven(int numberOfResultsPerPage, int numberOfTitlesFound)
+        private static int NoOfResultPagesGiven(int numberOfResultsPerPage, int numberOfTitlesFound)
         {
-            if (numberOfTitlesFound < numberOfResultsPerPage)
+            if (numberOfTitlesFound <= 0 || numberOfResultsPerPage <= 0)
             {
                 return 1;
             }
-            else
-            {
-                return (numberOfTitlesFound / numberOfResultsPerPage) + (numberOfTitlesFound % numberOfResultsPerPage);
-            }
+
+            return (int)Math.Ceiling((double)numberOfTitlesFound / numberOfResultsPerPage);
         }
 
-        private IList<RefinementGroup> GenerateAvailableProductRefinementsFrom(IEnumerable<ProductTitle> productsFound)
+        private List<RefinementGroup> GenerateAvailableProductRefinementsFrom(IEnumerable<ProductTitle> productsFound)
         {
             var brandsRefinementGroup = ConvertToRefinementGroup(productsFound.SelectMany(p => p.Products).Select(p => p.Brand).GroupBy(b => b.Id).Select(g => g.First()).ToList().ConvertAll(b => (IProductAttribute)b), RefinementGroupings.Brand);
             var colorsRefinementGroup = ConvertToRefinementGroup(productsFound.SelectMany(p => p.Products).Select(p => p.Color).GroupBy(c => c.Id).Select(g => g.First()).ToList().ConvertAll(c => (IProductAttribute)c), RefinementGroupings.Color);
@@ -142,7 +132,7 @@ namespace eCommerce.Storefront.Services.Implementations
                 colorsRefinementGroup,
                 sizesRefinementGroup
             };
-            
+
             return refinementGroups;
         }
 

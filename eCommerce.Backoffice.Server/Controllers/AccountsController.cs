@@ -22,26 +22,17 @@ namespace eCommerce.Backoffice.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [IgnoreAntiforgeryToken]
-    public class AccountsController : ControllerBase
+    public class AccountsController(IEmailService emailService,
+        SignInManager<IdentityUser> signInManager,
+        IConfiguration configuration,
+        IEntityService<Customer, long> customerService,
+        ShopDataContext shopDataContext) : ControllerBase
     {
-        private readonly IEmailService _emailService;
-        private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly IConfiguration _configuration;
-        private readonly IEntityService<Customer, long> _customerService;
-        private readonly ShopDataContext _shopDataContext;
-
-        public AccountsController(IEmailService emailService,
-            SignInManager<IdentityUser> signInManager,
-            IConfiguration configuration,
-            IEntityService<Customer, long> customerService,
-            ShopDataContext shopDataContext)
-        {
-            _emailService = emailService;
-            _signInManager = signInManager;
-            _configuration = configuration;
-            _customerService = customerService;
-            _shopDataContext = shopDataContext;
-        }
+        private readonly IEmailService _emailService = emailService;
+        private readonly SignInManager<IdentityUser> _signInManager = signInManager;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly IEntityService<Customer, long> _customerService = customerService;
+        private readonly ShopDataContext _shopDataContext = shopDataContext;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
@@ -79,36 +70,38 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
 
             var code = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
+            var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
+            var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
 
-            if (!string.IsNullOrWhiteSpace(_configuration["MailSettingsSmtpNetworkPassword"]))
+            if (!string.IsNullOrWhiteSpace(smtpPassword))
             {
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
 
-                _ = _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
+                _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
             }
-            else 
+            else
             {
                 result = await _signInManager.UserManager.ConfirmEmailAsync(user, code);
 
                 if (!result.Succeeded)
                 {
-                    return Ok(new RegisterResponse 
-                    { 
-                        IsSuccess = false, 
-                        Errors = result.Errors.Select(x => x.Description) 
+                    return Ok(new RegisterResponse
+                    {
+                        IsSuccess = false,
+                        Errors = result.Errors.Select(x => x.Description)
                     });
                 }
 
-                return Ok(new RegisterResponse 
-                { 
-                    IsSuccess = true, 
-                    EmailConfirmed = true 
+                return Ok(new RegisterResponse
+                {
+                    IsSuccess = true,
+                    EmailConfirmed = true
                 });
             }
 
-            return Ok(new RegisterResponse 
-            { 
-                IsSuccess = true 
+            return Ok(new RegisterResponse
+            {
+                IsSuccess = true
             });
         }
 
@@ -156,10 +149,11 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             else
             {
+                var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
                 var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
 
-                _ = _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
+                _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
 
                 response.IsSuccess = true;
             }
@@ -175,7 +169,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (user == null || !(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, true)).Succeeded)
             {
-                response.Errors = new List<string> { "Username and password are invalid." };
+                response.Errors = ["Username and password are invalid."];
 
                 return Ok(response);
             }
@@ -184,15 +178,15 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (!roles.Contains("Admin"))
             {
-                response.Errors = new List<string> { $"{loginRequest.Email} is not an Admin user." };
+                response.Errors = [$"{loginRequest.Email} is not an Admin user."];
 
                 return Ok(response);
             }
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, loginRequest.Email),
-                new Claim(ClaimTypes.NameIdentifier, user.Id)
+                new (ClaimTypes.Name, loginRequest.Email),
+                new (ClaimTypes.NameIdentifier, user.Id)
             };
 
             foreach (var role in roles)
@@ -280,7 +274,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             catch
             {
                 await _shopDataContext.Database.RollbackTransactionAsync();
-                
+
                 throw;
             }
         }

@@ -13,9 +13,9 @@ namespace eCommerce.Storefront.Services
     {
         private const string CurrencySymbol = "€";
         private const string CurrencyCode = "EUR";
-        
+
         public void Register(TypeAdapterConfig config)
-        {            
+        {
             // Product Title and Product
             config.NewConfig<ProductTitle, ProductSummaryView>()
                 .Map(dest => dest.Price, src => src.Price.FormatMoney(CurrencySymbol));
@@ -50,11 +50,11 @@ namespace eCommerce.Storefront.Services
             config.NewConfig<Order, OrderSummaryView>()
                 .Map(dest => dest.IsSubmitted, src => src.Status == OrderStatus.Submitted);
             config.NewConfig<OrderView, OrderPaymentRequest>()
-                .Map(dest => dest.Total, src => decimal.Parse(src.Total.Substring(1, src.Total.Length - 1)))
-                .Map(dest => dest.ShippingCharge, src => decimal.Parse(src.ShippingCharge.Substring(1, src.ShippingCharge.Length - 1)))
+                .Map(dest => dest.Total, src => string.IsNullOrWhiteSpace(src.Total) ? 0m : decimal.Parse(src.Total.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
+                .Map(dest => dest.ShippingCharge, src => string.IsNullOrWhiteSpace(src.ShippingCharge) ? 0m : decimal.Parse(src.ShippingCharge.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
                 .Map(dest => dest.CurrencyCode, src => CurrencyCode);
             config.NewConfig<OrderItemView, OrderItemPaymentRequest>()
-                .Map(dest => dest.Price, src => decimal.Parse(src.Price.Substring(1, src.Price.Length - 1)));
+                .Map(dest => dest.Price, src => string.IsNullOrWhiteSpace(src.Price) ? 0m : decimal.Parse(src.Price.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture));
             config.NewConfig<DeliveryAddress, DeliveryAddress>();
         }
     }

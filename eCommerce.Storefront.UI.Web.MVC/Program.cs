@@ -47,5 +47,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSecurityHeaders();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapFallbackToFile("index.html");
 app.Logger.LogInformation("Application Started");
 app.Run();

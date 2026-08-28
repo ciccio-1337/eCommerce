@@ -8,16 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class Repository<T, TId> : IRepository<T, TId> where T : EntityBase<TId>
+    public class Repository<T, TId>(IUnitOfWork uow, ShopDataContext dataContext) : IRepository<T, TId> where T : EntityBase<TId>
     {
-        protected readonly IUnitOfWork _uow;
-        protected readonly ShopDataContext _dataContext;
-
-        public Repository(IUnitOfWork uow, ShopDataContext dataContext)
-        {
-            _uow = uow;
-            _dataContext = dataContext;
-        }
+        protected readonly IUnitOfWork _uow = uow;
+        protected readonly ShopDataContext _dataContext = dataContext;
 
         public async Task<T> FindByAsync(TId id)
         {
@@ -55,12 +49,19 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
 
             if (entry.State == EntityState.Detached)
             {
-                var attached = _dataContext.Set<T>().Local.FirstOrDefault(e => e.Id.Equals(entity.Id));
+                if (Equals(entity.Id, default(TId)))
+                {
+                    _dataContext.Set<T>().Add(entity);
+
+                    return;
+                }
+
+                var attached = _dataContext.Set<T>().Local.FirstOrDefault(e => Equals(e.Id, entity.Id));
 
                 if (attached != null)
                 {
                     _dataContext.Entry(attached).CurrentValues.SetValues(entity);
-                    
+
                     return;
                 }
 

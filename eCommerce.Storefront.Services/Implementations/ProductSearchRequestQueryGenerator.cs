@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
@@ -11,82 +10,59 @@ namespace eCommerce.Storefront.Services.Implementations
     {
         public static Expression<Func<Product, bool>> CreateQueryFor(GetProductsByCategoryRequest getProductsByCategoryRequest)
         {
-            Expression<Func<Product, bool>> productQuery = null;
-            Expression<Func<Product, bool>> categoryQuery = null;
+            Expression<Func<Product, bool>> categoryQuery = p => p.Title.Category.Id == getProductsByCategoryRequest.CategoryId;
+            Expression<Func<Product, bool>> colorQuery = null;
+            Expression<Func<Product, bool>> brandQuery = null;
+            Expression<Func<Product, bool>> sizeQuery = null;
 
-            var colorQuery = new List<Expression<Func<Product, bool>>>();
-            var brandQuery = new List<Expression<Func<Product, bool>>>();
-            var sizeQuery = new List<Expression<Func<Product, bool>>>();
-
-            foreach (int id in getProductsByCategoryRequest.ColorIds)
+            if (getProductsByCategoryRequest.ColorIds != null && getProductsByCategoryRequest.ColorIds.Length > 0)
             {
-                colorQuery.Add(p => p.Title.Color.Id == id);
-            }
-
-            if (colorQuery.Count > 0)
-            {
-                foreach (var predicate in colorQuery)
+                foreach (int id in getProductsByCategoryRequest.ColorIds)
                 {
-                    if (productQuery == null)
-                    {
-                        productQuery = predicate;
-                    }
-                    else
-                    {
-                        productQuery = PredicateBuilder.Or(productQuery, predicate);
-                    }
+                    int currentId = id;
+                    Expression<Func<Product, bool>> predicate = p => p.Title.Color.Id == currentId;
+
+                    colorQuery = colorQuery == null ? predicate : PredicateBuilder.Or(colorQuery, predicate);
                 }
             }
 
-            foreach (var id in getProductsByCategoryRequest.BrandIds)
+            if (getProductsByCategoryRequest.BrandIds != null && getProductsByCategoryRequest.BrandIds.Length > 0)
             {
-                brandQuery.Add(p => p.Title.Brand.Id == id);
-            }
-
-            if (brandQuery.Count > 0)
-            {
-                foreach (var predicate in brandQuery)
+                foreach (var id in getProductsByCategoryRequest.BrandIds)
                 {
-                    if (productQuery == null)
-                    {
-                        productQuery = predicate;
-                    }
-                    else
-                    {
-                        productQuery = PredicateBuilder.Or(productQuery, predicate);
-                    }
+                    var currentId = id;
+                    Expression<Func<Product, bool>> predicate = p => p.Title.Brand.Id == currentId;
+
+                    brandQuery = brandQuery == null ? predicate : PredicateBuilder.Or(brandQuery, predicate);
                 }
             }
 
-            foreach (var id in getProductsByCategoryRequest.SizeIds)
+            if (getProductsByCategoryRequest.SizeIds != null && getProductsByCategoryRequest.SizeIds.Length > 0)
             {
-                sizeQuery.Add(p => p.Size.Id == id);
-            }
-
-            if (sizeQuery.Count > 0)
-            {
-                foreach (var predicate in sizeQuery)
+                foreach (var id in getProductsByCategoryRequest.SizeIds)
                 {
-                    if (productQuery == null)
-                    {
-                        productQuery = predicate;
-                    }
-                    else
-                    {
-                        productQuery = PredicateBuilder.Or(productQuery, predicate);
-                    }
+                    var currentId = id;
+                    Expression<Func<Product, bool>> predicate = p => p.Size.Id == currentId;
+
+                    sizeQuery = sizeQuery == null ? predicate : PredicateBuilder.Or(sizeQuery, predicate);
                 }
             }
 
-            categoryQuery = p => p.Title.Category.Id == getProductsByCategoryRequest.CategoryId;
+            var productQuery = categoryQuery;
 
-            if (productQuery == null)
+            if (colorQuery != null)
             {
-                productQuery = categoryQuery;
+                productQuery = PredicateBuilder.And(productQuery, colorQuery);
             }
-            else
+
+            if (brandQuery != null)
             {
-                productQuery = PredicateBuilder.And(productQuery, categoryQuery);
+                productQuery = PredicateBuilder.And(productQuery, brandQuery);
+            }
+
+            if (sizeQuery != null)
+            {
+                productQuery = PredicateBuilder.And(productQuery, sizeQuery);
             }
 
             return productQuery;

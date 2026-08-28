@@ -3,24 +3,20 @@ using eCommerce.Storefront.Controllers.ActionArguments;
 using eCommerce.Storefront.Controllers.ViewModels.Account;
 using eCommerce.Storefront.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public class AccountLogOnController : BaseAccountController
+    public class AccountLogOnController(ILocalAuthenticationService authenticationService,
+        ICustomerService customerService,
+        ICookieAuthentication cookieAuthentication,
+        IActionArguments actionArguments) : BaseAccountController(authenticationService,
+            customerService,
+            cookieAuthentication,
+            actionArguments)
     {
-        public AccountLogOnController(ILocalAuthenticationService authenticationService,
-            ICustomerService customerService,
-            ICookieAuthentication cookieAuthentication,
-            IActionArguments actionArguments) : base(authenticationService, 
-                customerService,
-                cookieAuthentication, 
-                actionArguments)
-        {
-        }
 
         public IActionResult LogOn()
         {
@@ -38,9 +34,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 if (user.IsAuthenticated && user.Roles.Any(r => r.Equals("Customer")))
                 {
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
 
-                    return RedirectToAction("Index", "Home");
+                    return RedirectBasedOn(returnUrl);
                 }
                 else
                 {
@@ -50,7 +46,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                     ViewData["email"] = email;
                     ViewData["password"] = password;
-                    
+
                     return View(accountView);
                 }
             }

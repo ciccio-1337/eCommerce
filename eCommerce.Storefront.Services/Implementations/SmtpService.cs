@@ -8,24 +8,18 @@ using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
-    public class SmtpService : IEmailService
+    public class SmtpService(IConfiguration configuration, ILogger<SmtpService> logger) : IEmailService
     {
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<SmtpService> _logger;
-
-        public SmtpService(IConfiguration configuration, ILogger<SmtpService> logger)
-        {
-            _configuration = configuration;
-            _logger = logger;
-        }
+        private readonly IConfiguration _configuration = configuration;
+        private readonly ILogger<SmtpService> _logger = logger;
 
         public async Task SendMailAsync(string from, string to, string subject, string body)
         {
-            var host = _configuration["MailSettingsSmtpNetworkHost"] ?? string.Empty;
-            var portText = _configuration["MailSettingsSmtpNetworkPort"] ?? "25";
-            var useDefaultText = _configuration["MailSettingsSmtpNetworkDefaultCredentials"] ?? bool.FalseString;
-            var userName = _configuration["MailSettingsSmtpNetworkUserName"] ?? string.Empty;
-            var password = _configuration["MailSettingsSmtpNetworkPassword"] ?? string.Empty;
+            var host = _configuration["MailSettings:Smtp:Network:Host"] ?? _configuration["MailSettingsSmtpNetworkHost"] ?? string.Empty;
+            var portText = _configuration["MailSettings:Smtp:Network:Port"] ?? _configuration["MailSettingsSmtpNetworkPort"] ?? "25";
+            var useDefaultText = _configuration["MailSettings:Smtp:Network:DefaultCredentials"] ?? _configuration["MailSettingsSmtpNetworkDefaultCredentials"] ?? bool.FalseString;
+            var userName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"] ?? string.Empty;
+            var password = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"] ?? string.Empty;
 
             if (!int.TryParse(portText, out var port))
             {
@@ -37,34 +31,32 @@ namespace eCommerce.Storefront.Services.Implementations
                 useDefaultCredentials = false;
             }
 
-            using (var message = new MailMessage())
+            using var message = new MailMessage();
+
+            message.From = new MailAddress(from);
+
+            if (!string.IsNullOrWhiteSpace(to))
             {
-                message.From = new MailAddress(from);
+                message.To.Add(to);
+            }
 
-                if (!string.IsNullOrWhiteSpace(to))
-                {
-                    message.To.Add(to);
-                }
+            message.Subject = subject ?? string.Empty;
+            message.Body = body ?? string.Empty;
 
-                message.Subject = subject ?? string.Empty;
-                message.Body = body ?? string.Empty;
+            using var smtp = new SmtpClient(host, port);
 
-                using (var smtp = new SmtpClient(host, port))
-                {
-                    smtp.UseDefaultCredentials = useDefaultCredentials;
-                    smtp.Credentials = new NetworkCredential(userName, password);
+            smtp.UseDefaultCredentials = useDefaultCredentials;
+            smtp.Credentials = new NetworkCredential(userName, password);
 
-                    try
-                    {
-                        await smtp.SendMailAsync(message);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send email to {To} with subject '{Subject}'.", to, subject);
-                        
-                        throw;
-                    }
-                }
+            try
+            {
+                await smtp.SendMailAsync(message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email to {To} with subject '{Subject}'.", to, subject);
+
+                throw;
             }
         }
     }

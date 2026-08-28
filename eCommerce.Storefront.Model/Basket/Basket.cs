@@ -9,13 +9,14 @@ namespace eCommerce.Storefront.Model.Basket
 {
     public class Basket : EntityBase<Guid>
     {
-        private readonly IList<BasketItem> _items;
+        private readonly List<BasketItem> _items;
         private DeliveryOption _deliveryOption;
         private Customer _customer;
-        
+
         public Basket()
         {
-            _items = new List<BasketItem>();
+            Id = Guid.NewGuid();
+            _items = [];
         }
 
         public int NumberOfItems
@@ -35,7 +36,7 @@ namespace eCommerce.Storefront.Model.Basket
         {
             get { return _items.Sum(i => i.Qty * i.Product.Price); }
         }
-        
+
         public void Add(Product product)
         {
             if (BasketContainsAnItemFor(product))
@@ -86,7 +87,7 @@ namespace eCommerce.Storefront.Model.Basket
 
         public decimal DeliveryCost()
         {
-            return DeliveryOption.GetDeliveryChargeForBasketTotalOf(ItemsTotal);
+            return DeliveryOption?.GetDeliveryChargeForBasketTotalOf(ItemsTotal) ?? 0m;
         }
 
         public DeliveryOption DeliveryOption

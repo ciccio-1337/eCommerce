@@ -39,6 +39,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
             
             serviceCollection.AddSingleton(config);
             serviceCollection.AddScoped<IMapper, ServiceMapper>();
+            serviceCollection.AddMemoryCache();
             serviceCollection.AddHttpContextAccessor();
             serviceCollection.AddDbContext<ShopDataContext>(options => 
             {
@@ -197,18 +198,6 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 if (!context.Response.Headers.ContainsKey(HeaderNames.Expires))
                 {
                     context.Response.Headers.Append(HeaderNames.Expires, "0");
-                }
-
-                if (context.Request.Path.StartsWithSegments("/admin"))
-                {
-                    foreach (var key in context.Request.Cookies.Keys)
-                    {
-                        context.Response.Cookies.Delete(key);
-                    }
-
-                    context.Response.Redirect("/index.html");
-
-                    return;
                 }
 
                 await next();

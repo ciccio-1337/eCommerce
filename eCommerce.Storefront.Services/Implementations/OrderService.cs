@@ -15,35 +15,23 @@ using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
-    public class OrderService : IOrderService
+    public class OrderService(IOrderRepository orderRepository,
+        IBasketRepository basketRepository,
+        ICustomerRepository customerRepository,
+        IUnitOfWork uow,
+        IMapper mapper,
+        ILogger<OrderService> logger,
+        IConfiguration configuration,
+        IEmailService emailService) : IOrderService
     {
-        private readonly ICustomerRepository _customerRepository;
-        private readonly IOrderRepository _orderRepository;
-        private readonly IBasketRepository _basketRepository;
-        private readonly IUnitOfWork _uow;
-        private readonly IMapper _mapper;
-        private readonly ILogger<OrderService> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly IEmailService _emailService;
-
-        public OrderService(IOrderRepository orderRepository,
-            IBasketRepository basketRepository,
-            ICustomerRepository customerRepository,
-            IUnitOfWork uow,
-            IMapper mapper,
-            ILogger<OrderService> logger,
-            IConfiguration configuration,
-            IEmailService emailService)
-        {
-            _customerRepository = customerRepository;
-            _orderRepository = orderRepository;
-            _basketRepository = basketRepository;
-            _uow = uow;
-            _mapper = mapper;
-            _logger = logger;
-            _configuration = configuration;
-            _emailService = emailService;
-        }
+        private readonly ICustomerRepository _customerRepository = customerRepository;
+        private readonly IOrderRepository _orderRepository = orderRepository;
+        private readonly IBasketRepository _basketRepository = basketRepository;
+        private readonly IUnitOfWork _uow = uow;
+        private readonly IMapper _mapper = mapper;
+        private readonly ILogger<OrderService> _logger = logger;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly IEmailService _emailService = emailService;
 
         public async Task<CreateOrderResponse> CreateOrderAsync(CreateOrderRequest request)
         {
@@ -68,7 +56,7 @@ namespace eCommerce.Storefront.Services.Implementations
             order.DeliveryAddress = deliveryAddress;
 
             order.ThrowExceptionIfInvalid();
-            _orderRepository.Save(order);
+            await _orderRepository.AddAsync(order);
             _basketRepository.Remove(basket);
             await _uow.CommitAsync();
 
@@ -80,12 +68,8 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<SetOrderPaymentResponse> SetOrderPaymentAsync(SetOrderPaymentRequest paymentRequest)
         {
             var paymentResponse = new SetOrderPaymentResponse();
-            var order = await _orderRepository.FindByAsync(paymentRequest.OrderId);
-
-            if (order == null)
-            {
+            var order = await _orderRepository.FindByAsync(paymentRequest.OrderId) ??
                 throw new OrderNotFoundException(paymentRequest.OrderId);
-            }
 
             try
             {
@@ -115,10 +99,19 @@ namespace eCommerce.Storefront.Services.Implementations
             var response = new GetOrderResponse();
             var order = await _orderRepository.FindByAsync(request.OrderId);
 
-            if (order == null || order.Customer == null ||
-                !string.Equals(order.Customer.Email, request.CustomerEmail, StringComparison.OrdinalIgnoreCase))
+            if (order == null || order.Customer == null)
             {
                 return response;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CustomerEmail))
+            {
+                var customer = await _customerRepository.FindByAsync(request.CustomerEmail);
+
+                if (customer == null || order.Customer.Id != customer.Id)
+                {
+                    return response;
+                }
             }
 
             response.Order = _mapper.Map<Order, OrderView>(order);
@@ -126,7 +119,7 @@ namespace eCommerce.Storefront.Services.Implementations
             return response;
         }
 
-        private Order ConvertToOrder(Basket basket)
+        private static Order ConvertToOrder(Basket basket)
         {
             var order = new Order
             {
@@ -162,11 +155,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 emailBody.AppendLine();
                 emailBody.AppendLine("Thank you for your custom.");
 
-                if (!string.IsNullOrWhiteSpace(_configuration["MailSettingsSmtpNetworkPassword"]))
+                var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
+                var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
+
+                if (!string.IsNullOrWhiteSpace(smtpPassword) && !string.IsNullOrWhiteSpace(emailAddress))
                 {
                     try
                     {
-                        await _emailService.SendMailAsync(_configuration["MailSettingsSmtpNetworkUserName"], emailAddress, emailSubject, emailBody.ToString());
+                        await _emailService.SendMailAsync(smtpUserName, emailAddress, emailSubject, emailBody.ToString());
                     }
                     catch (Exception ex)
                     {

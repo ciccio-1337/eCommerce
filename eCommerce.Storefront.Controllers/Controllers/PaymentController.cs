@@ -11,38 +11,36 @@ using eCommerce.Storefront.Model.Orders;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public class PaymentController : Controller
+    public class PaymentController(IPaymentService paymentService,
+        IOrderService orderService,
+        IMapper mapper,
+        ILogger<PaymentController> logger,
+        ICookieAuthentication cookieAuthentication) : Controller
     {
-        private readonly IPaymentService _paymentService;
-        private readonly IOrderService _orderService;
-        private readonly IMapper _mapper;
-        private readonly ILogger<PaymentController> _logger;
-        private readonly ICookieAuthentication _cookieAuthentication;
-
-        public PaymentController(IPaymentService paymentService,
-            IOrderService orderService,
-            IMapper mapper,
-            ILogger<PaymentController> logger,
-            ICookieAuthentication cookieAuthentication)
-        {
-            _paymentService = paymentService;
-            _orderService = orderService;
-            _mapper = mapper;
-            _logger = logger;
-            _cookieAuthentication = cookieAuthentication;
-        }
+        private readonly IPaymentService _paymentService = paymentService;
+        private readonly IOrderService _orderService = orderService;
+        private readonly IMapper _mapper = mapper;
+        private readonly ILogger<PaymentController> _logger = logger;
+        private readonly ICookieAuthentication _cookieAuthentication = cookieAuthentication;
 
         [HttpPost]
         [IgnoreAntiforgeryToken]
         public async Task PaymentCallBack(IFormCollection collection)
         {
             var orderId = _paymentService.GetOrderIdFor(collection);
-            var request = new GetOrderRequest 
-            { 
-                OrderId = orderId,
-                CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
+            var request = new GetOrderRequest
+            {
+                OrderId = orderId
             };
             var response = await _orderService.GetOrderAsync(request);
+
+            if (response?.Order == null)
+            {
+                _logger.LogError("PaymentCallBack: Order {OrderId} could not be retrieved.", orderId);
+
+                return;
+            }
+
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
             var transactionResult = await _paymentService.HandleCallBackAsync(orderPaymentRequest, collection);
 
@@ -53,26 +51,31 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     Amount = transactionResult.Amount,
                     PaymentToken = transactionResult.PaymentToken,
                     PaymentMerchant = transactionResult.PaymentMerchant,
-                    OrderId = orderId,
-                    CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
+                    OrderId = orderId
                 };
 
                 await _orderService.SetOrderPaymentAsync(paymentRequest);
             }
             else
             {
-                _logger.LogWarning(string.Format("Payment not ok for order id {0}, payment token {1}", orderId, transactionResult.PaymentToken));
+                _logger.LogWarning("Payment not ok for order id {OrderId}, payment token {PaymentToken}", orderId, transactionResult.PaymentToken);
             }
         }
 
         public async Task<IActionResult> CreatePaymentFor(int orderId)
         {
             var request = new GetOrderRequest
-            { 
+            {
                 OrderId = orderId,
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
             var response = await _orderService.GetOrderAsync(request);
+
+            if (response?.Order == null)
+            {
+                return NotFound();
+            }
+
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
             var paymentPostData = _paymentService.GeneratePostDataFor(orderPaymentRequest);
 

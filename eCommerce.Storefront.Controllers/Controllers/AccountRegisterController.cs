@@ -5,7 +5,6 @@ using eCommerce.Storefront.Controllers.ViewModels.Account;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.CustomerService;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Controllers.Models;
@@ -13,21 +12,16 @@ using eCommerce.Storefront.Repository.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public class AccountRegisterController : BaseAccountController
+    public class AccountRegisterController(ILocalAuthenticationService authenticationService,
+        ICustomerService customerService,
+        ICookieAuthentication cookieAuthentication,
+        IActionArguments actionArguments,
+        ShopDataContext shopDataContext) : BaseAccountController(authenticationService,
+            customerService,
+            cookieAuthentication,
+            actionArguments)
     {
-        private readonly ShopDataContext _shopDataContext;
-
-        public AccountRegisterController(ILocalAuthenticationService authenticationService,
-            ICustomerService customerService,
-            ICookieAuthentication cookieAuthentication,
-            IActionArguments actionArguments,
-            ShopDataContext shopDataContext) : base(authenticationService, 
-                customerService,
-                cookieAuthentication, 
-                actionArguments)
-        {
-            _shopDataContext = shopDataContext;
-        }
+        private readonly ShopDataContext _shopDataContext = shopDataContext;
 
         public IActionResult Register()
         {
@@ -45,14 +39,14 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             try
             {
-                user = await _authenticationService.RegisterUserAsync(email, password, true, new List<string> { "Customer" });
+                user = await _authenticationService.RegisterUserAsync(email, password, true, ["Customer"]);
             }
             catch (InvalidOperationException ex)
             {
                 await _shopDataContext.Database.RollbackTransactionAsync();
 
                 var accountView = InitializeAccountViewWithIssue(true, ex.Message);
-                
+
                 ViewData[FormDataKeys.Password.ToString()] = password;
                 ViewData[FormDataKeys.Email.ToString()] = email;
                 ViewData[FormDataKeys.FirstName.ToString()] = firstName;
@@ -73,10 +67,12 @@ namespace eCommerce.Storefront.Controllers.Controllers
                         SecondName = secondName
                     });
 
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, new List<string> { "Customer" });
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
                     await _shopDataContext.Database.CommitTransactionAsync();
 
-                    return RedirectToAction("Detail", "Customer");
+                    var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
+
+                    return RedirectBasedOn(returnUrl);
                 }
                 catch (EntityBaseIsInvalidException ex)
                 {

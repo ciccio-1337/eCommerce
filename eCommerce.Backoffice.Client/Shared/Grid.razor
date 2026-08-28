@@ -3,33 +3,41 @@
 @if (Model?.Rows != null)
 {
     <h2>@Title</h2>
-    
+
     @if (CanCreate)
     {
-        <RadzenButton Icon="add_circle_outline" style="margin-bottom: 10px" Text="Add" Click="@(() => OnCreate.InvokeAsync())" />
+        <RadzenButton Icon="add_circle_outline" style="margin-bottom: 10px" Text="Add"
+    Click="@(() => OnCreate.InvokeAsync())" />
     }
 
-    <RadzenDataGrid Count="@Model.Rows.Count" Data="Model.Rows" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.Advanced" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="15">
+    <RadzenDataGrid Count="@Model.Rows.Count" Data="Model.Rows"
+        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.Advanced" AllowSorting="true"
+        AllowFiltering="true" AllowPaging="true" PageSize="15">
         <Columns>
             @for (int col = 0; col < columns.Length; col++)
-            {                
-                @if (!string.IsNullOrEmpty(displayFormat[col]))
+            {
+                var currentCol = col;
+
+                @if (!string.IsNullOrEmpty(displayFormat[currentCol]))
                 {
-                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true">
+                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[currentCol]?.Name"
+                        Title="@columns[currentCol]" Sortable="true" Filterable="true">
                         <Template Context="data">
-                            @string.Format(displayFormat[col], properties[col].GetValue(data))
+                            @string.Format(displayFormat[currentCol], properties[currentCol].GetValue(data))
                         </Template>
                     </RadzenDataGridColumn>
                 }
-                else 
+                else
                 {
-                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[col]?.Name" Title="@columns[col]" Sortable="true" Filterable="true" />
+                    <RadzenDataGridColumn TItem="ElementsType" Property="@properties?[currentCol]?.Name"
+                        Title="@columns[currentCol]" Sortable="true" Filterable="true" />
                 }
             }
 
             @if (CanEdit)
             {
-                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false"
+                    TextAlign="TextAlign.Center" Width="70px">
                     <Template Context="item">
                         <RadzenButton Icon="edit" Size="ButtonSize.Small" Click="@(() => OnEdit.InvokeAsync(item))" />
                     </Template>
@@ -38,9 +46,11 @@
 
             @if (CanDelete)
             {
-                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                <RadzenDataGridColumn TItem="ElementsType" Context="item" Filterable="false" Sortable="false"
+                    TextAlign="TextAlign.Center" Width="70px">
                     <Template Context="item">
-                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="close" Size="ButtonSize.Small" Click="@(() => OnDelete.InvokeAsync(item))" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="close" Size="ButtonSize.Small"
+                            Click="@(() => OnDelete.InvokeAsync(item))" />
                     </Template>
                 </RadzenDataGridColumn>
             }
@@ -52,12 +62,12 @@ else
     <p><em>Loading...</em></p>
 }
 
-@code 
+@code
 {
     [Parameter]
     public GridModel<ElementsType> Model { get; set; }
 
-    [Parameter] 
+    [Parameter]
     public string Title { get; set; }
 
     [Parameter]
@@ -88,9 +98,9 @@ else
         if (Model != null)
         {
             properties = typeof(ElementsType).GetProperties();
-            
+
             LoadColumns(properties);
-            LoadRows(properties);    
+            LoadRows(properties);
         }
     }
 
@@ -102,12 +112,13 @@ else
         if (Model.UseAnnotations)
         {
             for (int col = 0; col < properties.Length; col++)
-            {  
+            {
                 var display = properties[col].GetCustomAttributes(typeof(DisplayAttribute), false).FirstOrDefault() as DisplayAttribute;
-                var format = properties[col].GetCustomAttributes(typeof(DisplayFormatAttribute), false).FirstOrDefault() as DisplayFormatAttribute;
-                
+                var format = properties[col].GetCustomAttributes(typeof(DisplayFormatAttribute), false).FirstOrDefault() as
+                DisplayFormatAttribute;
+
                 columns[col] = display == null ? properties[col].Name : display.ShortName;
-                displayFormat[col] = format != null ? format.DataFormatString  : null;
+                displayFormat[col] = format != null ? format.DataFormatString : null;
             }
         }
         else
@@ -125,7 +136,10 @@ else
         {
             for (int col = 0; col < properties.Length; col++)
             {
-                rows[row, col] = displayFormat[col] == null ? properties[col].GetValue(Model.Rows[row]).ToString() : string.Format(displayFormat[col], properties[col].GetValue(Model.Rows[row]));
+                var val = properties[col].GetValue(Model.Rows[row]);
+
+                rows[row, col] = val == null ? string.Empty : (displayFormat[col] == null ? val.ToString() :
+                string.Format(displayFormat[col], val));
             }
         }
     }

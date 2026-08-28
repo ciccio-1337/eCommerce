@@ -11,19 +11,14 @@ using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
-    public class ProductController : ProductCatalogBaseController
+    public class ProductController(IConfiguration configuration,
+        ICookieAuthentication cookieAuthentication,
+        ICustomerService customerService,
+        ICachedProductCatalogService cachedProductCatalogService) : ProductCatalogBaseController(cookieAuthentication,
+            customerService,
+            cachedProductCatalogService)
     {
-        private readonly IConfiguration _configuration;
-
-        public ProductController(IConfiguration configuration,
-            ICookieAuthentication cookieAuthentication,
-            ICustomerService customerService,
-            ICachedProductCatalogService cachedProductCatalogService) : base(cookieAuthentication,
-                customerService,
-                cachedProductCatalogService)
-        {
-            _configuration = configuration;
-        }
+        private readonly IConfiguration _configuration = configuration;
 
         public async Task<IActionResult> GetProductsByCategory(int categoryId)
         {
@@ -116,12 +111,17 @@ namespace eCommerce.Storefront.Controllers.Controllers
         public async Task<IActionResult> Detail(int id)
         {
             var productDetailView = new ProductDetailView();
-            var request = new GetProductRequest 
-            { 
-                ProductId = id 
+            var request = new GetProductRequest
+            {
+                ProductId = id
             };
             var response = await _cachedProductCatalogService.GetProductAsync(request);
-            var productView = response.Product;
+            var productView = response?.Product;
+
+            if (productView == null)
+            {
+                return NotFound();
+            }
 
             productDetailView.Product = productView;
             productDetailView.BasketSummary = await GetBasketSummaryViewAsync();

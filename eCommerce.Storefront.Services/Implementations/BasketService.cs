@@ -13,37 +13,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Services.Implementations
 {
-    public class BasketService : IBasketService
+    public class BasketService(IBasketRepository basketRepository,
+        IProductRepository productRepository,
+        IDeliveryOptionRepository deliveryOptionRepository,
+        IUnitOfWork uow,
+        IMapper mapper,
+        ICustomerRepository customerRepository) : IBasketService
     {
-        private readonly IBasketRepository _basketRepository;
-        private readonly IProductRepository _productRepository;
-        private readonly IDeliveryOptionRepository _deliveryOptionRepository;
-        private readonly IUnitOfWork _uow;
-        private readonly IMapper _mapper;
-        private readonly ICustomerRepository _customerRepository;
+        private readonly IBasketRepository _basketRepository = basketRepository;
+        private readonly IProductRepository _productRepository = productRepository;
+        private readonly IDeliveryOptionRepository _deliveryOptionRepository = deliveryOptionRepository;
+        private readonly IUnitOfWork _uow = uow;
+        private readonly IMapper _mapper = mapper;
+        private readonly ICustomerRepository _customerRepository = customerRepository;
 
-        public BasketService(IBasketRepository basketRepository,
-            IProductRepository productRepository,
-            IDeliveryOptionRepository deliveryOptionRepository,
-            IUnitOfWork uow,
-            IMapper mapper,
-            ICustomerRepository customerRepository)
-        {
-            _basketRepository = basketRepository;
-            _productRepository = productRepository;
-            _deliveryOptionRepository = deliveryOptionRepository;
-            _uow = uow;
-            _mapper = mapper;
-            _customerRepository = customerRepository;
-        }
-        
         public async Task<GetBasketResponse> GetBasketAsync(GetBasketRequest basketRequest)
         {
             var response = new GetBasketResponse();
             var basket = await _basketRepository.FindByAsync(basketRequest.BasketId);
 
             BasketView basketView;
-            
+
             if (basket != null)
             {
                 basketView = _mapper.Map<Basket, BasketView>(basket);
@@ -54,7 +44,7 @@ namespace eCommerce.Storefront.Services.Implementations
             }
 
             response.Basket = basketView;
-            
+
             return response;
         }
 
@@ -62,12 +52,8 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new CreateBasketResponse();
             var basket = new Basket();
-            var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail);
-
-            if (customer == null)
-            {
+            var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail) ??
                 throw new CustomerNotFoundException(basketRequest.CustomerEmail);
-            }
 
             customer.Email = basketRequest.CustomerEmail;
 
@@ -75,7 +61,7 @@ namespace eCommerce.Storefront.Services.Implementations
             await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
             basket.SetCustomer(customer);
             basket.ThrowExceptionIfInvalid();
-            _basketRepository.Save(basket);
+            await _basketRepository.AddAsync(basket);
             customer.AddBasket(basket);
             customer.ThrowExceptionIfInvalid();
             _customerRepository.Save(customer);
@@ -85,7 +71,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
             return response;
         }
-        
+
         private async Task<DeliveryOption> GetCheapestDeliveryOptionAsync()
         {
             return await _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).FirstOrDefaultAsync();
@@ -94,21 +80,17 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<ModifyBasketResponse> ModifyBasketAsync(ModifyBasketRequest request)
         {
             var response = new ModifyBasketResponse();
-            var basket = await _basketRepository.FindByAsync(request.BasketId);
-
-            if (basket == null)
-            {
+            var basket = await _basketRepository.FindByAsync(request.BasketId) ??
                 throw new BasketDoesNotExistException();
-            }
-            
+
             await AddProductsToBasketAsync(request.ProductsToAdd, basket);
             await UpdateLineQtysAsync(request.ItemsToUpdate, basket);
             await RemoveItemsFromBasketAsync(request.ItemsToRemove, basket);
-            
+
             if (request.SetShippingServiceIdTo != 0)
             {
-                var deliveryOption =await _deliveryOptionRepository.FindByAsync(request.SetShippingServiceIdTo);
-                
+                var deliveryOption = await _deliveryOptionRepository.FindByAsync(request.SetShippingServiceIdTo);
+
                 basket.SetDeliveryOption(deliveryOption);
             }
 
@@ -117,13 +99,13 @@ namespace eCommerce.Storefront.Services.Implementations
             await _uow.CommitAsync();
 
             response.Basket = _mapper.Map<Basket, BasketView>(basket);
-            
+
             return response;
         }
-        
+
         private async Task RemoveItemsFromBasketAsync(IList<long> productsToRemove, Basket basket)
         {
-            foreach (int productId in productsToRemove)
+            foreach (long productId in productsToRemove)
             {
                 var product = await _productRepository.FindByAsync(productId);
 
@@ -139,7 +121,7 @@ namespace eCommerce.Storefront.Services.Implementations
             foreach (ProductQtyUpdateRequest productQtyUpdateRequest in productQtyUpdateRequests)
             {
                 var product = await _productRepository.FindByAsync(productQtyUpdateRequest.ProductId);
-                
+
                 if (product != null)
                 {
                     basket.ChangeQtyOfProduct(productQtyUpdateRequest.NewQty, product);
@@ -151,7 +133,7 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             if (productsToAdd.Any())
             {
-                foreach (int productId in productsToAdd)
+                foreach (long productId in productsToAdd)
                 {
                     var product = await _productRepository.FindByAsync(productId);
 
@@ -167,7 +149,7 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             var response = new GetAllDispatchOptionsResponse
             {
-                DeliveryOptions = _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).Select(d => _mapper.Map<DeliveryOption, DeliveryOptionView>(d))
+                DeliveryOptions = [.. _deliveryOptionRepository.FindAll().OrderBy(d => d.Cost).AsEnumerable().Select(_mapper.Map<DeliveryOption, DeliveryOptionView>)]
             };
 
             return response;
