@@ -10,17 +10,12 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 namespace eCommerce.Storefront.Controllers.Controllers
 {
     [Authorize(Roles = "Customer")]
-    public class OrderController : BaseController
+    public class OrderController(ICustomerService customerService,
+        IOrderService orderService,
+        ICookieAuthentication cookieAuthentication) : BaseController(cookieAuthentication,
+            customerService)
     {
-        private readonly IOrderService _orderService;
-
-        public OrderController(ICustomerService customerService,
-            IOrderService orderService,
-            ICookieAuthentication cookieAuthentication) : base(cookieAuthentication,
-                customerService)
-        {
-            _orderService = orderService;
-        }
+        private readonly IOrderService _orderService = orderService;
 
         public async Task<IActionResult> List()
         {
@@ -41,20 +36,20 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 return View(customersOrderSummaryView);
             }
-            else 
+            else
             {
                 await _cookieAuthentication.SignOutAsync();
-                
+
                 return RedirectToAction("Register", "AccountRegister");
             }
         }
-        
-        public async Task<IActionResult> Detail(int orderId)
+
+        public async Task<IActionResult> Detail(long orderId)
         {
-            var request = new GetOrderRequest() 
-            { 
-                OrderId = orderId, 
-                CustomerEmail = _cookieAuthentication.GetAuthenticationToken() 
+            var request = new GetOrderRequest()
+            {
+                OrderId = orderId,
+                CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
             var response = await _orderService.GetOrderAsync(request);
             var orderView = new CustomerOrderView
