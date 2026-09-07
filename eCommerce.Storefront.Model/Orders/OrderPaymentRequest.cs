@@ -13,7 +13,7 @@ namespace eCommerce.Storefront.Model.Orders
         public string DeliveryAddressState { get; set; }
         public string DeliveryAddressCountry { get; set; }
         public string DeliveryAddressZipCode { get; set; }
-        public int Id { get; set; }
+        public long Id { get; set; }
         public IEnumerable<OrderItemPaymentRequest> Items { get; set; }
         public string CurrencyCode { get; set; }
     }

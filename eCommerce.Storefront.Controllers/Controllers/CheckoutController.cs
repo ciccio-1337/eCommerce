@@ -83,7 +83,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         public async Task<IActionResult> PlaceOrder(IFormCollection collection)
         {
-            if (!int.TryParse(collection[FormDataKeys.DeliveryAddress.ToString()], out var deliveryId))
+            if (!long.TryParse(collection[FormDataKeys.DeliveryAddress.ToString()], out var deliveryId))
             {
                 return BadRequest("Invalid delivery address.");
             }

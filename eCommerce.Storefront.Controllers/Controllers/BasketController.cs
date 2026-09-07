@@ -67,7 +67,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateShipping(int shippingServiceId)
+        public async Task<IActionResult> UpdateShipping(long shippingServiceId)
         {
             var request = new ModifyBasketRequest
             {

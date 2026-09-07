@@ -14,7 +14,7 @@ namespace eCommerce.Storefront.Services.ViewModels
         public string ShippingServiceCourierName { get; set; }
         public string ShippingServiceDescription { get; set; }
         public string Total { get; set; }
-        public int Id { get; set; }
+        public long Id { get; set; }
         public DeliveryAddressView DeliveryAddress { get; set; }
         public string CustomerFirstName { get; set; }
         public string CustomerSecondName { get; set; }

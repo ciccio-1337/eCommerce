@@ -15,7 +15,29 @@ namespace eCommerce.Storefront.Services.Implementations
 
         public async Task SendMailAsync(string from, string to, string subject, string body)
         {
+            if (string.IsNullOrWhiteSpace(from))
+            {
+                _logger.LogWarning("SendMailAsync aborted: 'from' address is empty.");
+                
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                _logger.LogWarning("SendMailAsync aborted: 'to' address is empty.");
+                
+                return;
+            }
+
             var host = _configuration["MailSettings:Smtp:Network:Host"] ?? _configuration["MailSettingsSmtpNetworkHost"] ?? string.Empty;
+            
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                _logger.LogWarning("SendMailAsync aborted: SMTP Host is not configured.");
+                
+                return;
+            }
+
             var portText = _configuration["MailSettings:Smtp:Network:Port"] ?? _configuration["MailSettingsSmtpNetworkPort"] ?? "25";
             var useDefaultText = _configuration["MailSettings:Smtp:Network:DefaultCredentials"] ?? _configuration["MailSettingsSmtpNetworkDefaultCredentials"] ?? bool.FalseString;
             var userName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"] ?? string.Empty;
@@ -35,13 +57,11 @@ namespace eCommerce.Storefront.Services.Implementations
 
             message.From = new MailAddress(from);
 
-            if (!string.IsNullOrWhiteSpace(to))
-            {
-                message.To.Add(to);
-            }
-
+            message.To.Add(to);
+            
             message.Subject = subject ?? string.Empty;
             message.Body = body ?? string.Empty;
+            message.IsBodyHtml = body != null && body.Contains('<') && body.Contains('>');
 
             using var smtp = new SmtpClient(host, port);
 

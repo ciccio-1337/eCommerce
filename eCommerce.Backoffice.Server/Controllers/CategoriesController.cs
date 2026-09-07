@@ -38,7 +38,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<ActionResult<CategoryDto>> GetCategory(int id)
+        public async Task<ActionResult<CategoryDto>> GetCategory(long id)
         {
             var category = await _categoryService.GetAsync(id);
 
@@ -78,7 +78,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCategory(int id, CategoryDto category)
+        public async Task<IActionResult> UpdateCategory(long id, CategoryDto category)
         {
             if (id != category.Id)
             {
@@ -107,7 +107,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCategory(int id)
+        public async Task<IActionResult> DeleteCategory(long id)
         {
             try
             {

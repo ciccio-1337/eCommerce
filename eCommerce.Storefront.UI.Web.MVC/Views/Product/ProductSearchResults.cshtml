@@ -144,8 +144,13 @@
                     buildPageLinksFor("#pageLinksTop", data.currentPage, data.totalNumberOfPages);
                     buildPageLinksFor("#pageLinksBottom", data.currentPage, data.totalNumberOfPages);
                     
-                    for (var i = data.refinementGroups.length - 1; i >= 0; --i) {
-                        filterOutRefinements(data.refinementGroups[i].GroupId, data.refinementGroups[i].Refinements);
+                    if (data.refinementGroups) {
+                        for (var i = data.refinementGroups.length - 1; i >= 0; --i) {
+                            var groupId = data.refinementGroups[i].groupId !== undefined ? data.refinementGroups[i].groupId : data.refinementGroups[i].GroupId;
+                            var refinements = data.refinementGroups[i].refinements !== undefined ? data.refinementGroups[i].refinements : data.refinementGroups[i].Refinements;
+                            
+                            filterOutRefinements(groupId, refinements);
+                        }
                     }
 
                     hideOverlay("overlay");
@@ -247,8 +252,10 @@
     // last
     // ===============================================================
     function refinementItemIdIsInProductAvailableRefinements(availableProductRefinements, refinementItemId) {
+        if (!availableProductRefinements) return false;
         for (var i = availableProductRefinements.length - 1; i >= 0; --i) {
-            if (availableProductRefinements[i].Id == refinementItemId)
+            var refId = availableProductRefinements[i].id !== undefined ? availableProductRefinements[i].id : availableProductRefinements[i].Id;
+            if (refId == refinementItemId)
                 return true;
         }
 

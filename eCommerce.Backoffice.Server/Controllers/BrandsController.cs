@@ -34,7 +34,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<ActionResult<BrandDto>> GetBrand(int id)
+        public async Task<ActionResult<BrandDto>> GetBrand(long id)
         {
             var brand = await _brandService.GetAsync(id);
 
@@ -72,7 +72,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBrand(int id, BrandDto brand)
+        public async Task<IActionResult> UpdateBrand(long id, BrandDto brand)
         {
             if (id != brand.Id)
             {
@@ -100,7 +100,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBrand(int id)
+        public async Task<IActionResult> DeleteBrand(long id)
         {
             try
             {

@@ -100,7 +100,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        public async Task<IActionResult> EditDeliveryAddress(int deliveryAddressId)
+        public async Task<IActionResult> EditDeliveryAddress(long deliveryAddressId)
         {
             var customerRequest = new GetCustomerRequest
             {

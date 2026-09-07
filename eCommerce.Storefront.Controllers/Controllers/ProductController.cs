@@ -108,7 +108,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return productSearchRequest;
         }
 
-        public async Task<IActionResult> Detail(int id)
+        public async Task<IActionResult> Detail(long id)
         {
             var productDetailView = new ProductDetailView();
             var request = new GetProductRequest

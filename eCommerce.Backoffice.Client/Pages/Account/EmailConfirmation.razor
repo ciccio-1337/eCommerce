@@ -6,34 +6,42 @@
 
 <div class="row">
     <div class="col-12">
-            <div class="alert alert-warning" role="alert">
-                <h4 class="alert-heading">Oops...</h4>
-                <p>Something went wrong, check the address that was emailed to you.</p>
-                <hr>
-                <p class="mb-0">The email address is not confirmed so you will not be able to login.</p>
-            </div>
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading">Oops...</h4>
+            <p>Something went wrong, check the address that was emailed to you.</p>
+            <hr>
+            <p class="mb-0">The email address is not confirmed so you will not be able to login.</p>
+        </div>
     </div>
 </div>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var emailConfirmationRequest = new EmailConfirmationRequest();
-        var uri = navManager.ToAbsoluteUri(navManager.Uri);
-
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("userid", out var userid) && QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
+        if (firstRender)
         {
-            emailConfirmationRequest.UserId = userid.First();
-            emailConfirmationRequest.Code = code.First();
-        }
+            var emailConfirmationRequest = new EmailConfirmationRequest();
+            var uri = navManager.ToAbsoluteUri(navManager.Uri);
 
-        if (!String.IsNullOrEmpty(emailConfirmationRequest.UserId) && !String.IsNullOrEmpty(emailConfirmationRequest.Code))
-        {
-            var IsValid = await (await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest))?.Content?.ReadFromJsonAsync<bool>();
-                
-            if (IsValid)
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("userid", out var userid) && QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
             {
-                navManager.NavigateTo("/admin/account/login");
+                emailConfirmationRequest.UserId = userid.First();
+                emailConfirmationRequest.Code = code.First();
+            }
+
+            if (!string.IsNullOrWhiteSpace(emailConfirmationRequest.UserId) && !string.IsNullOrWhiteSpace(emailConfirmationRequest.Code))
+            {
+                var response = await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    bool isValid = await response.Content.ReadFromJsonAsync<bool>();
+
+                    if (isValid)
+                    {
+                        navManager.NavigateTo("/admin/account/login");
+                    }
+                }
             }
         }
     }

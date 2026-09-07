@@ -34,7 +34,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<ActionResult<ProductSizeDto>> GetSize(int id)
+        public async Task<ActionResult<ProductSizeDto>> GetSize(long id)
         {
             var productSize = await _sizeService.GetAsync(id);
 
@@ -64,7 +64,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateSize(int id, ProductSizeDto size)
+        public async Task<IActionResult> UpdateSize(long id, ProductSizeDto size)
         {
             if (id != size.Id)
             {
@@ -88,7 +88,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteSize(int id)
+        public async Task<IActionResult> DeleteSize(long id)
         {
             try
             {

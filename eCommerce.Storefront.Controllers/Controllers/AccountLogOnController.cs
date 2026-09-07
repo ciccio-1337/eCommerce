@@ -45,7 +45,6 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
 
                     ViewData["email"] = email;
-                    ViewData["password"] = password;
 
                     return View(accountView);
                 }
@@ -57,7 +56,6 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
 
                 ViewData["email"] = email;
-                ViewData["password"] = password;
 
                 return View(accountView);
             }

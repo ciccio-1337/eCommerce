@@ -17,6 +17,6 @@ namespace eCommerce.Storefront.Services.ViewModels
         public string BasketTotal { get; set; }
         public string DeliveryCost { get; set; }
         public string ShippingServiceDescription { get; set; }
-        public int DeliveryOptionId { get; set; }
+        public long DeliveryOptionId { get; set; }
     }
 }

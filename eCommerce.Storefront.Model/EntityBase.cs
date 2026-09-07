@@ -44,11 +44,31 @@ namespace eCommerce.Storefront.Model
 
         public override bool Equals(object obj)
         {
-            return obj is EntityBase<TId> other && this == other;
+            if (obj is not EntityBase<TId> other)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (EqualityComparer<TId>.Default.Equals(Id, default) || EqualityComparer<TId>.Default.Equals(other.Id, default))
+            {
+                return false;
+            }
+
+            return EqualityComparer<TId>.Default.Equals(Id, other.Id);
         }
 
         public override int GetHashCode()
         {
+            if (EqualityComparer<TId>.Default.Equals(Id, default))
+            {
+                return base.GetHashCode();
+            }
+
             return Id.GetHashCode();
         }
     }

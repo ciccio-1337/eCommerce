@@ -1,4 +1,4 @@
-@page "/admin/color/detail/{Id:int?}"
+@page "/admin/color/detail/{Id:long?}"
 @attribute [Authorize(Roles = "Admin")]
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
@@ -20,7 +20,7 @@
 
 @code {
     [Parameter]
-    public int? Id { get; set; }
+    public long? Id { get; set; }
 
     string route = "api/colors";
     string listUrl = "/admin/color/list";

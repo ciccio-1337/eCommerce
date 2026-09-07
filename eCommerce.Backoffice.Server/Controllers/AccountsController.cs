@@ -75,7 +75,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (!string.IsNullOrWhiteSpace(smtpPassword))
             {
-                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
+                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
 
                 _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
             }
@@ -151,7 +151,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             {
                 var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
                 var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
-                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
+                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
 
                 _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
 

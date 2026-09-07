@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -85,14 +86,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             foreach (OrderItemPaymentRequest item in orderRequest.Items)
             {
                 postDataAndValue.Add("item_name_" + itemIndex.ToString(), item.ProductName);
-                postDataAndValue.Add("amount_" + itemIndex.ToString(), item.Price.ToString());
+                postDataAndValue.Add("amount_" + itemIndex.ToString(), item.Price.ToString("0.00", CultureInfo.InvariantCulture));
                 postDataAndValue.Add("item_number_" + itemIndex.ToString(), item.Id.ToString());
                 postDataAndValue.Add("quantity_" + itemIndex.ToString(), item.Qty.ToString());
 
                 itemIndex++;
             }
 
-            postDataAndValue.Add("handling_cart", orderRequest.ShippingCharge.ToString());
+            postDataAndValue.Add("handling_cart", orderRequest.ShippingCharge.ToString("0.00", CultureInfo.InvariantCulture));
             postDataAndValue.Add("address_override", "1");
 
             return paymentPostData;
@@ -120,7 +121,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 var sAmountPaid = collection["mc_gross"];
                 var transactionId = collection["txn_id"];
 
-                if (!decimal.TryParse(sAmountPaid, out var amountPaid))
+                if (!decimal.TryParse(sAmountPaid, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amountPaid))
                 {
                     _logger.LogWarning("PayPal IPN: invalid mc_gross '{AmountPaid}' for order {OrderId}.", sAmountPaid, orderRequest.Id);
                     
@@ -148,16 +149,16 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         private async Task<string> ValidatePaymentNotificationAsync(IFormCollection formCollection)
         {
             var paypalUrl = _configuration["PayPalPaymentPostToUrl"];            
-            var postFormData = new StringBuilder();
+            var postFormData = new StringBuilder("cmd=_notify-validate");
 
             foreach (string key in formCollection.Keys)
             {
-                postFormData.AppendFormat("&{0}={1}", Uri.EscapeDataString(key), Uri.EscapeDataString(formCollection[key]));
-            }
+                if (key.Equals("cmd", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
-            if (!formCollection.ContainsKey("cmd"))
-            {
-                postFormData.AppendFormat("&{0}={1}", "cmd", "_notify-validate");
+                postFormData.AppendFormat("&{0}={1}", Uri.EscapeDataString(key), Uri.EscapeDataString(formCollection[key]));
             }
 
             var strRequest = postFormData.ToString();            
@@ -172,9 +173,9 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             return string.Empty;
         }
 
-        public int GetOrderIdFor(IFormCollection collection)
+        public long GetOrderIdFor(IFormCollection collection)
         {
-            if (!int.TryParse(collection["custom"], out var orderId))
+            if (!long.TryParse(collection["custom"], out var orderId))
             {
                 throw new FormatException("PayPal 'custom' field is missing or not a valid integer.");
             }

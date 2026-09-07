@@ -9,6 +9,6 @@ namespace eCommerce.Storefront.Controllers.Services.Interfaces
     {
         PaymentPostData GeneratePostDataFor(OrderPaymentRequest orderRequest);
         Task<TransactionResult> HandleCallBackAsync(OrderPaymentRequest orderRequest, IFormCollection collection);
-        int GetOrderIdFor(IFormCollection collection);
+        long GetOrderIdFor(IFormCollection collection);
     }
 }

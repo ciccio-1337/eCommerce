@@ -34,7 +34,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<ActionResult<ProductColorDto>> GetColor(int id)
+        public async Task<ActionResult<ProductColorDto>> GetColor(long id)
         {
             var productColor = await _colorService.GetAsync(id);
 
@@ -72,7 +72,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateColor(int id, ProductColorDto color)
+        public async Task<IActionResult> UpdateColor(long id, ProductColorDto color)
         {
             if (id != color.Id)
             {
@@ -100,7 +100,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteColor(int id)
+        public async Task<IActionResult> DeleteColor(long id)
         {
             try
             {
