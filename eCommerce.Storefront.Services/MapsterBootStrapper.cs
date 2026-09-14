@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Mapster;
 using eCommerce.Storefront.Model;
@@ -14,6 +15,26 @@ namespace eCommerce.Storefront.Services
     {
         private const string CurrencySymbol = "€";
         private const string CurrencyCode = "EUR";
+
+        private static decimal ParseCurrency(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0m;
+            }
+
+            var parsed = decimal.TryParse(value.Replace(CurrencySymbol, "").Trim(),
+                System.Globalization.NumberStyles.Number | System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var result);
+
+            return parsed ? result : 0m;
+        }
+
+        private static string GetAddressField(DeliveryAddressView address, Func<DeliveryAddressView, string> selector)
+        {
+            return address == null ? "" : selector(address);
+        }
 
         public void Register(TypeAdapterConfig config)
         {
@@ -52,20 +73,20 @@ namespace eCommerce.Storefront.Services
             config.NewConfig<Order, OrderSummaryView>()
                 .Map(dest => dest.IsSubmitted, src => src.Status == OrderStatus.Submitted);
             config.NewConfig<OrderView, OrderPaymentRequest>()
-                .Map(dest => dest.Total, src => string.IsNullOrWhiteSpace(src.Total) ? 0m : decimal.Parse(src.Total.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
-                .Map(dest => dest.ShippingCharge, src => string.IsNullOrWhiteSpace(src.ShippingCharge) ? 0m : decimal.Parse(src.ShippingCharge.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
+                .Map(dest => dest.Total, src => ParseCurrency(src.Total))
+                .Map(dest => dest.ShippingCharge, src => ParseCurrency(src.ShippingCharge))
                 .Map(dest => dest.CurrencyCode, src => CurrencyCode)
                 .Map(dest => dest.CustomerFirstName, src => src.CustomerFirstName)
                 .Map(dest => dest.CustomerSecondName, src => src.CustomerSecondName)
                 .Map(dest => dest.Id, src => src.Id)
-                .Map(dest => dest.DeliveryAddressAddressLine, src => src.DeliveryAddress.AddressLine)
-                .Map(dest => dest.DeliveryAddressCity, src => src.DeliveryAddress.City)
-                .Map(dest => dest.DeliveryAddressState, src => src.DeliveryAddress.State)
-                .Map(dest => dest.DeliveryAddressCountry, src => src.DeliveryAddress.Country)
-                .Map(dest => dest.DeliveryAddressZipCode, src => src.DeliveryAddress.ZipCode)
+                .Map(dest => dest.DeliveryAddressAddressLine, src => GetAddressField(src.DeliveryAddress, a => a.AddressLine))
+                .Map(dest => dest.DeliveryAddressCity, src => GetAddressField(src.DeliveryAddress, a => a.City))
+                .Map(dest => dest.DeliveryAddressState, src => GetAddressField(src.DeliveryAddress, a => a.State))
+                .Map(dest => dest.DeliveryAddressCountry, src => GetAddressField(src.DeliveryAddress, a => a.Country))
+                .Map(dest => dest.DeliveryAddressZipCode, src => GetAddressField(src.DeliveryAddress, a => a.ZipCode))
                 .Map(dest => dest.Items, src => src.Items.Adapt<List<OrderItemPaymentRequest>>());
             config.NewConfig<OrderItemView, OrderItemPaymentRequest>()
-                .Map(dest => dest.Price, src => string.IsNullOrWhiteSpace(src.Price) ? 0m : decimal.Parse(src.Price.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture));
+                .Map(dest => dest.Price, src => ParseCurrency(src.Price));
             config.NewConfig<DeliveryAddress, DeliveryAddress>();
         }
     }

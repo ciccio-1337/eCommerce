@@ -102,7 +102,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateItems([FromBody] BasketQtyUpdateRequest jsonBasketQtyUpdateRequest)
         {
-            if (jsonBasketQtyUpdateRequest == null)
+            if (jsonBasketQtyUpdateRequest == null || jsonBasketQtyUpdateRequest.Items == null || jsonBasketQtyUpdateRequest.Items.Length == 0)
             {
                 return BadRequest();
             }

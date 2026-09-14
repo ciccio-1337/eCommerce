@@ -82,6 +82,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return await Checkout();
         }
 
+        [HttpPost]
         public async Task<IActionResult> PlaceOrder(IFormCollection collection)
         {
             if (!long.TryParse(collection[FormDataKeys.DeliveryAddress.ToString()], out var deliveryId))

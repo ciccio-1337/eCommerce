@@ -46,7 +46,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                await _shopDataContext.Database.RollbackTransactionAsync();
+                await SafeRollbackAsync();
 
                 var accountView = InitializeAccountViewWithIssue(true, ex.Message);
 
@@ -58,7 +58,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             catch (Exception ex)
             {
-                await _shopDataContext.Database.RollbackTransactionAsync();
+                await SafeRollbackAsync();
                 _logger.LogError(ex, "An error occurred while registering user with email {Email}.", email);
 
                 throw;
@@ -76,8 +76,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
                         SecondName = secondName
                     });
 
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
                     await _shopDataContext.Database.CommitTransactionAsync();
+
+                    // Set the auth cookie AFTER the commit succeeds so it is not
+                    // left behind in the browser when the transaction is rolled back.
+                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
 
                     var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
 
@@ -85,7 +88,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 }
                 catch (EntityBaseIsInvalidException ex)
                 {
-                    await _shopDataContext.Database.RollbackTransactionAsync();
+                    await SafeRollbackAsync();
+                    await _cookieAuthentication.SignOutAsync();
 
                     var accountView = InitializeAccountViewWithIssue(true, ex.Message);
 
@@ -97,7 +101,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await _shopDataContext.Database.RollbackTransactionAsync();
+                    await SafeRollbackAsync();
+                    await _cookieAuthentication.SignOutAsync();
                     _logger.LogError(ex, "An error occurred while creating the customer with email {Email}.", email);
 
                     throw;
@@ -105,7 +110,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             else
             {
-                await _shopDataContext.Database.RollbackTransactionAsync();
+                await SafeRollbackAsync();
 
                 var accountView = InitializeAccountViewWithIssue(true, "Sorry we could not authenticate you. Please try again.");
 
@@ -114,6 +119,22 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 ViewData[FormDataKeys.SecondName.ToString()] = secondName;
 
                 return View(accountView);
+            }
+        }
+
+        /// <summary>
+        /// Rolls back the current database transaction, tolerating the case where the
+        /// transaction has already been broken by a failed commit or connection drop.
+        /// </summary>
+        private async Task SafeRollbackAsync()
+        {
+            try
+            {
+                await _shopDataContext.Database.RollbackTransactionAsync();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Rollback failed (transaction may already be broken).");
             }
         }
 

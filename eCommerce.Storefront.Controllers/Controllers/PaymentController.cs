@@ -55,7 +55,23 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     CustomerEmail = response.Order.CustomerEmail
                 };
 
-                await _orderService.SetOrderPaymentAsync(paymentRequest);
+                try
+                {
+                    await _orderService.SetOrderPaymentAsync(paymentRequest);
+                }
+                catch (OrderAlreadyPaidForException ex)
+                {
+                    // Duplicate IPN from PayPal — idempotent ack so PayPal stops retrying.
+                    _logger.LogWarning(ex, "Duplicate IPN for order {OrderId}; acknowledging.", orderId);
+
+                    return Ok();
+                }
+                catch (PaymentAmountDoesNotEqualOrderTotalException ex)
+                {
+                    _logger.LogError(ex, "IPN amount mismatch for order {OrderId}; rejecting.", orderId);
+
+                    return BadRequest("Payment amount does not match order total.");
+                }
 
                 return Ok();
             }

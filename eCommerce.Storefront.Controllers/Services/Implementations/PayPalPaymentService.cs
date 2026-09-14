@@ -15,6 +15,9 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
     public class PayPalPaymentService : IPaymentService
     {
+        // Must match the currency the storefront quotes order totals in.
+        private const string ExpectedCurrencyCode = "EUR";
+
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
@@ -83,7 +86,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             int itemIndex = 1;
 
-            foreach (OrderItemPaymentRequest item in orderRequest.Items)
+            foreach (OrderItemPaymentRequest item in orderRequest.Items ?? [])
             {
                 postDataAndValue.Add("item_name_" + itemIndex.ToString(), item.ProductName);
                 postDataAndValue.Add("amount_" + itemIndex.ToString(), item.Price.ToString("0.00", CultureInfo.InvariantCulture));
@@ -118,13 +121,34 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             if (response == "VERIFIED")
             {
+                // Only accept completed payments — pending e-checks or authorisations
+                // must not mark the order as paid.
+                var paymentStatus = collection["payment_status"];
+                
+                if (!string.Equals(paymentStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("PayPal IPN: payment_status '{Status}' for order {OrderId} is not Completed; ignoring.", paymentStatus, orderRequest.Id);
+
+                    return transactionResult;
+                }
+
+                // Validate currency matches the expected currency code.
+                var mcCurrency = collection["mc_currency"];
+                
+                if (!string.Equals(mcCurrency, ExpectedCurrencyCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("PayPal IPN: mc_currency '{Currency}' does not match expected '{Expected}' for order {OrderId}.", mcCurrency, ExpectedCurrencyCode, orderRequest.Id);
+
+                    return transactionResult;
+                }
+
                 var sAmountPaid = collection["mc_gross"];
                 var transactionId = collection["txn_id"];
 
                 if (!decimal.TryParse(sAmountPaid, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amountPaid))
                 {
                     _logger.LogWarning("PayPal IPN: invalid mc_gross '{AmountPaid}' for order {OrderId}.", sAmountPaid, orderRequest.Id);
-                    
+
                     return transactionResult;
                 }
 

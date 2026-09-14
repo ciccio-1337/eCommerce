@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Model.Orders;
@@ -8,6 +9,26 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
 {
     public class OrderRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<Order, long>(uow, dataContext), IOrderRepository
     {
+        public async Task<bool> SetPaymentConditionallyAsync(long orderId, Payment payment)
+        {
+            // Use a conditional UPDATE so that two concurrent IPN callbacks cannot
+            // both succeed: the second UPDATE finds PaymentTransactionId already set
+            // and affects zero rows. The Payment owned type is stored as plain columns
+            // on the Orders table (see OrderConfiguration), so a parameterized UPDATE
+            // is safe on both SQLite and PostgreSQL.
+            var affected = await _dataContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE "Orders"
+                SET "PaymentDate" = {payment.DatePaid},
+                    "PaymentTransactionId" = {payment.TransactionId},
+                    "PaymentMerchant" = {payment.Merchant},
+                    "PaymentAmount" = {payment.Amount}
+                WHERE "OrderId" = {orderId} AND "PaymentTransactionId" IS NULL
+                """);
+
+            return affected > 0;
+        }
+
         public override async Task<Order> FindByAsync(long id)
         {
             var order = await base.FindByAsync(id);

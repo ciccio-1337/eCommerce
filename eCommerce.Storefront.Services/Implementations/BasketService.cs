@@ -122,7 +122,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private async Task RemoveItemsFromBasketAsync(IList<long> productsToRemove, Basket basket)
         {
-            if (!productsToRemove.Any())
+            if (productsToRemove == null || !productsToRemove.Any())
             {
                 return;
             }
@@ -141,7 +141,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private async Task UpdateLineQtysAsync(IList<ProductQtyUpdateRequest> productQtyUpdateRequests, Basket basket)
         {
-            if (!productQtyUpdateRequests.Any())
+            if (productQtyUpdateRequests == null || !productQtyUpdateRequests.Any())
             {
                 return;
             }
@@ -171,7 +171,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private async Task AddProductsToBasketAsync(IList<long> productsToAdd, Basket basket)
         {
-            if (!productsToAdd.Any())
+            if (productsToAdd == null || !productsToAdd.Any())
             {
                 return;
             }

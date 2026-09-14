@@ -7,6 +7,11 @@ namespace eCommerce.Storefront.Controllers.DTOs
     {
         public static IList<ProductQtyUpdateRequest> ConvertToBasketItemUpdateRequests(this BasketQtyUpdateRequest basketQtyUpdateRequest)
         {
+            if (basketQtyUpdateRequest.Items == null || basketQtyUpdateRequest.Items.Length == 0)
+            {
+                return [];
+            }
+
             return basketQtyUpdateRequest.Items.ConvertToBasketItemUpdateRequests();
         }
 

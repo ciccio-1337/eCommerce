@@ -11,7 +11,11 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
     {
         public async Task<Customer> FindByAsync(string email)
         {
-            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            // Identity stores NormalizedEmail via UpperInvariantLookupNormalizer; matching
+            // against the same normalization avoids both EF translation issues with
+            // StringComparison and case-sensitivity problems at the SQL level.
+            var normalisedEmail = email.ToUpperInvariant();
+            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalisedEmail);
 
             if (user != null)
             {
@@ -67,7 +71,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             if (user != null)
             {
                 user.UserName = user.Email = email;
-                user.NormalizedUserName = user.NormalizedEmail = email.ToUpper();
+                user.NormalizedUserName = user.NormalizedEmail = email.ToUpperInvariant();
 
                 _dataContext.Users.Update(user);
             }

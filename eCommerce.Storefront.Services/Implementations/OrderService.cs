@@ -73,7 +73,20 @@ namespace eCommerce.Storefront.Services.Implementations
 
             try
             {
-                order.SetPayment(new Payment(DateTime.Now, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount));
+                var payment = new Payment(DateTime.Now, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount);
+                
+                order.SetPayment(payment);
+
+                // Database-level double-payment guard: the in-memory lock only protects
+                // within a single process. If a concurrent IPN callback already recorded
+                // the payment, the conditional UPDATE affects zero rows and we refuse.
+                var paymentApplied = await _orderRepository.SetPaymentConditionallyAsync(order.Id, payment);
+
+                if (!paymentApplied)
+                {
+                    throw new OrderAlreadyPaidForException("Order was already paid for by a concurrent request.");
+                }
+
                 await SubmitAsync(order, paymentRequest.CustomerEmail);
                 _orderRepository.Save(order);
                 await _uow.CommitAsync();
