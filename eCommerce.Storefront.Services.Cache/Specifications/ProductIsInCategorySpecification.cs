@@ -2,13 +2,13 @@ using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Services.Cache.Specifications
 {
-    public class ProductIsInCategorySpecification(int categoryId) : IProductSearchSpecification
+    public class ProductIsInCategorySpecification(long categoryId) : IProductSearchSpecification
     {
-        private readonly int _categoryId = categoryId;
+        private readonly long _categoryId = categoryId;
 
         public bool IsSatisfiedBy(Product product)
         {
-            return product.Category.Id == _categoryId;
+            return product?.Category?.Id == _categoryId;
         }
     }
 }

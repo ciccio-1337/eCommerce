@@ -24,7 +24,7 @@
             <legend>Account Information</legend>
             <p>
                 <label for="email">Email</label><br />
-                @Html.TextBox("email")
+                @Html.TextBox("email", ViewData["email"]?.ToString())
             </p>
             <p>
                 <label for="password">Password</label><br />
@@ -36,15 +36,3 @@
         </fieldset>
     </div>
 }
-
-<script>
-    $(document).ready(function() {
-        if (!$('#email').val()) {
-            $('#email').val('@ViewData["email"]');
-        }
-
-        if (!$('#password').val()) {            
-            $('#password').val('@ViewData["password"]');   
-        }
-    });
-</script>

@@ -92,7 +92,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.AccessDeniedPath = "/AccountLogOn/LogOn";
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
-                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.Path = "/";
             }).AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
@@ -104,12 +104,13 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.AccessDeniedPath = "/admin/account/login";
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
-                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.Path = "/";
             });
             serviceCollection.AddAntiforgery(options =>
             {
+                options.HeaderName = "RequestVerificationToken";
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             });
             serviceCollection.AddLogging(configure => 

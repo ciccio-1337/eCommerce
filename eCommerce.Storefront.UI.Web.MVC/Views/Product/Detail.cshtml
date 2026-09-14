@@ -39,7 +39,7 @@
                 <option value="@option.Id">@option.SizeName</option>
             }
             </select>
-            @if (User.Identity.IsAuthenticated)
+            @if (User.Identity?.IsAuthenticated == true)
             {
                 <input type="button" value="+ Add to cart" onclick="JavaScript:addProductToBasket();" />
             }

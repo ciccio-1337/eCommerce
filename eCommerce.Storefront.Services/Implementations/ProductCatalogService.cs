@@ -123,9 +123,9 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private List<RefinementGroup> GenerateAvailableProductRefinementsFrom(IEnumerable<ProductTitle> productsFound)
         {
-            var brandsRefinementGroup = ConvertToRefinementGroup(productsFound.SelectMany(p => p.Products).Select(p => p.Brand).GroupBy(b => b.Id).Select(g => g.First()).ToList().ConvertAll(b => (IProductAttribute)b), RefinementGroupings.Brand);
-            var colorsRefinementGroup = ConvertToRefinementGroup(productsFound.SelectMany(p => p.Products).Select(p => p.Color).GroupBy(c => c.Id).Select(g => g.First()).ToList().ConvertAll(c => (IProductAttribute)c), RefinementGroupings.Color);
-            var sizesRefinementGroup = ConvertToRefinementGroup(productsFound.SelectMany(p => p.Products).Select(p => p.Size).GroupBy(s => s.Id).Select(g => g.First()).ToList().ConvertAll(s => (IProductAttribute)s), RefinementGroupings.Size);
+            var brandsRefinementGroup = ConvertToRefinementGroup(productsFound.Where(p => p.Brand != null).Select(p => p.Brand).GroupBy(b => b.Id).Select(g => g.First()).ToList().ConvertAll(b => (IProductAttribute)b), RefinementGroupings.Brand);
+            var colorsRefinementGroup = ConvertToRefinementGroup(productsFound.Where(p => p.Color != null).Select(p => p.Color).GroupBy(c => c.Id).Select(g => g.First()).ToList().ConvertAll(c => (IProductAttribute)c), RefinementGroupings.Color);
+            var sizesRefinementGroup = ConvertToRefinementGroup(productsFound.Where(p => p.Products != null).SelectMany(p => p.Products).Where(p => p.Size != null).Select(p => p.Size).GroupBy(s => s.Id).Select(g => g.First()).ToList().ConvertAll(s => (IProductAttribute)s), RefinementGroupings.Size);
             var refinementGroups = new List<RefinementGroup>
             {
                 brandsRefinementGroup,

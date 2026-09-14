@@ -3,15 +3,25 @@ using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Services.Cache.Specifications
 {
-    public class ProductIsInSizeSpecification(int[] sizeIds) : IProductSearchSpecification
+    public class ProductIsInSizeSpecification(long[] sizeIds) : IProductSearchSpecification
     {
-        private readonly int[] _sizeIds = sizeIds;
+        private readonly long[] _sizeIds = sizeIds;
 
         public bool IsSatisfiedBy(Product product)
         {
-            if (_sizeIds.Length > 0)
+            if (_sizeIds != null && _sizeIds.Length > 0)
             {
-                return _sizeIds.Any(s => product.Title.Products.Any(p => p.Size.Id == s));
+                if (product?.Size != null)
+                {
+                    return _sizeIds.Contains(product.Size.Id);
+                }
+
+                if (product?.Title?.Products != null)
+                {
+                    return _sizeIds.Any(s => product.Title.Products.Any(p => p?.Size?.Id == s));
+                }
+
+                return false;
             }
 
             return true;

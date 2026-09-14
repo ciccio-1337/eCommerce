@@ -16,7 +16,7 @@ namespace eCommerce.Storefront.Model.Customers
         public string FirstName { get; set; }
         public string SecondName { get; set; }
         public string Email { get; set; }
-        public IList<Order> Orders { get; set; }
+        public IList<Order> Orders { get; set; } = [];
 
         public void AddAddress(DeliveryAddress deliveryAddress)
         {

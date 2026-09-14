@@ -9,10 +9,10 @@ namespace eCommerce.Storefront.Services.Messaging.ProductCatalogService
             SizeIds = [];
         }
 
-        public int CategoryId { get; set; }
-        public int[] ColorIds { get; set; }
-        public int[] BrandIds { get; set; }
-        public int[] SizeIds { get; set; }
+        public long CategoryId { get; set; }
+        public long[] ColorIds { get; set; }
+        public long[] BrandIds { get; set; }
+        public long[] SizeIds { get; set; }
         public ProductsSortBy SortBy { get; set; }
         public int Index { get; set; }
         public int NumberOfResultsPerPage { get; set; }

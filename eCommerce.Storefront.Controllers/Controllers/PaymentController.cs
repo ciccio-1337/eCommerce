@@ -51,7 +51,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     Amount = transactionResult.Amount,
                     PaymentToken = transactionResult.PaymentToken,
                     PaymentMerchant = transactionResult.PaymentMerchant,
-                    OrderId = orderId
+                    OrderId = orderId,
+                    CustomerEmail = response.Order.CustomerEmail
                 };
 
                 await _orderService.SetOrderPaymentAsync(paymentRequest);

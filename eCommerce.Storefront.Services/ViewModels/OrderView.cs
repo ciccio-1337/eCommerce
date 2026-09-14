@@ -18,5 +18,6 @@ namespace eCommerce.Storefront.Services.ViewModels
         public DeliveryAddressView DeliveryAddress { get; set; }
         public string CustomerFirstName { get; set; }
         public string CustomerSecondName { get; set; }
+        public string CustomerEmail { get; set; }
     }
 }

@@ -17,9 +17,9 @@ namespace eCommerce.Storefront.Services.Implementations
 
             if (getProductsByCategoryRequest.ColorIds != null && getProductsByCategoryRequest.ColorIds.Length > 0)
             {
-                foreach (int id in getProductsByCategoryRequest.ColorIds)
+                foreach (long id in getProductsByCategoryRequest.ColorIds)
                 {
-                    int currentId = id;
+                    long currentId = id;
                     Expression<Func<Product, bool>> predicate = p => p.Title.Color.Id == currentId;
 
                     colorQuery = colorQuery == null ? predicate : PredicateBuilder.Or(colorQuery, predicate);

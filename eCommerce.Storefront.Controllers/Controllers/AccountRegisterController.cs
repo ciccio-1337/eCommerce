@@ -47,7 +47,6 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 var accountView = InitializeAccountViewWithIssue(true, ex.Message);
 
-                ViewData[FormDataKeys.Password.ToString()] = password;
                 ViewData[FormDataKeys.Email.ToString()] = email;
                 ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                 ViewData[FormDataKeys.SecondName.ToString()] = secondName;
@@ -80,7 +79,6 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                     var accountView = InitializeAccountViewWithIssue(true, ex.Message);
 
-                    ViewData[FormDataKeys.Password.ToString()] = password;
                     ViewData[FormDataKeys.Email.ToString()] = email;
                     ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                     ViewData[FormDataKeys.SecondName.ToString()] = secondName;
@@ -94,7 +92,6 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 var accountView = InitializeAccountViewWithIssue(true, "Sorry we could not authenticate you. Please try again.");
 
-                ViewData[FormDataKeys.Password.ToString()] = password;
                 ViewData[FormDataKeys.Email.ToString()] = email;
                 ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                 ViewData[FormDataKeys.SecondName.ToString()] = secondName;

@@ -9,7 +9,7 @@ namespace eCommerce.Storefront.Model.Products
         public Brand Brand { get; set; }
         public Category Category { get; set; }
         public ProductColor Color { get; set; }
-        public IEnumerable<Product> Products { get; set; }
+        public IEnumerable<Product> Products { get; set; } = [];
         
         protected override void Validate()
         {

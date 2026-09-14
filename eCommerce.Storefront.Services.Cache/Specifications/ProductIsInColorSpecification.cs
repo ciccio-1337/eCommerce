@@ -3,15 +3,15 @@ using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Services.Cache.Specifications
 {
-    public class ProductIsInColorSpecification(int[] colourIds) : IProductSearchSpecification
+    public class ProductIsInColorSpecification(long[] colourIds) : IProductSearchSpecification
     {
-        private readonly int[] _colourIds = colourIds;
+        private readonly long[] _colourIds = colourIds;
 
         public bool IsSatisfiedBy(Product product)
         {
-            if (_colourIds.Length > 0)
+            if (_colourIds != null && _colourIds.Length > 0)
             {
-                return _colourIds.Any(c => c == product.Title.Color.Id);
+                return product?.Color != null && _colourIds.Contains(product.Color.Id);
             }
 
             return true;

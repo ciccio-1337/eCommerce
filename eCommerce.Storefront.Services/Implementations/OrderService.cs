@@ -145,7 +145,7 @@ namespace eCommerce.Storefront.Services.Implementations
                 }
 
                 var emailBody = new StringBuilder();
-                var emailAddress = customerEmail;
+                var emailAddress = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail : order.Customer?.Email;
                 var emailSubject = string.Format("Order #{0}", order.Id);
 
                 emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));

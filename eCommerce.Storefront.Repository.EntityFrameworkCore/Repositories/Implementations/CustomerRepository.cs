@@ -14,12 +14,36 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
 
             if (user != null)
             {
-                return await FindBy(c => c.UserId.Equals(user.Id)).FirstOrDefaultAsync();
+                var customer = await FindBy(c => c.UserId.Equals(user.Id)).FirstOrDefaultAsync();
+
+                if (customer != null)
+                {
+                    customer.Email = user.Email;
+                }
+
+                return customer;
             }
             else
             {
                 return null;
             }
+        }
+
+        public override async Task<Customer> FindByAsync(long id)
+        {
+            var customer = await base.FindByAsync(id);
+
+            if (customer != null && !string.IsNullOrEmpty(customer.UserId))
+            {
+                var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id.Equals(customer.UserId));
+
+                if (user != null)
+                {
+                    customer.Email = user.Email;
+                }
+            }
+
+            return customer;
         }
 
         public override IQueryable<Customer> AppendCriteria(IQueryable<Customer> criteria)

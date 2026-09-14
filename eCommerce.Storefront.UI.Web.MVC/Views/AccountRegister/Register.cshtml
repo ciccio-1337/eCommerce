@@ -20,7 +20,7 @@
     <div>
         <p>
             <label for="Email">Email</label><br />
-            @Html.TextBox("Email")
+            @Html.TextBox("Email", ViewData["Email"]?.ToString())
         </p>
         <p>
             <label for="Password">Password</label><br />
@@ -28,34 +28,14 @@
         </p>
         <p>
             <label for="FirstName">First Name</label><br />
-            @Html.TextBox("FirstName")
+            @Html.TextBox("FirstName", ViewData["FirstName"]?.ToString())
         </p>
         <p>
             <label for="SecondName">Second Name</label><br />
-            @Html.TextBox("SecondName")
+            @Html.TextBox("SecondName", ViewData["SecondName"]?.ToString())
         </p>
         <p>
             <input type="submit" value="Register" />
         </p>
     </div>
 }
-
-<script>
-    $(document).ready(function() {
-        if (!$('#Email').val()) {
-            $('#Email').val('@ViewData["Email"]');
-        }
-
-        if (!$('#Password').val()) {            
-            $('#Password').val('@ViewData["Password"]');   
-        }
-
-        if (!$('#FirstName').val()) {
-            $('#FirstName').val('@ViewData["FirstName"]');
-        }
-
-        if (!$('#SecondName').val()) {            
-            $('#SecondName').val('@ViewData["SecondName"]');   
-        }
-    });
-</script>

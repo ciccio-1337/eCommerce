@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -18,12 +18,16 @@
     <script src="~/js/jquery-jtemplates.js"></script>
     <script src="~/js/json2.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <script>        
+    <script>
         $(document).ready(function () {
-            var e = $('input[name="__RequestVerificationToken"]').val();
-
             $(document).ajaxSend(function (t, a, i) {
-                a && i && ('POST' === i.type.toUpperCase() || 'PUT' === i.type.toUpperCase() || 'DELETE' === i.type.toUpperCase()) && a.setRequestHeader('RequestVerificationToken', e);
+                if (a && i && ('POST' === i.type.toUpperCase() || 'PUT' === i.type.toUpperCase() || 'DELETE' === i.type.toUpperCase())) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+
+                    if (token) {
+                        a.setRequestHeader('RequestVerificationToken', token);
+                    }
+                }
             });
         });
     </script>
@@ -40,25 +44,27 @@
         </div>
         <div id="headerSummary">
             <span class="basket-details">
-            @if (User.Identity.IsAuthenticated) 
-            {
-                @Html.ActionLink("Your Account", "Detail", "Customer") 
-                <text> / </text>
-                @Html.ActionLink("Log Off", "LogOff", "AccountLogOn")
-            }
-            else 
-            {
-                @Html.ActionLink("Create Account", "Register", "AccountRegister")
-                <text> / </text>
-                @Html.ActionLink("Log On", "LogOn", "AccountLogOn")<br />
-            }
-            </span>  
-            @RenderSection("headerBasketSummary", required: false)  
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    @Html.ActionLink("Your Account", "Detail", "Customer")
+                    <text> / </text>
+                    @Html.ActionLink("Log Off", "LogOff", "AccountLogOn")
+                }
+                else
+                {
+                    @Html.ActionLink("Create Account", "Register", "AccountRegister")
+                    <text> / </text>
+                    @Html.ActionLink("Log On", "LogOn", "AccountLogOn")
+
+                    <br />
+                }
+            </span>
+            @RenderSection("headerBasketSummary", required: false)
         </div>
         <div class="topBarContainer">
             <div id="background">
                 <div id="navigation">
-                    @RenderSection("MenuContent", required: false)  
+                    @RenderSection("MenuContent", required: false)
                 </div>
                 <div id="content">
                     @RenderBody()

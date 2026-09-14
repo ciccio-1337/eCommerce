@@ -6,7 +6,7 @@ namespace eCommerce.Storefront.Services.Messaging.ProductCatalogService
     public class GetProductsByCategoryResponse
     {
         public string SelectedCategoryName { get; set; }
-        public int SelectedCategory { get; set; }
+        public long SelectedCategory { get; set; }
         public IEnumerable<RefinementGroup> RefinementGroups { get; set; }
         public int NumberOfTitlesFound { get; set; }
         public int TotalNumberOfPages { get; set; }

@@ -3,15 +3,15 @@ using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Services.Cache.Specifications
 {
-    public class ProductIsInBrandSpecification(int[] brandIds) : IProductSearchSpecification
+    public class ProductIsInBrandSpecification(long[] brandIds) : IProductSearchSpecification
     {
-        private readonly int[] _brandIds = brandIds;
+        private readonly long[] _brandIds = brandIds;
 
         public bool IsSatisfiedBy(Product product)
         {
-            if (_brandIds.Length > 0)
+            if (_brandIds != null && _brandIds.Length > 0)
             {
-                return _brandIds.Any(b => b == product.Title.Brand.Id);
+                return product?.Brand != null && _brandIds.Contains(product.Brand.Id);
             }
 
             return true;

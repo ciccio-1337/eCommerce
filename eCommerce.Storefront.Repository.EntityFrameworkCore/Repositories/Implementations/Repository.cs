@@ -13,7 +13,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
         protected readonly IUnitOfWork _uow = uow;
         protected readonly ShopDataContext _dataContext = dataContext;
 
-        public async Task<T> FindByAsync(TId id)
+        public virtual async Task<T> FindByAsync(TId id)
         {
             return await AppendCriteria(_dataContext.Set<T>()).FirstOrDefaultAsync(e => e.Id.Equals(id));
         }

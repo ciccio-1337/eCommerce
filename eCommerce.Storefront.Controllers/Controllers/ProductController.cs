@@ -20,7 +20,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
     {
         private readonly IConfiguration _configuration = configuration;
 
-        public async Task<IActionResult> GetProductsByCategory(int categoryId)
+        public async Task<IActionResult> GetProductsByCategory(long categoryId)
         {
             var productSearchRequest = GenerateInitialProductSearchRequestFrom(categoryId);
             var response = await _cachedProductCatalogService.GetProductsByCategoryAsync(productSearchRequest);
@@ -47,7 +47,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return productSearchResultView;
         }
 
-        private GetProductsByCategoryRequest GenerateInitialProductSearchRequestFrom(int categoryId)
+        private GetProductsByCategoryRequest GenerateInitialProductSearchRequestFrom(long categoryId)
         {
             var productSearchRequest = new GetProductsByCategoryRequest
             {

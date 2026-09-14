@@ -13,7 +13,9 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
                            .Include(p => p.Title)
                            .Include(p => p.Title.Brand)
                            .Include(p => p.Title.Color)
-                           .Include(p => p.Title.Category);
+                           .Include(p => p.Title.Category)
+                           .Include(p => p.Title.Products)
+                           .ThenInclude(p => p.Size);
         }
     }
 }

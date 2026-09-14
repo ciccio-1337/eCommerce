@@ -5,11 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
-    <PackageReference Include="Radzen.Blazor" Version="11.3.2" />    
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.11" />        
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.11" />        
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
+    <PackageReference Include="Radzen.Blazor" Version="11.4.0" />    
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.12" />        
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.12" />        
     <PackageReference Include="SourceGear.sqlite3" Version="3.53.4" ExcludeAssets="native" />    
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />   
   </ItemGroup>

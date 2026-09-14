@@ -44,7 +44,8 @@ namespace eCommerce.Storefront.Services
             // Orders
             config.NewConfig<Order, OrderView>()
                 .Map(dest => dest.ShippingCharge, src => src.ShippingCharge.FormatMoney(CurrencySymbol))
-                .Map(dest => dest.Total, src => src.Total().FormatMoney(CurrencySymbol));
+                .Map(dest => dest.Total, src => src.Total().FormatMoney(CurrencySymbol))
+                .Map(dest => dest.CustomerEmail, src => src.Customer.Email);
             config.NewConfig<OrderItem, OrderItemView>()
                 .Map(dest => dest.Price, src => src.Price.FormatMoney(CurrencySymbol));
             config.NewConfig<Order, OrderSummaryView>()
