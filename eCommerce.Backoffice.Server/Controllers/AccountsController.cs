@@ -153,29 +153,23 @@ namespace eCommerce.Backoffice.Server.Controllers
             var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
             // Always return the same generic 200 response regardless of whether the email
-            // exists. This avoids leaking which accounts are registered (email enumeration).
-            if (user != null)
+            // exists or is confirmed. This avoids leaking which accounts are registered
+            // (email enumeration) and whether they are unconfirmed.
+            if (user != null && await _signInManager.UserManager.IsEmailConfirmedAsync(user))
             {
-                if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
+                var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
+                var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
+                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
+
+                try
                 {
-                    response.Errors = ["Not confirmed email"];
+                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
+
+                    response.IsSuccess = true;
                 }
-                else
+                catch (Exception ex)
                 {
-                    var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
-                    var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
-                    var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
-
-                    try
-                    {
-                        await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
-
-                        response.IsSuccess = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
-                    }
+                    _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
                 }
             }
 

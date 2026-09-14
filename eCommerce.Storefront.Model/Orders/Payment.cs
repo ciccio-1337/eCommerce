@@ -53,7 +53,7 @@ namespace eCommerce.Storefront.Model.Orders
 
             if (_amount <= 0)
             {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Amount), Rule = "A payment must be for a non negative amount." });
+                AddBrokenRule(new BusinessRule() { Property = nameof(Amount), Rule = "A payment must be for a positive amount." });
             }
         }
     }

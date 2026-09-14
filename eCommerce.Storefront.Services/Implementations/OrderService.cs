@@ -73,7 +73,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
             try
             {
-                var payment = new Payment(DateTime.Now, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount);
+                var payment = new Payment(DateTime.UtcNow, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount);
                 
                 order.SetPayment(payment);
 

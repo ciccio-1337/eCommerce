@@ -64,9 +64,9 @@ namespace eCommerce.Storefront.Model.Orders
                 AddBrokenRule(new BusinessRule() { Property = nameof(Product), Rule = "An order item must be associated with a valid product." });
             }
 
-            if (Price < 0)
+            if (Price <= 0)
             {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Price), Rule = "An order item must have a non negative price value." });
+                AddBrokenRule(new BusinessRule() { Property = nameof(Price), Rule = "An order item must have a positive price value." });
             }
 
             if (Qty <= 0)
@@ -77,6 +77,11 @@ namespace eCommerce.Storefront.Model.Orders
 
         public bool Contains(Product product)
         {
+            if (product is null) 
+            {
+                return false;
+            }
+            
             return ReferenceEquals(Product, product) || Product.Id == product.Id;
         }
     }

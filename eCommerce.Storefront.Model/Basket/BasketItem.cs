@@ -33,6 +33,11 @@ namespace eCommerce.Storefront.Model.Basket
         
         public bool Contains(Product product)
         {
+            if (product is null) 
+            {
+                return false;
+            }
+            
             return ReferenceEquals(Product, product) || Product.Id == product.Id;
         }
 
@@ -58,9 +63,9 @@ namespace eCommerce.Storefront.Model.Basket
         
         protected override void Validate()
         {    
-            if (Qty < 0)
+            if (Qty <= 0)
             {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Qty), Rule = "The quantity of a basket item cannot be negative." });
+                AddBrokenRule(new BusinessRule() { Property = nameof(Qty), Rule = "The quantity of a basket item must be greater than zero." });
             }
 
             if (Product == null)

@@ -18,7 +18,7 @@ namespace eCommerce.Storefront.Model.Orders
 
         public Order()
         {
-            _created = DateTime.Now;
+            _created = DateTime.UtcNow;
             _items = [];
             Status = OrderStatus.Open;
         }
