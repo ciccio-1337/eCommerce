@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace eCommerce.Storefront.Services.Cache
@@ -13,7 +14,10 @@ namespace eCommerce.Storefront.Services.Cache
 
         public void Store(string key, object data)
         {
-            _memoryCache.Set(key, data);
+            var options = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+            
+            _memoryCache.Set(key, data, options);
         }
 
         public T Retrieve<T>(string storageKey)

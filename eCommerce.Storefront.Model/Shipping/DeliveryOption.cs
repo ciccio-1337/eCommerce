@@ -19,7 +19,7 @@ namespace eCommerce.Storefront.Model.Shipping
         
         public decimal GetDeliveryChargeForBasketTotalOf(decimal total)
         {
-            if (total > FreeDeliveryThreshold) 
+            if (total >= FreeDeliveryThreshold) 
             {
                 return 0;
             }

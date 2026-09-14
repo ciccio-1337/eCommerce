@@ -51,7 +51,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             var productSearchRequest = new GetProductsByCategoryRequest
             {
-                NumberOfResultsPerPage = int.Parse(_configuration["NumberOfResultsPerPage"]),
+                NumberOfResultsPerPage = int.TryParse(_configuration["NumberOfResultsPerPage"], out var numberPerPage) ? numberPerPage : 6,
                 CategoryId = categoryId,
                 Index = 1,
                 SortBy = ProductsSortBy.PriceHighToLow
@@ -74,7 +74,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             var productSearchRequest = new GetProductsByCategoryRequest
             {
-                NumberOfResultsPerPage = int.Parse(_configuration["NumberOfResultsPerPage"])
+                NumberOfResultsPerPage = int.TryParse(_configuration["NumberOfResultsPerPage"], out var numberPerPage) ? numberPerPage : 6
             };
 
             if (jsonProductSearchRequest != null)
@@ -83,24 +83,27 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 productSearchRequest.CategoryId = jsonProductSearchRequest.CategoryId;
                 productSearchRequest.SortBy = jsonProductSearchRequest.SortBy;
 
-                foreach (var jsonRefinementGroup in jsonProductSearchRequest.RefinementGroups)
+                if (jsonProductSearchRequest.RefinementGroups != null)
                 {
-                    switch ((RefinementGroupings)jsonRefinementGroup.GroupId)
+                    foreach (var jsonRefinementGroup in jsonProductSearchRequest.RefinementGroups)
                     {
-                        case RefinementGroupings.Brand:
-                            productSearchRequest.BrandIds = jsonRefinementGroup.SelectedRefinements;
+                        switch ((RefinementGroupings)jsonRefinementGroup.GroupId)
+                        {
+                            case RefinementGroupings.Brand:
+                                productSearchRequest.BrandIds = jsonRefinementGroup.SelectedRefinements;
 
-                            break;
-                        case RefinementGroupings.Color:
-                            productSearchRequest.ColorIds = jsonRefinementGroup.SelectedRefinements;
+                                break;
+                            case RefinementGroupings.Color:
+                                productSearchRequest.ColorIds = jsonRefinementGroup.SelectedRefinements;
 
-                            break;
-                        case RefinementGroupings.Size:
-                            productSearchRequest.SizeIds = jsonRefinementGroup.SelectedRefinements;
+                                break;
+                            case RefinementGroupings.Size:
+                                productSearchRequest.SizeIds = jsonRefinementGroup.SelectedRefinements;
 
-                            break;
-                        default:
-                            break;
+                                break;
+                            default:
+                                break;
+                        }
                     }
                 }
             }

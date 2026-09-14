@@ -52,16 +52,17 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
             var response = await _orderService.GetOrderAsync(request);
-            var orderView = new CustomerOrderView
-            {
-                BasketSummary = await GetBasketSummaryViewAsync(),
-                Order = response.Order
-            };
 
             if (response.Order == null)
             {
                 return NotFound();
             }
+
+            var orderView = new CustomerOrderView
+            {
+                BasketSummary = await GetBasketSummaryViewAsync(),
+                Order = response.Order
+            };
 
             return View(orderView);
         }

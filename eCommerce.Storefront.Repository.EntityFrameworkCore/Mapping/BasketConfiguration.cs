@@ -17,7 +17,10 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Mapping
                    .IsRequired()
                    .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne(b => b.DeliveryOption);
-            builder.HasOne(b => b.Customer);
+            builder.HasOne(b => b.Customer)
+                   .WithOne(c => c.Basket)
+                   .HasForeignKey<Basket>("CustomerId")
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

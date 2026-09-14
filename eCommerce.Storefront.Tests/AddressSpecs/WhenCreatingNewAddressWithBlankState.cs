@@ -21,6 +21,8 @@ namespace eCommerce.Storefront.Tests.AddressSpecs
             };
 
             validAddress.ThrowExceptionIfInvalid();
+
+            Assert.HasCount(0, validAddress.GetBrokenRules());
         }
     }
 }

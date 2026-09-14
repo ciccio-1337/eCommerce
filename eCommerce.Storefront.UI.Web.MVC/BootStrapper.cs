@@ -95,7 +95,15 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.Path = "/";
-            }).AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
+            })
+            // The backoffice "admin" cookie handler is intentionally registered under the name
+            // JwtBearerDefaults.AuthenticationScheme ("Bearer"). This is deliberate: the backoffice
+            // controllers use [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+            // and the backoffice AccountsController signs in/out with SignInAsync/SignOutAsync on the
+            // same scheme name, so the whole backoffice authorization flow resolves to this cookie
+            // handler without every [Authorize] attribute needing to be updated. Any rename here must
+            // be mirrored across all eCommerce.Backoffice.Server controllers referencing this scheme.
+            .AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
                 options.Cookie.HttpOnly = true;

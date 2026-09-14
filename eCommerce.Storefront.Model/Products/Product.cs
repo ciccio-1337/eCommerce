@@ -33,6 +33,10 @@ namespace eCommerce.Storefront.Model.Products
         
         protected override void Validate()
         {
+            if (Title == null)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(Title), Rule = "Product must have a title." });
+            }
         }
     }
 }

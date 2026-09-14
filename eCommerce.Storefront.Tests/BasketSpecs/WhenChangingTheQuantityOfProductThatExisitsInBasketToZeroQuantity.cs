@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Model.Products;
@@ -32,18 +33,19 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
                 },
                 Size = new ProductSize()
             };
-            
-            _basket.Add(_product);   
+
+            _basket.Add(_product);
         }
 
         [TestMethod]
-        public void ThenTheProductShouldNotBeRemoved()
+        public void ThenAnArgumentOutOfRangeExceptionWillBeThrownAndTheQuantityWillNotChange()
         {
-            int newQty = 0;
+            BasketItem basketItem = _basket.GetItemFor(_product);
+            int originalQty = basketItem.Qty;
 
-            _basket.ChangeQtyOfProduct(newQty, _product);
+            Assert.Throws<ArgumentOutOfRangeException>(() => basketItem.ChangeItemQtyTo(0));
 
-            Assert.IsNotNull(_basket.Items.FirstOrDefault(i => i.Product == _product));
+            Assert.AreEqual(originalQty, basketItem.Qty);
         }
     }
 }

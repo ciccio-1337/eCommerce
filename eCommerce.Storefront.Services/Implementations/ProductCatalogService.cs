@@ -86,7 +86,12 @@ namespace eCommerce.Storefront.Services.Implementations
         public GetProductsByCategoryResponse CreateProductSearchResultFrom(IEnumerable<Product> productsMatchingRefinement, GetProductsByCategoryRequest request)
         {
             var productSearchResultView = new GetProductsByCategoryResponse();
-            var productsFound = productsMatchingRefinement.Select(p => p.Title);
+            // Materialize the matched titles once and deduplicate client-side: applying
+            // GroupBy(...).Select(g => g.First()) on an IQueryable is not reliably
+            // translatable to SQL by EF Core, and productsFound is enumerated several
+            // times below (count, refinements, paging) — a single in-memory pass avoids
+            // both the translation risk and repeated DB round-trips.
+            var productsFound = productsMatchingRefinement.Select(p => p.Title).AsEnumerable().DistinctBy(t => t.Id).ToList();
 
             productSearchResultView.SelectedCategory = request.CategoryId;
             productSearchResultView.NumberOfTitlesFound = productsFound.GroupBy(t => t.Id).Select(g => g.First()).Count();

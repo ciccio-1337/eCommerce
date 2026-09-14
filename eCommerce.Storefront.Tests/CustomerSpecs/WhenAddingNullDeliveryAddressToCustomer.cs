@@ -15,9 +15,9 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         }
 
         [TestMethod]
-        public void ThenNullReferenceExceptionWillBeThrown()
+        public void ThenAnArgumentNullExceptionWillBeThrown()
         {
-            Assert.Throws<NullReferenceException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 Customer.AddAddress(_invalidAddress);
             });

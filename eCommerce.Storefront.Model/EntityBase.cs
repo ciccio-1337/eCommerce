@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace eCommerce.Storefront.Model
@@ -34,7 +35,7 @@ namespace eCommerce.Storefront.Model
             _brokenRules.Clear();
             Validate();
 
-            return _brokenRules;
+            return _brokenRules.ToList();
         }
 
         protected void AddBrokenRule(BusinessRule businessRule)

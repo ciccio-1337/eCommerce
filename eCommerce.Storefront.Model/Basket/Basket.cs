@@ -39,6 +39,8 @@ namespace eCommerce.Storefront.Model.Basket
 
         public void Add(Product product)
         {
+            ArgumentNullException.ThrowIfNull(product);
+
             if (BasketContainsAnItemFor(product))
             {
                 GetItemFor(product).IncreaseItemQtyBy(1);
@@ -61,6 +63,8 @@ namespace eCommerce.Storefront.Model.Basket
 
         public void Remove(Product product)
         {
+            ArgumentNullException.ThrowIfNull(product);
+
             if (BasketContainsAnItemFor(product))
             {
                 _items.Remove(GetItemFor(product));
@@ -69,6 +73,8 @@ namespace eCommerce.Storefront.Model.Basket
 
         public void ChangeQtyOfProduct(int qty, Product product)
         {
+            ArgumentNullException.ThrowIfNull(product);
+
             if (BasketContainsAnItemFor(product))
             {
                 GetItemFor(product).ChangeItemQtyTo(qty);
@@ -80,9 +86,9 @@ namespace eCommerce.Storefront.Model.Basket
             return _items.Sum(i => i.Qty);
         }
 
-        public IEnumerable<BasketItem> Items
+        public IReadOnlyList<BasketItem> Items
         {
-            get { return _items; }
+            get { return _items.AsReadOnly(); }
         }
 
         public decimal DeliveryCost()

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using eCommerce.Storefront.Model.Orders;
 using System.Text.RegularExpressions;
@@ -20,6 +21,7 @@ namespace eCommerce.Storefront.Model.Customers
 
         public void AddAddress(DeliveryAddress deliveryAddress)
         {
+            ArgumentNullException.ThrowIfNull(deliveryAddress);
             deliveryAddress.ThrowExceptionIfInvalid();
             _deliveryAddressBook.Add(deliveryAddress);
         }

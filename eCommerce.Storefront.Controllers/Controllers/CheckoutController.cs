@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.ViewModels.Checkout;
 using eCommerce.Storefront.Services.Interfaces;
@@ -88,13 +89,35 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return BadRequest("Invalid delivery address.");
             }
 
+            var basketId = await GetBasketIdAsync();
+
+            if (basketId == Guid.Empty)
+            {
+                return RedirectToAction("Detail", "Basket");
+            }
+
+            var basketResponse = await _basketService.GetBasketAsync(new GetBasketRequest
+            {
+                BasketId = basketId
+            });
+
+            if (basketResponse.Basket == null || !basketResponse.Basket.Items.Any())
+            {
+                return RedirectToAction("Detail", "Basket");
+            }
+
             var request = new CreateOrderRequest
             {
-                BasketId = await GetBasketIdAsync(),
+                BasketId = basketId,
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken(),
                 DeliveryId = deliveryId
             };
             var response = await _orderService.CreateOrderAsync(request);
+
+            if (response.Order == null)
+            {
+                return BadRequest("Order could not be created.");
+            }
 
             return RedirectToAction("CreatePaymentFor", "Payment", new { orderId = response.Order.Id });
         }

@@ -9,6 +9,7 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -16,11 +17,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
         ICustomerService customerService,
         ICookieAuthentication cookieAuthentication,
         IActionArguments actionArguments,
+        ILogger<AccountRegisterController> logger,
         ShopDataContext shopDataContext) : BaseAccountController(authenticationService,
             customerService,
             cookieAuthentication,
             actionArguments)
     {
+        private readonly ILogger<AccountRegisterController> _logger = logger;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
 
         public IActionResult Register()
@@ -53,8 +56,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 return View(accountView);
             }
+            catch (Exception ex)
+            {
+                await _shopDataContext.Database.RollbackTransactionAsync();
+                _logger.LogError(ex, "An error occurred while registering user with email {Email}.", email);
 
-            if (user.IsAuthenticated)
+                throw;
+            }
+
+            if (user != null && user.IsAuthenticated)
             {
                 try
                 {
@@ -84,6 +94,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     ViewData[FormDataKeys.SecondName.ToString()] = secondName;
 
                     return View(accountView);
+                }
+                catch (Exception ex)
+                {
+                    await _shopDataContext.Database.RollbackTransactionAsync();
+                    _logger.LogError(ex, "An error occurred while creating the customer with email {Email}.", email);
+
+                    throw;
                 }
             }
             else

@@ -1,3 +1,4 @@
+using System;
 using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Model.Basket
@@ -32,16 +33,26 @@ namespace eCommerce.Storefront.Model.Basket
         
         public bool Contains(Product product)
         {
-            return Product.Id == product.Id;
+            return ReferenceEquals(Product, product) || Product.Id == product.Id;
         }
 
         public void IncreaseItemQtyBy(int qty)
         {
+            if (qty <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(qty), "Quantity increment must be greater than zero.");
+            }
+
             _qty += qty;
         }
 
         public void ChangeItemQtyTo(int qty)
         {
+            if (qty <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(qty), "Quantity must be greater than zero.");
+            }
+            
             _qty = qty;
         }
         

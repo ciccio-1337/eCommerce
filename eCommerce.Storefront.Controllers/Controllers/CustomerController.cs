@@ -63,7 +63,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 customerDetailView.Customer = response.Customer;
 
-                await _cookieAuthentication.SetAuthenticationTokenAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), customerDetailView.Customer.Email, ["Customer"]);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrEmpty(userId))
+                {
+                    await _cookieAuthentication.SignOutAsync();
+
+                    return RedirectToAction("Register", "AccountRegister");
+                }
+
+                await _cookieAuthentication.SetAuthenticationTokenAsync(userId, customerDetailView.Customer.Email, ["Customer"]);
             }
             catch (EntityBaseIsInvalidException ex)
             {

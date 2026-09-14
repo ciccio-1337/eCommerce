@@ -51,7 +51,7 @@ namespace eCommerce.Storefront.Model.Orders
                 AddBrokenRule(new BusinessRule() { Property = nameof(Merchant), Rule = "A payment must have a Merchant." });
             }
 
-            if (_amount < 0)
+            if (_amount <= 0)
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(Amount), Rule = "A payment must be for a non negative amount." });
             }

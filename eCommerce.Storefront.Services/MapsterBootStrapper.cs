@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Mapster;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Model.Basket;
@@ -53,7 +54,16 @@ namespace eCommerce.Storefront.Services
             config.NewConfig<OrderView, OrderPaymentRequest>()
                 .Map(dest => dest.Total, src => string.IsNullOrWhiteSpace(src.Total) ? 0m : decimal.Parse(src.Total.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
                 .Map(dest => dest.ShippingCharge, src => string.IsNullOrWhiteSpace(src.ShippingCharge) ? 0m : decimal.Parse(src.ShippingCharge.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture))
-                .Map(dest => dest.CurrencyCode, src => CurrencyCode);
+                .Map(dest => dest.CurrencyCode, src => CurrencyCode)
+                .Map(dest => dest.CustomerFirstName, src => src.CustomerFirstName)
+                .Map(dest => dest.CustomerSecondName, src => src.CustomerSecondName)
+                .Map(dest => dest.Id, src => src.Id)
+                .Map(dest => dest.DeliveryAddressAddressLine, src => src.DeliveryAddress.AddressLine)
+                .Map(dest => dest.DeliveryAddressCity, src => src.DeliveryAddress.City)
+                .Map(dest => dest.DeliveryAddressState, src => src.DeliveryAddress.State)
+                .Map(dest => dest.DeliveryAddressCountry, src => src.DeliveryAddress.Country)
+                .Map(dest => dest.DeliveryAddressZipCode, src => src.DeliveryAddress.ZipCode)
+                .Map(dest => dest.Items, src => src.Items.Adapt<List<OrderItemPaymentRequest>>());
             config.NewConfig<OrderItemView, OrderItemPaymentRequest>()
                 .Map(dest => dest.Price, src => string.IsNullOrWhiteSpace(src.Price) ? 0m : decimal.Parse(src.Price.Replace(CurrencySymbol, "").Trim(), System.Globalization.CultureInfo.InvariantCulture));
             config.NewConfig<DeliveryAddress, DeliveryAddress>();

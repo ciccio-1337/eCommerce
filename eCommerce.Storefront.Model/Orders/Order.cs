@@ -51,7 +51,7 @@ namespace eCommerce.Storefront.Model.Orders
         {
             lock (_paymentLock)
             {
-                if (OrderHasBeenPaidFor())
+                if (HasBeenPaidFor())
                 {
                     throw new OrderAlreadyPaidForException(GetDetailsOnExisitingPayment());
                 }
@@ -81,13 +81,18 @@ namespace eCommerce.Storefront.Model.Orders
         {
             lock (_paymentLock)
             {
-                return Payment != null && OrderTotalMatches(Payment);
+                return HasBeenPaidFor();
             }
+        }
+
+        private bool HasBeenPaidFor()
+        {
+            return Payment != null && OrderTotalMatches(Payment);
         }
 
         private bool OrderTotalMatches(Payment payment)
         {
-            return Total() == payment.Amount;
+            return Math.Abs(Total() - payment.Amount) < 0.005m;
         }
 
         public Customer Customer { get; set; }
@@ -105,7 +110,17 @@ namespace eCommerce.Storefront.Model.Orders
         {
             if (CanAddProduct())
             {
-                if (!OrderContains(product))
+                var existingItem = _items.FirstOrDefault(i => i.Contains(product));
+
+                if (existingItem != null)
+                {
+                    // Order items are immutable — replace the line with an aggregated quantity
+                    // instead of silently dropping the product from the order.
+                    var index = _items.IndexOf(existingItem);
+                    
+                    _items[index] = new OrderItem(product, this, existingItem.Qty + qty);
+                }
+                else
                 {
                     _items.Add(new OrderItem(product, this, qty));
                 }

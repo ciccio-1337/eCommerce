@@ -51,14 +51,31 @@ namespace eCommerce.Storefront.Services.Implementations
         public async Task<CreateBasketResponse> CreateBasketAsync(CreateBasketRequest basketRequest)
         {
             var response = new CreateBasketResponse();
-            var basket = new Basket();
             var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail) ??
                 throw new CustomerNotFoundException(basketRequest.CustomerEmail);
 
+            // A customer may only have one basket; never orphan an existing basket by
+            // creating and persisting a new empty one alongside it.
+            if (customer.Basket != null)
+            {
+                throw new BasketAlreadyExistsException();
+            }
+
             customer.Email = basketRequest.CustomerEmail;
 
+            var basket = new Basket();
+            
             basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
             await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
+
+            // Never persist an empty basket that has no products in it.
+            if (!basket.Items.Any())
+            {
+                response.Basket = _mapper.Map<Basket, BasketView>(basket);
+
+                return response;
+            }
+
             basket.SetCustomer(customer);
             basket.ThrowExceptionIfInvalid();
             await _basketRepository.AddAsync(basket);
@@ -105,11 +122,17 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private async Task RemoveItemsFromBasketAsync(IList<long> productsToRemove, Basket basket)
         {
+            if (!productsToRemove.Any())
+            {
+                return;
+            }
+
+            var products = await _productRepository.FindBy(c => productsToRemove.Contains(c.Id)).ToListAsync();
+            var productById = products.ToDictionary(p => p.Id);
+
             foreach (long productId in productsToRemove)
             {
-                var product = await _productRepository.FindByAsync(productId);
-
-                if (product != null)
+                if (productById.TryGetValue(productId, out var product))
                 {
                     basket.Remove(product);
                 }
@@ -118,29 +141,49 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private async Task UpdateLineQtysAsync(IList<ProductQtyUpdateRequest> productQtyUpdateRequests, Basket basket)
         {
+            if (!productQtyUpdateRequests.Any())
+            {
+                return;
+            }
+
+            var productIds = productQtyUpdateRequests.Select(r => r.ProductId).ToList();
+            var products = await _productRepository.FindBy(c => productIds.Contains(c.Id)).ToListAsync();
+            var productById = products.ToDictionary(p => p.Id);
+
             foreach (ProductQtyUpdateRequest productQtyUpdateRequest in productQtyUpdateRequests)
             {
-                var product = await _productRepository.FindByAsync(productQtyUpdateRequest.ProductId);
-
-                if (product != null)
+                if (productById.TryGetValue(productQtyUpdateRequest.ProductId, out var product))
                 {
-                    basket.ChangeQtyOfProduct(productQtyUpdateRequest.NewQty, product);
+                    // A qty of 0 (or less) from the basket UI means the line should be
+                    // removed. BasketItem.ChangeItemQtyTo rejects non-positive quantities,
+                    // so a zero/negative entry can never represent a valid line.
+                    if (productQtyUpdateRequest.NewQty <= 0)
+                    {
+                        basket.Remove(product);
+                    }
+                    else
+                    {
+                        basket.ChangeQtyOfProduct(productQtyUpdateRequest.NewQty, product);
+                    }
                 }
             }
         }
 
         private async Task AddProductsToBasketAsync(IList<long> productsToAdd, Basket basket)
         {
-            if (productsToAdd.Any())
+            if (!productsToAdd.Any())
             {
-                foreach (long productId in productsToAdd)
-                {
-                    var product = await _productRepository.FindByAsync(productId);
+                return;
+            }
 
-                    if (product != null)
-                    {
-                        basket.Add(product);
-                    }
+            var products = await _productRepository.FindBy(c => productsToAdd.Contains(c.Id)).ToListAsync();
+            var productById = products.ToDictionary(p => p.Id);
+
+            foreach (long productId in productsToAdd)
+            {
+                if (productById.TryGetValue(productId, out var product))
+                {
+                    basket.Add(product);
                 }
             }
         }

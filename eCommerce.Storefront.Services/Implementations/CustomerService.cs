@@ -94,12 +94,8 @@ namespace eCommerce.Storefront.Services.Implementations
             var response = new DeliveryAddressModifyResponse();
             var customer = await _customerRepository.FindByAsync(request.CustomerEmail) ??
                 throw new CustomerNotFoundException(request.CustomerEmail);
-            var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id);
-
-            if (deliveryAddress == null)
-            {
-                return response;
-            }
+            var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.Address.Id) ??
+                throw new DeliveryAddressNotFoundException(request.Address.Id);
 
             UpdateDeliveryAddressFrom(request.Address, deliveryAddress);
             _customerRepository.Save(customer);

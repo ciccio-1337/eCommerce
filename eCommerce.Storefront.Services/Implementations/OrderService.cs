@@ -78,15 +78,17 @@ namespace eCommerce.Storefront.Services.Implementations
                 _orderRepository.Save(order);
                 await _uow.CommitAsync();
             }
-            catch (OrderAlreadyPaidForException ex)
+            catch (OrderAlreadyPaidForException)
             {
-                // Refund the payment using the payment service.
-                _logger.LogError(ex, "Order {OrderId} has already been paid for. Refund required.", order.Id);
+                _logger.LogError("Order {OrderId} was already paid for; refusing duplicate payment.", order.Id);
+                
+                throw;
             }
-            catch (PaymentAmountDoesNotEqualOrderTotalException ex)
+            catch (PaymentAmountDoesNotEqualOrderTotalException)
             {
-                // Refund the payment using the payment service.
-                _logger.LogError(ex, "Payment amount mismatch for order {OrderId}. Refund required.", order.Id);
+                _logger.LogError("Payment amount for order {OrderId} does not match the order total; refusing invalid payment.", order.Id);
+                
+                throw;
             }
 
             paymentResponse.Order = _mapper.Map<Order, OrderView>(order);
@@ -139,34 +141,41 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             if (order.Status == OrderStatus.Open)
             {
-                if (order.OrderHasBeenPaidFor())
+                var orderHasBeenPaidFor = order.OrderHasBeenPaidFor();
+
+                if (orderHasBeenPaidFor)
                 {
                     order.Status = OrderStatus.Submitted;
                 }
 
-                var emailBody = new StringBuilder();
-                var emailAddress = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail : order.Customer?.Email;
-                var emailSubject = string.Format("Order #{0}", order.Id);
-
-                emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));
-                emailBody.AppendLine();
-                emailBody.AppendLine("The following order will be packed and dispatched as soon as possible.");
-                emailBody.AppendLine(order.ToString());
-                emailBody.AppendLine();
-                emailBody.AppendLine("Thank you for your custom.");
-
-                var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
-                var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
-
-                if (!string.IsNullOrWhiteSpace(smtpPassword) && !string.IsNullOrWhiteSpace(emailAddress))
+                // Only send the order confirmation email when the order has actually been
+                // paid for; a failed payment must not trigger a dispatch confirmation.
+                if (orderHasBeenPaidFor)
                 {
-                    try
+                    var emailBody = new StringBuilder();
+                    var emailAddress = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail : order.Customer?.Email;
+                    var emailSubject = string.Format("Order #{0}", order.Id);
+
+                    emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));
+                    emailBody.AppendLine();
+                    emailBody.AppendLine("The following order will be packed and dispatched as soon as possible.");
+                    emailBody.AppendLine(order.ToString());
+                    emailBody.AppendLine();
+                    emailBody.AppendLine("Thank you for your custom.");
+
+                    var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
+                    var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
+
+                    if (!string.IsNullOrWhiteSpace(smtpPassword) && !string.IsNullOrWhiteSpace(emailAddress))
                     {
-                        await _emailService.SendMailAsync(smtpUserName, emailAddress, emailSubject, emailBody.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
+                        try
+                        {
+                            await _emailService.SendMailAsync(smtpUserName, emailAddress, emailSubject, emailBody.ToString());
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
+                        }
                     }
                 }
             }

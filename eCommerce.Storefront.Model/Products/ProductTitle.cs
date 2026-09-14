@@ -13,6 +13,15 @@ namespace eCommerce.Storefront.Model.Products
         
         protected override void Validate()
         {
+            if (string.IsNullOrWhiteSpace(Name))
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(Name), Rule = "Product title name is required." });
+            }
+            
+            if (Price <= 0)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(Price), Rule = "Product title price must be greater than zero." });
+            }
         }
     }
 }

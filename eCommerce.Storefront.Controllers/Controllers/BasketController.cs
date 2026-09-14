@@ -52,6 +52,12 @@ namespace eCommerce.Storefront.Controllers.Controllers
             request.BasketId = await GetBasketIdAsync();
 
             var response = await _basketService.ModifyBasketAsync(request);
+
+            if (response.Basket == null)
+            {
+                return NotFound();
+            }
+
             var basketDetailView = new BasketDetailView
             {
                 BasketSummary = new BasketSummaryView
@@ -77,6 +83,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
             var basketDetailView = new BasketDetailView();
             var response = await _basketService.ModifyBasketAsync(request);
 
+            if (response.Basket == null)
+            {
+                return NotFound();
+            }
+
             basketDetailView.BasketSummary = new BasketSummaryView
             {
                 BasketTotal = response.Basket.BasketTotal,
@@ -91,6 +102,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateItems([FromBody] BasketQtyUpdateRequest jsonBasketQtyUpdateRequest)
         {
+            if (jsonBasketQtyUpdateRequest == null)
+            {
+                return BadRequest();
+            }
+
             var request = new ModifyBasketRequest
             {
                 BasketId = await GetBasketIdAsync(),
@@ -98,6 +114,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
             };
             var basketDetailView = new BasketDetailView();
             var response = await _basketService.ModifyBasketAsync(request);
+
+            if (response.Basket == null)
+            {
+                return NotFound();
+            }
 
             basketDetailView.BasketSummary = new BasketSummaryView
             {

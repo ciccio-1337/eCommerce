@@ -1,3 +1,4 @@
+using System;
 using eCommerce.Storefront.Model.Products;
 
 namespace eCommerce.Storefront.Model.Orders
@@ -15,6 +16,11 @@ namespace eCommerce.Storefront.Model.Orders
 
         public OrderItem(Product product, Order order, int qty)
         {
+            if (qty <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(qty), "Quantity must be greater than zero.");
+            }
+            
             _product = product;
             _order = order;
             _price = product.Price;
@@ -63,7 +69,7 @@ namespace eCommerce.Storefront.Model.Orders
                 AddBrokenRule(new BusinessRule() { Property = nameof(Price), Rule = "An order item must have a non negative price value." });
             }
 
-            if (Qty < 0)
+            if (Qty <= 0)
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(Qty), Rule = "An order item must have a positive qty value." });
             }
@@ -71,7 +77,7 @@ namespace eCommerce.Storefront.Model.Orders
 
         public bool Contains(Product product)
         {
-            return Product.Id == product.Id;
+            return ReferenceEquals(Product, product) || Product.Id == product.Id;
         }
     }
 }

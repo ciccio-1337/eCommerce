@@ -25,7 +25,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [IgnoreAntiforgeryToken]
-        public async Task PaymentCallBack(IFormCollection collection)
+        public async Task<IActionResult> PaymentCallBack(IFormCollection collection)
         {
             var orderId = _paymentService.GetOrderIdFor(collection);
             var request = new GetOrderRequest
@@ -38,7 +38,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 _logger.LogError("PaymentCallBack: Order {OrderId} could not be retrieved.", orderId);
 
-                return;
+                return BadRequest();
             }
 
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
@@ -56,10 +56,14 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 };
 
                 await _orderService.SetOrderPaymentAsync(paymentRequest);
+
+                return Ok();
             }
             else
             {
                 _logger.LogWarning("Payment not ok for order id {OrderId}, payment token {PaymentToken}", orderId, transactionResult.PaymentToken);
+
+                return BadRequest();
             }
         }
 

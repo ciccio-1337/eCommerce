@@ -16,6 +16,7 @@ using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -26,13 +27,15 @@ namespace eCommerce.Backoffice.Server.Controllers
         SignInManager<IdentityUser> signInManager,
         IConfiguration configuration,
         IEntityService<Customer, long> customerService,
-        ShopDataContext shopDataContext) : ControllerBase
+        ShopDataContext shopDataContext,
+        ILogger<AccountsController> logger) : ControllerBase
     {
         private readonly IEmailService _emailService = emailService;
         private readonly SignInManager<IdentityUser> _signInManager = signInManager;
         private readonly IConfiguration _configuration = configuration;
         private readonly IEntityService<Customer, long> _customerService = customerService;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
+        private readonly ILogger<AccountsController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
@@ -77,7 +80,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             {
                 var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
 
-                _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
+                try
+                {
+                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
+                }
             }
             else
             {
@@ -117,18 +127,22 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (user == null)
             {
-                return NotFound();
+                // Neutral response: never reveal whether a user id exists (the userId is an
+                // opaque value delivered via the confirmation link, not a queryable identifier).
+                return Ok(false);
             }
 
             try
             {
+                // The confirmation code is an Identity-generated, signed and time-limited token,
+                // so a malformed/expired code fails validation here without mutating any state.
                 var result = await _signInManager.UserManager.ConfirmEmailAsync(user, confirmationRequest.Code);
 
                 return Ok(result.Succeeded);
             }
             catch (DbUpdateConcurrencyException) when (!_signInManager.UserManager.Users.AsNoTracking().Any(u => u.Id == id))
             {
-                return NotFound();
+                return Ok(false);
             }
         }
 
@@ -138,24 +152,31 @@ namespace eCommerce.Backoffice.Server.Controllers
             var response = new ForgotPasswordResponse();
             var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
-            if (user == null)
+            // Always return the same generic 200 response regardless of whether the email
+            // exists. This avoids leaking which accounts are registered (email enumeration).
+            if (user != null)
             {
-                return NotFound();
-            }
+                if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
+                {
+                    response.Errors = ["Not confirmed email"];
+                }
+                else
+                {
+                    var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
+                    var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
+                    var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
 
-            if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
-            {
-                response.Errors = ["Not confirmed email"];
-            }
-            else
-            {
-                var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
-                var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
-                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
+                    try
+                    {
+                        await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
 
-                _ = _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
-
-                response.IsSuccess = true;
+                        response.IsSuccess = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
+                    }
+                }
             }
 
             return Ok(response);

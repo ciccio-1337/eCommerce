@@ -16,7 +16,6 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Mapping
                    .HasColumnName("Qty")
                    .IsRequired();
             builder.HasOne(b => b.Product);
-            builder.HasOne(b => b.Basket);
         }
     }
 }

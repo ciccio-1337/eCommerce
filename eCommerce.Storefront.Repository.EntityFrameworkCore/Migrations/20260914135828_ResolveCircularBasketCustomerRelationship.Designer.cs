@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 
@@ -10,9 +11,11 @@ using eCommerce.Storefront.Repository.EntityFrameworkCore;
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Migrations
 {
     [DbContext(typeof(ShopDataContext))]
-    partial class ShopDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260914135828_ResolveCircularBasketCustomerRelationship")]
+    partial class ResolveCircularBasketCustomerRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");

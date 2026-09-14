@@ -24,6 +24,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Mapping
                    .HasColumnName("SecondName")
                    .HasMaxLength(100)
                    .IsRequired();
+            // Email is stored in the ASP.NET Identity user record, not on the customer row.
             builder.Ignore(c => c.Email);
             builder.HasMany(c => c.DeliveryAddressBook)
                    .WithOne(d => d.Customer)
@@ -33,7 +34,6 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Mapping
                    .WithOne(d => d.Customer)
                    .OnDelete(DeleteBehavior.Cascade)
                    .IsRequired();
-            builder.HasOne(c => c.Basket);
         }
     }
 }

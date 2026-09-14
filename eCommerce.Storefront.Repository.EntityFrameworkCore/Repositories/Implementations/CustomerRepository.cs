@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Model.Customers;
@@ -10,7 +11,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
     {
         public async Task<Customer> FindByAsync(string email)
         {
-            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email));
+            var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
             if (user != null)
             {
@@ -55,7 +56,8 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
                            .ThenInclude(i => i.Product)
                            .ThenInclude(p => p.Title)
                            .Include(c => c.Basket)
-                           .ThenInclude(b => b.DeliveryOption);
+                           .ThenInclude(b => b.DeliveryOption)
+                           .ThenInclude(d => d.ShippingService);
         }
 
         public async Task SaveEmailAsync(string userId, string email)

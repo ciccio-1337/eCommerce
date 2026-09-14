@@ -68,20 +68,9 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
                 _dataContext.Set<T>().Attach(entity);
             }
 
-            foreach (var property in entry.Properties)
-            {
-                if (property.Metadata.IsKey())
-                {
-                    continue;
-                }
-
-                if (property.IsModified)
-                {
-                    continue;
-                }
-
-                property.IsModified = true;
-            }
+            // Let EF Core's change tracker diff the entity against its original values.
+            // NO manual IsModified forcing — force-marking every property breaks
+            // concurrent-update semantics (last-writer-wins on unchanged fields).
         }
 
         public void Remove(T entity)
