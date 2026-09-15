@@ -16,6 +16,9 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Mapping
                    .HasColumnName("UserId")
                    .HasMaxLength(450)
                    .IsRequired();
+            // CustomerRepository.FindByAsync(email) resolves the Identity user first and then
+            // queries Customers by UserId on every order/payment/customer operation; index it.
+            builder.HasIndex(c => c.UserId);
             builder.Property(c => c.FirstName)
                    .HasColumnName("FirstName")
                    .HasMaxLength(100)

@@ -77,11 +77,11 @@ namespace eCommerce.Storefront.Model.Orders
 
         public bool Contains(Product product)
         {
-            if (product is null) 
+            if (product is null || Product is null)
             {
                 return false;
             }
-            
+
             return ReferenceEquals(Product, product) || Product.Id == product.Id;
         }
     }

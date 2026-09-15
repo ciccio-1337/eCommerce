@@ -49,6 +49,8 @@ namespace eCommerce.Storefront.Model.Orders
 
         public void SetPayment(Payment payment)
         {
+            ArgumentNullException.ThrowIfNull(payment);
+
             lock (_paymentLock)
             {
                 if (HasBeenPaidFor())
@@ -92,7 +94,11 @@ namespace eCommerce.Storefront.Model.Orders
 
         private bool OrderTotalMatches(Payment payment)
         {
-            return Math.Abs(Total() - payment.Amount) < 0.005m;
+            // Money values are decimals with at most 2 decimal places throughout
+            // (order total, PayPal mc_gross round-trip via "0.00" currency strings),
+            // so an exact comparison is correct. A tolerance here would silently accept
+            // an under- or over-payment of up to half a cent and record it as paid.
+            return Total() == payment.Amount;
         }
 
         public Customer Customer { get; set; }
@@ -108,6 +114,8 @@ namespace eCommerce.Storefront.Model.Orders
 
         public void AddItem(Product product, int qty)
         {
+            ArgumentNullException.ThrowIfNull(product);
+
             if (CanAddProduct())
             {
                 var existingItem = _items.FirstOrDefault(i => i.Contains(product));

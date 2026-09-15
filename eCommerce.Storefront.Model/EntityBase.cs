@@ -55,6 +55,13 @@ namespace eCommerce.Storefront.Model
                 return true;
             }
 
+            // Entities of different runtime types must never compare equal, even if they
+            // happen to share the same numeric id (e.g. Brand{Id=7} != Customer{Id=7}).
+            if (GetType() != other.GetType())
+            {
+                return false;
+            }
+
             if (EqualityComparer<TId>.Default.Equals(Id, default) || EqualityComparer<TId>.Default.Equals(other.Id, default))
             {
                 return false;

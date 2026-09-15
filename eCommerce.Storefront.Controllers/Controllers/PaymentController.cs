@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using MapsterMapper;
 using eCommerce.Storefront.Services.Interfaces;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 using eCommerce.Storefront.Model.Orders;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -27,7 +29,21 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> PaymentCallBack(IFormCollection collection)
         {
-            var orderId = _paymentService.GetOrderIdFor(collection);
+            long orderId;
+
+            try
+            {
+                orderId = _paymentService.GetOrderIdFor(collection);
+            }
+            catch (FormatException ex)
+            {
+                // A malformed or missing 'custom' field means we cannot identify the order.
+                // Return 400 so PayPal does not enter an infinite IPN retry loop.
+                _logger.LogWarning(ex, "PaymentCallBack: received IPN with missing or invalid 'custom' field.");
+
+                return BadRequest();
+            }
+
             var request = new GetOrderRequest
             {
                 OrderId = orderId
@@ -83,6 +99,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreatePaymentFor(long orderId)
         {
             var request = new GetOrderRequest

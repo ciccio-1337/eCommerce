@@ -17,6 +17,9 @@ namespace eCommerce.Backoffice.Shared.Model.Accounts
         [Compare(nameof(Password), ErrorMessage = "Password mismatch")]
         public string ConfirmPassword { get; set; }
 
+        // The reset token is the only credential that authorises a password change;
+        // it must be present exactly like the password itself.
+        [Required]
         public string Code { get; set; }
     }
 }

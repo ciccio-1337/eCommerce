@@ -191,9 +191,12 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             var roles = await _signInManager.UserManager.GetRolesAsync(user);
 
+            // Return the same generic message as the invalid-credentials branch so the
+            // response does not reveal whether the account exists or whether it is an
+            // admin account (information disclosure / account enumeration).
             if (!roles.Contains("Admin"))
             {
-                response.Errors = [$"{loginRequest.Email} is not an Admin user."];
+                response.Errors = ["Username and password are invalid."];
 
                 return Ok(response);
             }
