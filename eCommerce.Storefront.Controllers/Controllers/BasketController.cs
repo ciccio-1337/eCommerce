@@ -81,7 +81,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 BasketId = await GetBasketIdAsync()
             };
             var basketDetailView = new BasketDetailView();
-            var response = await _basketService.ModifyBasketAsync(request);
+
+            ModifyBasketResponse response;
+
+            try
+            {
+                response = await _basketService.ModifyBasketAsync(request);
+            }
+            catch (DeliveryOptionNotFoundException)
+            {
+                // A stale or tampered shipping-service id must not 500 the page.
+                return BadRequest("The selected delivery option is no longer available.");
+            }
 
             if (response.Basket == null)
             {

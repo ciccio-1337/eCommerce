@@ -71,11 +71,22 @@
         
     public async Task RegisterUserAsync()
     {
-        registerResponse = await (await HttpClient.PostAsJsonAsync<RegisterRequest>("api/accounts", model))?.Content?.ReadFromJsonAsync<RegisterResponse>();
-
-        if (registerResponse != null && registerResponse.IsSuccess && registerResponse.EmailConfirmed)
+        try
         {
-            NavigationManager.NavigateTo("/admin/account/list");
+            registerResponse = await (await HttpClient.PostAsJsonAsync<RegisterRequest>("api/accounts", model))?.Content?.ReadFromJsonAsync<RegisterResponse>();
+
+            if (registerResponse != null && registerResponse.IsSuccess && registerResponse.EmailConfirmed)
+            {
+                NavigationManager.NavigateTo("/admin/account/list");
+            }
+        }
+        catch (Exception)
+        {
+            registerResponse = new RegisterResponse
+            {
+                IsSuccess = false,
+                Errors = ["Unable to register the account. Check your connection and try again."]
+            };
         }
     }
 }

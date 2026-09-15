@@ -34,8 +34,16 @@ namespace eCommerce.Storefront.UI.Web.MVC
         public static IServiceCollection AddInfrastructure(this IServiceCollection serviceCollection, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
             var config = TypeAdapterConfig.GlobalSettings;
-            
-            config.Scan(typeof(MapsterBootStrapper).Assembly); 
+
+            config.Scan(typeof(MapsterBootStrapper).Assembly);
+
+            // Production serves HTTPS (possibly via a TLS-terminating load balancer that
+            // forwards plain HTTP to the app). SameAsRequest would then mark the auth,
+            // backoffice, and anti-forgery cookies as non-Secure because the *inbound*
+            // request is HTTP, letting them travel in plaintext over the internal network.
+            // In production always require Secure; development over localhost HTTP keeps
+            // SameAsRequest so the cookies still work.
+            var secureCookiesOnly = hostEnvironment.IsProduction(); 
             
             serviceCollection.AddSingleton(config);
             serviceCollection.AddScoped<IMapper, ServiceMapper>();
@@ -93,7 +101,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
                 options.Cookie.Path = "/";
             })
             // The backoffice "admin" cookie handler is intentionally registered under the name
@@ -113,13 +121,13 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
                 options.Cookie.Path = "/";
             });
             serviceCollection.AddAntiforgery(options =>
             {
                 options.HeaderName = "RequestVerificationToken";
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
             });
             serviceCollection.AddLogging(configure => 
             {

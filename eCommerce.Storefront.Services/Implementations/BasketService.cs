@@ -54,18 +54,27 @@ namespace eCommerce.Storefront.Services.Implementations
             var customer = await _customerRepository.FindByAsync(basketRequest.CustomerEmail) ??
                 throw new CustomerNotFoundException(basketRequest.CustomerEmail);
 
-            // A customer may only have one basket; never orphan an existing basket by
-            // creating and persisting a new empty one alongside it.
-            if (customer.Basket != null)
-            {
-                throw new BasketAlreadyExistsException();
-            }
-
             customer.Email = basketRequest.CustomerEmail;
 
-            var basket = new Basket();
-            
-            basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
+            // A customer may only have one basket. If one already exists (e.g. the basket
+            // cookie was cleared or expired but the DB row survived, or a concurrent tab
+            // created it), reuse it rather than throwing — BasketController.AddToBasket
+            // falls back here when the cookie's basket id is invalid, so a throw would be
+            // an unhandled 500 on a reachable path.
+            Basket basket;
+
+            if (customer.Basket != null)
+            {
+                basket = customer.Basket;
+            }
+            else
+            {
+                basket = new Basket();
+
+                basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
+                basket.SetCustomer(customer);
+            }
+
             await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
 
             // Never persist an empty basket that has no products in it.
@@ -76,11 +85,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 return response;
             }
 
-            basket.SetCustomer(customer);
-            basket.ThrowExceptionIfInvalid();
-            await _basketRepository.AddAsync(basket);
-            customer.AddBasket(basket);
-            customer.ThrowExceptionIfInvalid();
+            if (customer.Basket == null)
+            {
+                await _basketRepository.AddAsync(basket);
+                customer.AddBasket(basket);
+                basket.ThrowExceptionIfInvalid();
+                customer.ThrowExceptionIfInvalid();
+            }
+
             _customerRepository.Save(customer);
             await _uow.CommitAsync();
 
@@ -106,7 +118,8 @@ namespace eCommerce.Storefront.Services.Implementations
 
             if (request.SetShippingServiceIdTo != 0)
             {
-                var deliveryOption = await _deliveryOptionRepository.FindByAsync(request.SetShippingServiceIdTo);
+                var deliveryOption = await _deliveryOptionRepository.FindByAsync(request.SetShippingServiceIdTo) ??
+                    throw new DeliveryOptionNotFoundException(request.SetShippingServiceIdTo);
 
                 basket.SetDeliveryOption(deliveryOption);
             }

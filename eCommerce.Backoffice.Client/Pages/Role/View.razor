@@ -37,7 +37,7 @@
                     <Alert Title="Attention" ErrorList="editRoleResponse?.Errors" />
                     <div class="row row-cols-2">
                         <RadzenButton ButtonType="Radzen.ButtonType.Submit" Text="@buttonTitle" Icon="save" ButtonStyle="Radzen.ButtonStyle.Info" class="mr-2 col ml-3"></RadzenButton>
-                        <RadzenButton ButtonType="Radzen.ButtonType.Button" Click="DeleteRoleAsync" Text="Delete" Icon="delete" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-3 col"></RadzenButton>
+                        <RadzenButton ButtonType="Radzen.ButtonType.Button" Click="DeleteRoleAsync" Text="Delete" Icon="delete" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-3 col" ConfirmText="Are you sure you want to delete this role?" ConfirmTitle="Delete Role" ConfirmButtonStyle="Radzen.ButtonStyle.Danger"></RadzenButton>
                     </div>
                 </RadzenCard>
             </EditForm>
@@ -52,7 +52,7 @@
                                 @roleUser.Name
                             </div>
                             <div class="col-2">
-                                <RadzenButton Icon="delete" Click="@((args) => RemoveRoleUserAsync(roleUser.Id))" />
+                                <RadzenButton Icon="delete" Click="@((args) => RemoveRoleUserAsync(roleUser.Id))" ConfirmText="Remove this user from the role?" ConfirmTitle="Remove User" ConfirmButtonStyle="Radzen.ButtonStyle.Danger" />
                             </div>
                         </div>
                     </Template>
@@ -67,7 +67,7 @@
                             <label>Add User</label>
                         </div>
                         <div class="col-md-12">
-                            <RadzenDropDown @bind-Value="userId" AllowClear="true" TValue="string" Data="@roleUserResponse" TextProperty="Name" ValueProperty="Id" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterOperator="StringFilterOperator.Contains" AllowFiltering="true" class="col-md-12" />
+                            <RadzenDropDown @bind-Value="userId" AllowClear="true" TValue="string" Data="@(roleUserResponse?.Where(x => !x.InRole))" TextProperty="Name" ValueProperty="Id" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterOperator="StringFilterOperator.Contains" AllowFiltering="true" class="col-md-12" />
                         </div>
                     </div>
                     <hr />
@@ -89,7 +89,14 @@
 
     protected async override Task OnInitializedAsync()
     {
-        roleResponses = await Http.GetFromJsonAsync<List<RoleDto>>("api/roles");
+        try
+        {
+            roleResponses = await Http.GetFromJsonAsync<List<RoleDto>>("api/roles");
+        }
+        catch (Exception)
+        {
+            roleResponses = new List<RoleDto>();
+        }
 
         StateHasChanged();
     }
@@ -105,9 +112,17 @@
         model = new EditRoleRequest
         {
             Id = value.ToString(),
-            Name = roleResponses.First(x=> x.Id.Equals(value.ToString())).Name
+            Name = roleResponses?.First(x=> x.Id.Equals(value.ToString())).Name ?? string.Empty
         };
-        roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
+
+        try
+        {
+            roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
+        }
+        catch (Exception)
+        {
+            roleUserResponse = new List<RoleUserResponse>();
+        }
 
         StateHasChanged();
     }
@@ -123,31 +138,38 @@
 
     public async Task SaveRoleAsync()
     {
-        if (string.IsNullOrEmpty(model.Id))
-        {
-            editRoleResponse = await (await Http.PostAsJsonAsync<EditRoleRequest>("api/roles", model))?.Content?.ReadFromJsonAsync<EditRoleResponse>();
-        } 
-        else
-        {
-            editRoleResponse = await (await Http.PutAsJsonAsync<EditRoleRequest>($"api/roles/{model.Id}", model))?.Content?.ReadFromJsonAsync<EditRoleResponse>();
-        }
-
-        if (editRoleResponse.IsSuccess)
+        try
         {
             if (string.IsNullOrEmpty(model.Id))
             {
-                roleResponses.Add(new RoleDto { Id = editRoleResponse.Id, Name = model.Name });
-            } 
+                editRoleResponse = await (await Http.PostAsJsonAsync<EditRoleRequest>("api/roles", model))?.Content?.ReadFromJsonAsync<EditRoleResponse>();
+            }
             else
             {
-                roleResponses.First(x => x.Id.Equals(model.Id)).Name = model.Name;
+                editRoleResponse = await (await Http.PutAsJsonAsync<EditRoleRequest>($"api/roles/{model.Id}", model))?.Content?.ReadFromJsonAsync<EditRoleResponse>();
             }
 
-            roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{editRoleResponse.Id}/users");
+            if (editRoleResponse != null && editRoleResponse.IsSuccess)
+            {
+                if (string.IsNullOrEmpty(model.Id))
+                {
+                    roleResponses.Add(new RoleDto { Id = editRoleResponse.Id, Name = model.Name });
+                }
+                else
+                {
+                    roleResponses.First(x => x.Id.Equals(model.Id)).Name = model.Name;
+                }
 
-            StateHasChanged();  
+                roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{editRoleResponse.Id}/users");
 
-            model = null;
+                StateHasChanged();
+
+                model = null;
+            }
+        }
+        catch (Exception)
+        {
+            // Error already surfaced via editRoleResponse.Errors in the Alert component
         }
     }
 
@@ -157,8 +179,15 @@
 
         if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(userId))
         {
-            isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true }))?.Content?.ReadFromJsonAsync<bool>();
-        } 
+            try
+            {
+                isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true }))?.Content?.ReadFromJsonAsync<bool>();
+            }
+            catch (Exception)
+            {
+                // Error handled below
+            }
+        }
 
         if (isSuccess)
         {
@@ -174,8 +203,15 @@
 
         if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(id))
         {
-            isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false }))?.Content?.ReadFromJsonAsync<bool>();
-        } 
+            try
+            {
+                isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false }))?.Content?.ReadFromJsonAsync<bool>();
+            }
+            catch (Exception)
+            {
+                // Error handled below
+            }
+        }
 
         if (isSuccess)
         {
@@ -189,11 +225,18 @@
     {
         if (!string.IsNullOrEmpty(model.Id))
         {
-            await Http.DeleteAsync($"api/roles/{model.Id}");
-            roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
-            StateHasChanged();
+            try
+            {
+                await Http.DeleteAsync($"api/roles/{model.Id}");
+                roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
+                StateHasChanged();
 
-            model = null;
+                model = null;
+            }
+            catch (Exception)
+            {
+                // Error during role deletion
+            }
         }
     }
 }

@@ -47,21 +47,6 @@
     LoginRequest model = new LoginRequest();
     LoginResponse loginResponse = null;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            var authState = await loginService.GetAuthStateAsync();
-
-            if (!string.IsNullOrWhiteSpace(authState))
-            {
-                await Http.PostAsync("api/accounts/logout", null);
-            }
-
-            await loginService.LogoutAsync();
-        }
-    }
-
     public async Task UserLoginAsync()
     {
         var httpResponse = await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model);

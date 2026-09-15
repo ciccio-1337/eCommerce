@@ -17,6 +17,7 @@
 <h2>Don't have an account? Create it.</h2>
 
 @using (Html.BeginForm()) {
+    @Html.AntiForgeryToken()
     <div>
         <p>
             <label for="Email">Email</label><br />

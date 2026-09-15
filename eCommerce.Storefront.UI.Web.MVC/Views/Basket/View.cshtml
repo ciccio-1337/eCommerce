@@ -51,10 +51,51 @@
         $.post('/Basket/UpdateShipping', postData, updateBasket, "json");
     }
 
+    // Admin-entered strings (product names, size descriptors, shipping descriptions)
+    // are rendered client-side by jTemplates, which inserts values as raw HTML — never
+    // HTML-encodes them. Escape the fields before templating so a malicious value cannot
+    // execute script in a customer's browser.
+    function escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return value;
+        }
+
+        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function escapeBasketDataForTemplate(view) {
+        if (!view) {
+            return;
+        }
+
+        if (view.basket && view.basket.items) {
+            $.each(view.basket.items, function (_, item) {
+                if (!item) {
+                    return;
+                }
+
+                item.productName = escapeHtml(item.productName);
+                item.productSizeName = escapeHtml(item.productSizeName);
+            });
+        }
+
+        if (view.deliveryOptions) {
+            $.each(view.deliveryOptions, function (_, option) {
+                if (!option) {
+                    return;
+                }
+
+                option.shippingServiceDescription = escapeHtml(option.shippingServiceDescription);
+            });
+        }
+    }
+
     function updateBasket(basketDetailView) {
         if (basketDetailView.basketSummary.numberOfItems == 0) {
             $("#basketDisplay").text("You have no items in your basket.");
         } else {
+            escapeBasketDataForTemplate(basketDetailView);
             $("#basketDisplay").setTemplate($("#basketTemplate").html());
             $("#basketDisplay").processTemplate(basketDetailView);
         }

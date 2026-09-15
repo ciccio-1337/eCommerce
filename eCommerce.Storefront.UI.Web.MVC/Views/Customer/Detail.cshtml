@@ -15,8 +15,9 @@
 }
 
 <h2>Your Details</h2>
-@using (Html.BeginForm()) 
+@using (Html.BeginForm())
 {
+    @Html.AntiForgeryToken()
     <p>
         <label for="FirstName">First Name</label><br />
         @Html.TextBox("FirstName", Model.Customer.FirstName)

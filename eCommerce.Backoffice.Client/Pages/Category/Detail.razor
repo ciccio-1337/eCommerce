@@ -31,11 +31,18 @@
     {
         if (Id.HasValue)
         {
-            category = await HttpClient.GetFromJsonAsync<CategoryDto>($"{route}/{Id}");
+            try
+            {
+                category = await HttpClient.GetFromJsonAsync<CategoryDto>($"{route}/{Id}");
+            }
+            catch (Exception)
+            {
+                error = "Unable to load the category. Check the Id and try again.";
+            }
         }
         else
         {
-            category = new CategoryDto();   
+            category = new CategoryDto();
         }
     }
 

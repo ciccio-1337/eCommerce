@@ -31,11 +31,18 @@
     {
         if (Id.HasValue)
         {
-            size = await HttpClient.GetFromJsonAsync<ProductSizeDto>($"{route}/{Id}");
+            try
+            {
+                size = await HttpClient.GetFromJsonAsync<ProductSizeDto>($"{route}/{Id}");
+            }
+            catch (Exception)
+            {
+                error = "Unable to load the size. Check the Id and try again.";
+            }
         }
         else
         {
-            size = new ProductSizeDto();   
+            size = new ProductSizeDto();
         }
     }
 

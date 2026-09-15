@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -125,6 +126,20 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 // The selected delivery address no longer exists (removed in another tab).
                 return BadRequest("The selected delivery address is no longer available. Please choose another one.");
+            }
+            catch (BasketDoesNotExistException)
+            {
+                // The basket was already converted into an order — e.g. the user double-
+                // clicked 'Place Order' and the first request committed. Treat this as a
+                // (not exactly idempotent) resubmit: the order is on the user's account.
+                return RedirectToAction("List", "Order");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // A concurrent request removed the basket at the same time (double-click
+                // in two tabs). The INSERT for this duplicate order is rolled back with
+                // the failed DELETE, so no duplicate exists — but don't surface a 500.
+                return RedirectToAction("List", "Order");
             }
 
             if (response.Order == null)

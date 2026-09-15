@@ -11,13 +11,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var colors = await HttpClient.GetFromJsonAsync<List<ProductColorDto>>(route);
-
-        model = new GridModel<ProductColorDto>
+        try
         {
-            Rows = colors,
-            UseAnnotations = true
-        };
+            var colors = await HttpClient.GetFromJsonAsync<List<ProductColorDto>>(route);
+
+            model = new GridModel<ProductColorDto>
+            {
+                Rows = colors ?? new List<ProductColorDto>(),
+                UseAnnotations = true
+            };
+        }
+        catch (Exception)
+        {
+            model = new GridModel<ProductColorDto>
+            {
+                Rows = new List<ProductColorDto>(),
+                UseAnnotations = true
+            };
+        }
     }
 
     async Task DeleteColorAsync(ProductColorDto item)

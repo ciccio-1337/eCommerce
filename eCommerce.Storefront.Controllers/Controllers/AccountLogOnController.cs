@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.ActionArguments;
 using eCommerce.Storefront.Controllers.ViewModels.Account;
 using eCommerce.Storefront.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Linq;
@@ -61,6 +62,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize]
         public async Task<IActionResult> LogOff()
         {
             await _cookieAuthentication.SignOutAsync();

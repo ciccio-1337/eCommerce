@@ -11,13 +11,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var categories = await HttpClient.GetFromJsonAsync<List<CategoryDto>>(route);
-
-        model = new GridModel<CategoryDto>
+        try
         {
-            Rows = categories,
-            UseAnnotations = true
-        };
+            var categories = await HttpClient.GetFromJsonAsync<List<CategoryDto>>(route);
+
+            model = new GridModel<CategoryDto>
+            {
+                Rows = categories ?? new List<CategoryDto>(),
+                UseAnnotations = true
+            };
+        }
+        catch (Exception)
+        {
+            model = new GridModel<CategoryDto>
+            {
+                Rows = new List<CategoryDto>(),
+                UseAnnotations = true
+            };
+        }
     }
 
     async Task DeleteCategoryAsync(CategoryDto item)

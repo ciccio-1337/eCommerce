@@ -11,13 +11,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var brands = await HttpClient.GetFromJsonAsync<List<BrandDto>>(route);
-
-        model = new GridModel<BrandDto>
+        try
         {
-            Rows = brands,
-            UseAnnotations = true
-        };
+            var brands = await HttpClient.GetFromJsonAsync<List<BrandDto>>(route);
+
+            model = new GridModel<BrandDto>
+            {
+                Rows = brands ?? new List<BrandDto>(),
+                UseAnnotations = true
+            };
+        }
+        catch (Exception)
+        {
+            model = new GridModel<BrandDto>
+            {
+                Rows = new List<BrandDto>(),
+                UseAnnotations = true
+            };
+        }
     }
 
     async Task DeleteBrandAsync(BrandDto item)

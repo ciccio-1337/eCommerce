@@ -31,11 +31,18 @@
     {
         if (Id.HasValue)
         {
-            color = await HttpClient.GetFromJsonAsync<ProductColorDto>($"{route}/{Id}");
+            try
+            {
+                color = await HttpClient.GetFromJsonAsync<ProductColorDto>($"{route}/{Id}");
+            }
+            catch (Exception)
+            {
+                error = "Unable to load the color. Check the Id and try again.";
+            }
         }
         else
         {
-            color = new ProductColorDto();   
+            color = new ProductColorDto();
         }
     }
 

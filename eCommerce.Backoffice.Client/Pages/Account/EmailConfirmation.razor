@@ -31,16 +31,23 @@
 
             if (!string.IsNullOrWhiteSpace(emailConfirmationRequest.UserId) && !string.IsNullOrWhiteSpace(emailConfirmationRequest.Code))
             {
-                var response = await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest);
-
-                if (response.IsSuccessStatusCode)
+                try
                 {
-                    bool isValid = await response.Content.ReadFromJsonAsync<bool>();
+                    var response = await Http.PutAsJsonAsync<EmailConfirmationRequest>($"api/accounts/{emailConfirmationRequest.UserId}/emailconfirmation", emailConfirmationRequest);
 
-                    if (isValid)
+                    if (response.IsSuccessStatusCode)
                     {
-                        navManager.NavigateTo("/admin/account/login");
+                        bool isValid = await response.Content.ReadFromJsonAsync<bool>();
+
+                        if (isValid)
+                        {
+                            navManager.NavigateTo("/admin/account/login");
+                        }
                     }
+                }
+                catch (Exception)
+                {
+                    // If the confirmation call fails, stay on the error page.
                 }
             }
         }

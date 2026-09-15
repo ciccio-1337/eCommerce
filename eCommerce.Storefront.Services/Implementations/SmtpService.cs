@@ -61,7 +61,12 @@ namespace eCommerce.Storefront.Services.Implementations
             
             message.Subject = subject ?? string.Empty;
             message.Body = body ?? string.Empty;
-            message.IsBodyHtml = body != null && body.Contains('<') && body.Contains('>');
+            // Email bodies are always plain text (StringBuilder-built by callers such as
+            // OrderService.SubmitAsync). The previous heuristic that auto-detected HTML
+            // by searching for '<' and '>' would fire on product names like 'Size < 3XL'
+            // or customer names containing angle brackets, silently switching the email
+            // to HTML rendering and mangling the layout.
+            message.IsBodyHtml = false;
 
             using var smtp = new SmtpClient(host, port);
 

@@ -38,6 +38,12 @@ namespace eCommerce.Backoffice.Shared.Services.Implementations
         {
             ArgumentNullException.ThrowIfNull(entity, nameof(entity));
 
+            // The primary key is always assigned by the database (identity/autoincrement
+            // column). A client-supplied Id — which is allowed by the public Id setter —
+            // must never be persisted: honouring it lets a client pick primary keys,
+            // causing collisions with existing rows or hijacking future inserts.
+            entity.Id = default!;
+
             entity.ThrowExceptionIfInvalid();
             await _repository.AddAsync(entity);
             await _uow.CommitAsync();

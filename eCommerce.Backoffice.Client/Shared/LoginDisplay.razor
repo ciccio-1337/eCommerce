@@ -1,8 +1,29 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject ILoginService LoginService
 
 <AuthorizeView>
     <Authorized>
         <a>Hello, @context.User.Identity.Name!</a>
-        <a href="admin/account/login" class="nav-link btn btn-link">Log out</a>
+        <a class="nav-link btn btn-link" @onclick="Logout">Log out</a>
     </Authorized>
 </AuthorizeView>
+
+@code {
+    async Task Logout()
+    {
+        try
+        {
+            await Http.PostAsync("api/accounts/logout", null);
+        }
+        catch (Exception)
+        {
+            // The server cookie may already be gone; clear the local state regardless.
+        }
+
+        await LoginService.LogoutAsync();
+
+        NavigationManager.NavigateTo("/admin/account/login", forceLoad: true);
+    }
+}

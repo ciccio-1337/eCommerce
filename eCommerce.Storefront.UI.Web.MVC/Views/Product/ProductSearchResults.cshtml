@@ -35,8 +35,20 @@
     // Vars to store data on the last refinement selection.
     var lastSelectedRefinementItemId;
     var lastSelectedRefinementGroupId;
-    // Flag to show if last action was a narrowing or critera widerning selection.  
+    // Flag to show if last action was a narrowing or critera widerning selection.
     var lastActionWasToNarrowProductRefinement = false;
+
+    // Admin-entered strings (product names, brand names) are rendered client-side by
+    // jTemplates, which inserts values as raw HTML — never HTML-encodes them. Escape
+    // before templating so a malicious value cannot execute script in a customer's browser.
+    function escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return value;
+        }
+        
+        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
 
     // OnPage Load function, run when DOM is fully loaded.
     // =================================================================
@@ -133,6 +145,16 @@
                 contentType: 'application/json; charset=utf-8',
                 success: function(data) {
                     var mydata = { items: data.products };
+
+                    if (data.products) {
+                        $.each(data.products, function (_, product) {
+                            if (!product) {
+                                return;
+                            }
+                            product.name = escapeHtml(product.name);
+                            product.brandName = escapeHtml(product.brandName);
+                        });
+                    }
 
                     if (data.products.length == 0) {
                         showNoProductsFoundDialogBoxAndRevertSelection();

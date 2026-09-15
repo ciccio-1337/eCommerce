@@ -1,5 +1,6 @@
 @model eCommerce.Storefront.Services.ViewModels.DeliveryAddressView
 
+@Html.AntiForgeryToken()
 @Html.Hidden("Id", Model.Id)
 <p>
     <label for="Name">Name</label><br />

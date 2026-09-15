@@ -121,10 +121,26 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             if (response == "VERIFIED")
             {
+                // The IPN must belong to OUR merchant account. PayPal returns the
+                // receiver of the payment here; a transaction between two accounts the
+                // attacker controls is also "VERIFIED" and would otherwise satisfy the
+                // remaining checks (amount, currency), letting the attacker mark any
+                // order paid while paying themselves. This is the standard
+                // receiver_email defence from the PayPal IPN integration guide.
+                var configuredBusinessEmail = _configuration["PayPalBusinessEmail"];
+
+                if (string.IsNullOrWhiteSpace(configuredBusinessEmail)
+                    || !string.Equals(collection["receiver_email"], configuredBusinessEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("PayPal IPN: receiver_email '{Receiver}' does not match configured business email for order {OrderId}; ignoring.", collection["receiver_email"], orderRequest.Id);
+
+                    return transactionResult;
+                }
+
                 // Only accept completed payments — pending e-checks or authorisations
                 // must not mark the order as paid.
                 var paymentStatus = collection["payment_status"];
-                
+
                 if (!string.Equals(paymentStatus, "Completed", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning("PayPal IPN: payment_status '{Status}' for order {OrderId} is not Completed; ignoring.", paymentStatus, orderRequest.Id);

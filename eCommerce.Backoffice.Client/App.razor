@@ -1,23 +1,17 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
-@inject NavigationManager navManager
+@using Microsoft.AspNetCore.Components.Routing
 
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(Program).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    @if (true) 
-                    { 
-                        navManager.NavigateTo("/admin/account/login"); 
-                    }
+                    <Redirect To="/admin/account/login" />
                 </NotAuthorized>
             </AuthorizeRouteView>
         </Found>
         <NotFound>
-            @if (true) 
-            { 
-                navManager.NavigateTo("/admin"); 
-            }
+            <Redirect To="/admin" />
         </NotFound>
     </Router>
 </CascadingAuthenticationState>

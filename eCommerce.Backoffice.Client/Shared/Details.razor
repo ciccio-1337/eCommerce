@@ -21,7 +21,7 @@
 
                 @if (CanDelete)
                 {
-                    <RadzenButton ButtonType="Radzen.ButtonType.Button" Text="Delete" Click="@(() => OnDelete.InvokeAsync(Item))" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-2 col" />
+                    <RadzenButton ButtonType="Radzen.ButtonType.Button" Text="Delete" Click="@(() => OnDelete.InvokeAsync(Item))" ButtonStyle="Radzen.ButtonStyle.Danger" class="mr-2 col" ConfirmText="Are you sure you want to delete this?" ConfirmTitle="Delete Confirmation" ConfirmButtonStyle="Radzen.ButtonStyle.Danger" />
                 }
 
                 @if (CanCancel)

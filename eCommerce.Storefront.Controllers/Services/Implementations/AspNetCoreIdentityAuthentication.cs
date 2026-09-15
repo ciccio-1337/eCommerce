@@ -17,10 +17,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             var user = new User();
             var identityUser = await _signInManager.UserManager.FindByEmailAsync(email);
 
-            if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, false)).Succeeded)
+            if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, true)).Succeeded)
             {
                 user.Id = identityUser.Id;
-                user.Email = email;
+                // Use the canonical email stored in the Identity store, not the raw login
+                // input. The auth-token cookie drives later lookups (GetAuthenticationToken)
+                // and the customer profile; echoing raw case variants would silently
+                // re-canonicalise the registered address on the next profile save.
+                user.Email = identityUser.Email ?? email;
                 user.IsAuthenticated = true;
                 user.Roles = await _signInManager.UserManager.GetRolesAsync(identityUser);
             }
@@ -79,9 +83,21 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             }
             else
             {
-                if (result.Errors?.Count() > 0)
+                var firstError = result.Errors?.FirstOrDefault();
+
+                if (firstError != null)
                 {
-                    throw new InvalidOperationException(result.Errors?.FirstOrDefault()?.Description);
+                    // Identity's duplicate-account error description quotes the email
+                    // ("Username 'a@b.c' is already taken."). Echoing it verbatim lets
+                    // attackers probe which addresses are registered, so map those codes
+                    // to a neutral message that does not confirm the account exists.
+                    if (string.Equals(firstError.Code, "DuplicateUserName", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(firstError.Code, "DuplicateEmail", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException("Registration could not be completed. If you already have an account, please log in.");
+                    }
+
+                    throw new InvalidOperationException(firstError.Description);
                 }
                 else
                 {

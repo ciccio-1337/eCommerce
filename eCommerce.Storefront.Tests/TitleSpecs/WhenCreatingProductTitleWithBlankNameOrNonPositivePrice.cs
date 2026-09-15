@@ -19,7 +19,6 @@ namespace eCommerce.Storefront.Tests.TitleSpecs
                 Brand = new Brand(),
                 Category = new Category(),
                 Color = new ProductColor(),
-                Products = null
             };
         }
 

@@ -6,8 +6,9 @@
 @model eCommerce.Storefront.Controllers.ViewModels.Checkout.OrderConfirmationView
 
 <h2>Confirm Order</h2>    
-@using (Html.BeginForm("PlaceOrder", "Checkout")) 
+@using (Html.BeginForm("PlaceOrder", "Checkout"))
 {
+    @Html.AntiForgeryToken()
     <text>Delivery Address</text>
     <select id="DeliveryAddress" name="DeliveryAddress">
     @foreach (var deliveryAddress in Model.DeliveryAddresses)

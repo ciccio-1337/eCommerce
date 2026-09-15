@@ -29,7 +29,6 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
                     Brand = new Brand(),
                     Category = new Category(),
                     Color = new ProductColor(),
-                    Products = null
                 },
                 Size = new ProductSize()
             };

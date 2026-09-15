@@ -31,11 +31,18 @@
     {
         if (Id.HasValue)
         {
-            brand = await HttpClient.GetFromJsonAsync<BrandDto>($"{route}/{Id}");
+            try
+            {
+                brand = await HttpClient.GetFromJsonAsync<BrandDto>($"{route}/{Id}");
+            }
+            catch (Exception)
+            {
+                error = "Unable to load the brand. Check the Id and try again.";
+            }
         }
         else
         {
-            brand = new BrandDto();   
+            brand = new BrandDto();
         }
     }
 

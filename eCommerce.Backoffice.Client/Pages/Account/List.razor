@@ -11,13 +11,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var accounts = await HttpClient.GetFromJsonAsync<List<UserListItem>>(route);
-
-        model = new GridModel<UserListItem>
+        try
         {
-            Rows = accounts,
-            UseAnnotations = true
-        };
+            var accounts = await HttpClient.GetFromJsonAsync<List<UserListItem>>(route);
+
+            model = new GridModel<UserListItem>
+            {
+                Rows = accounts ?? new List<UserListItem>(),
+                UseAnnotations = true
+            };
+        }
+        catch (Exception)
+        {
+            model = new GridModel<UserListItem>
+            {
+                Rows = new List<UserListItem>(),
+                UseAnnotations = true
+            };
+        }
     }
 
     async Task DeleteAccountAsync(UserListItem item)
