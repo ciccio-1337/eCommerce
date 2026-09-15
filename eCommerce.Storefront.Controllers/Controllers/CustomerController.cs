@@ -1,5 +1,6 @@
 using System.Linq;
 using eCommerce.Storefront.Controllers.ViewModels.CustomerAccount;
+using eCommerce.Storefront.Services.Implementations;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.CustomerService;
 using eCommerce.Storefront.Services.ViewModels;
@@ -75,6 +76,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 await _cookieAuthentication.SetAuthenticationTokenAsync(userId, customerDetailView.Customer.Email, ["Customer"]);
             }
             catch (EntityBaseIsInvalidException ex)
+            {
+                ViewData["IssueMessage"] = ex.Message;
+                customerDetailView.Customer = customerView;
+            }
+            catch (EmailAlreadyInUseException ex)
             {
                 ViewData["IssueMessage"] = ex.Message;
                 customerDetailView.Customer = customerView;

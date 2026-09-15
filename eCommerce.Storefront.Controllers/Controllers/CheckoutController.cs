@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.ViewModels.Checkout;
+using eCommerce.Storefront.Services.Implementations;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.CustomerService;
 using eCommerce.Storefront.Services.Messaging.OrderService;
@@ -113,7 +114,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken(),
                 DeliveryId = deliveryId
             };
-            var response = await _orderService.CreateOrderAsync(request);
+
+            CreateOrderResponse response;
+
+            try
+            {
+                response = await _orderService.CreateOrderAsync(request);
+            }
+            catch (DeliveryAddressNotFoundException)
+            {
+                // The selected delivery address no longer exists (removed in another tab).
+                return BadRequest("The selected delivery address is no longer available. Please choose another one.");
+            }
 
             if (response.Order == null)
             {

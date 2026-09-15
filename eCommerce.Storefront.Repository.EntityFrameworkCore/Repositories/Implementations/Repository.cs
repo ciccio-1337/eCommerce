@@ -66,11 +66,18 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
                 }
 
                 _dataContext.Set<T>().Attach(entity);
+
+                // The entity arrived here detached (e.g. rebuilt from a JSON DTO by the
+                // backoffice). Attach alone leaves it Unchanged, so SaveChanges would emit
+                // no UPDATE and silently drop the edit. Marking the whole row Modified is
+                // the correct PUT semantics for this path.
+                _dataContext.Entry(entity).State = EntityState.Modified;
             }
 
-            // Let EF Core's change tracker diff the entity against its original values.
-            // NO manual IsModified forcing — force-marking every property breaks
-            // concurrent-update semantics (last-writer-wins on unchanged fields).
+            // Tracked entities (loaded through this context by storefront services) skip
+            // the branch above: EF Core's change tracker diffs them against their original
+            // values, so no manual IsModified forcing is needed (forced marking would
+            // clobber concurrent changes to unrelated fields).
         }
 
         public void Remove(T entity)

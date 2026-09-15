@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Model.Orders;
 using eCommerce.Storefront.Services.Interfaces;
@@ -77,12 +79,34 @@ namespace eCommerce.Storefront.Services.Implementations
                 throw new CustomerNotFoundException(request.CurrentEmail);
             customer.FirstName = request.FirstName;
             customer.SecondName = request.SecondName;
+
+            if (!string.Equals(customer.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                var existingUserWithNewEmail = await _customerRepository.FindByAsync(request.NewEmail);
+
+                if (existingUserWithNewEmail != null)
+                {
+                    throw new EmailAlreadyInUseException(request.NewEmail);
+                }
+            }
+
             customer.Email = request.NewEmail;
 
             customer.ThrowExceptionIfInvalid();
-            _customerRepository.Save(customer);
-            await _customerRepository.SaveEmailAsync(customer.UserId, customer.Email);
-            await _uow.CommitAsync();
+
+            try
+            {
+                _customerRepository.Save(customer);
+                await _customerRepository.SaveEmailAsync(customer.UserId, customer.Email);
+                await _uow.CommitAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // The new email's normalized form collided with another account's unique
+                // NormalizedEmail/NormalizedUserName (the race between the check above and
+                // the commit). Surface it as a user-facing validation error, not a 500.
+                throw new EmailAlreadyInUseException(request.NewEmail);
+            }
 
             response.Customer = _mapper.Map<Customer, CustomerView>(customer);
 

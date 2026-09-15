@@ -50,6 +50,13 @@ namespace eCommerce.Storefront.Services.Implementations
             }
 
             var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.DeliveryId);
+
+            if (deliveryAddress == null)
+            {
+                // e.g. the address was deleted in another tab since checkout started.
+                throw new DeliveryAddressNotFoundException(request.DeliveryId);
+            }
+
             var order = ConvertToOrder(basket);
 
             order.Customer = customer;
