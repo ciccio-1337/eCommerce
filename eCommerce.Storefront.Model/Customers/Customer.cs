@@ -17,7 +17,11 @@ namespace eCommerce.Storefront.Model.Customers
         public string FirstName { get; set; }
         public string SecondName { get; set; }
         public string Email { get; set; }
-        public IList<Order> Orders { get; set; } = [];
+        // Getter-only so callers cannot swap the whole collection (which would
+        // make EF treat previously-loaded orders as removed). EF Core populates
+        // the collection items; a public setter here would also make it easy to
+        // accidentally orphan orders via replacement.
+        public List<Order> Orders { get; } = [];
 
         public void AddAddress(DeliveryAddress deliveryAddress)
         {
@@ -26,9 +30,11 @@ namespace eCommerce.Storefront.Model.Customers
             _deliveryAddressBook.Add(deliveryAddress);
         }
 
-        public IEnumerable<DeliveryAddress> DeliveryAddressBook
+        // Read-only view over the address book; additions go through AddAddress.
+        // EF Core fix-up writes to the backing field.
+        public IReadOnlyList<DeliveryAddress> DeliveryAddressBook
         {
-            get { return _deliveryAddressBook; }
+            get { return _deliveryAddressBook.AsReadOnly(); }
         }
 
         public void AddBasket(Basket.Basket basket)

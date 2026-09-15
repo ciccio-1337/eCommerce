@@ -11,7 +11,7 @@ namespace eCommerce.Storefront.Model.Orders
 {
     public class Order : EntityBase<long>
     {
-        private readonly IList<OrderItem> _items;
+        private readonly List<OrderItem> _items;
         private readonly DateTime _created;
         private readonly Lock _paymentLock = new();
         private Payment _payment;
@@ -105,9 +105,13 @@ namespace eCommerce.Storefront.Model.Orders
 
         public DeliveryAddress DeliveryAddress { get; set; }
 
-        public IEnumerable<OrderItem> Items
+        // Expose items through a read-only view so callers cannot mutate the
+        // collection, add new lines, or drop existing lines out-of-band. EF Core
+        // materializes the items by writing to the backing field, exactly like
+        // Basket.Items and ProductTitle.Products.
+        public IReadOnlyList<OrderItem> Items
         {
-            get { return _items; }
+            get { return _items.AsReadOnly(); }
         }
 
         public OrderStatus Status { get; set; }
@@ -195,6 +199,11 @@ namespace eCommerce.Storefront.Model.Orders
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(ShippingService), Rule = "An order must have a shipping service set." });
             }
+
+            if (ShippingCharge < 0)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(ShippingCharge), Rule = "The shipping charge cannot be negative." });
+            }
         }
 
         public override string ToString()
@@ -203,7 +212,7 @@ namespace eCommerce.Storefront.Model.Orders
 
             foreach (OrderItem item in _items)
             {
-                orderInfo.AppendLine(string.Format("{0} of {1} ", item.Qty, item.Product.Name));
+                orderInfo.AppendLine(string.Format("{0} of {1} ", item.Qty, item.Product?.Name ?? "<unknown product>"));
             }
 
             orderInfo.AppendLine(string.Format("Shipping: {0}", ShippingCharge));
