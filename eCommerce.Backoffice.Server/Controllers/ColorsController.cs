@@ -5,6 +5,7 @@ using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model.Products;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,9 +17,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class ColorsController(IEntityService<ProductColor, long> colorService, ILogger<ColorsController> logger) : ControllerBase
+    public class ColorsController(IEntityService<ProductColor, long> colorService,
+        ICachedProductCatalogService cachedProductCatalogService,
+        ILogger<ColorsController> logger) : ControllerBase
     {
         private readonly IEntityService<ProductColor, long> _colorService = colorService;
+        private readonly ICachedProductCatalogService _cachedProductCatalogService = cachedProductCatalogService;
         private readonly ILogger<ColorsController> _logger = logger;
 
         [HttpGet]
@@ -62,6 +66,8 @@ namespace eCommerce.Backoffice.Server.Controllers
                 });
 
                 color.Id = productColor.Id;
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {
@@ -86,6 +92,8 @@ namespace eCommerce.Backoffice.Server.Controllers
                     Id = color.Id,
                     Name = color.Name
                 });
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -105,6 +113,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             try
             {
                 await _colorService.DeleteAsync(id);
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {

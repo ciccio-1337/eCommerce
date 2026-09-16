@@ -1,7 +1,9 @@
+#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Threading;
 using MapsterMapper;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
@@ -24,54 +26,51 @@ namespace eCommerce.Storefront.Services.Cache
         private readonly IProductTitleRepository _productTitleRepository = productTitleRepository;
         private readonly IProductRepository _productRepository = productRepository;
         private readonly Lock _getTopSellingProductsLock = new();
-        private readonly SemaphoreSlim _getAllProductTitlesLock = new(1, 1);
-        private readonly SemaphoreSlim _getAllProductsLock = new(1, 1);
+        private readonly Lock _getAllProductTitlesLock = new();
+        private readonly Lock _getAllProductsLock = new();
         private readonly Lock _getAllCategoriesLock = new();
         private readonly IMapper _mapper = mapper;
 
-        private async Task<IEnumerable<ProductTitle>> FindAllProductTitlesAsync()
+        // Invalidate all product-related cache entries. Called by backoffice
+        // controllers after mutating brands, colors, sizes, categories, or products.
+        public void InvalidateProductCaches()
         {
-            await _getAllProductTitlesLock.WaitAsync();
+            _cacheStorage.Remove(CacheKeys.AllProductTitles.ToString());
+            _cacheStorage.Remove(CacheKeys.AllProducts.ToString());
+            _cacheStorage.Remove(CacheKeys.TopSellingProducts.ToString());
+            _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
+        }
 
-            try
+        private async Task<IReadOnlyList<ProductTitle>> FindAllProductTitlesAsync()
+        {
+            lock (_getAllProductTitlesLock)
             {
-                var allProductTitles = _cacheStorage.Retrieve<IEnumerable<ProductTitle>>(CacheKeys.AllProductTitles.ToString());
-
-                if (allProductTitles == null)
+                if (!_cacheStorage.TryRetrieve(CacheKeys.AllProductTitles.ToString(), out IReadOnlyList<ProductTitle>? allProductTitles))
                 {
-                    allProductTitles = await _productTitleRepository.FindAll().ToListAsync();
+                    // Materialize and cache an IMMUTABLE snapshot so callers cannot
+                    // mutate the cached entities (ProductTitle has mutable navigations).
+                    allProductTitles = _productTitleRepository.FindAll().ToList().AsReadOnly();
 
                     _cacheStorage.Store(CacheKeys.AllProductTitles.ToString(), allProductTitles);
                 }
 
-                return allProductTitles;
-            }
-            finally
-            {
-                _getAllProductTitlesLock.Release();
+                return allProductTitles ?? new List<ProductTitle>().AsReadOnly();
             }
         }
 
-        private async Task<IEnumerable<Product>> FindAllProductsAsync()
+        private async Task<IReadOnlyList<Product>> FindAllProductsAsync()
         {
-            await _getAllProductsLock.WaitAsync();
-
-            try
+            lock (_getAllProductsLock)
             {
-                var allProducts = _cacheStorage.Retrieve<IEnumerable<Product>>(CacheKeys.AllProducts.ToString());
-
-                if (allProducts == null)
+                if (!_cacheStorage.TryRetrieve(CacheKeys.AllProducts.ToString(), out IReadOnlyList<Product>? allProducts))
                 {
-                    allProducts = await _productRepository.FindAll().ToListAsync();
+                    // Materialize and cache an IMMUTABLE snapshot.
+                    allProducts = _productRepository.FindAll().ToList().AsReadOnly();
 
                     _cacheStorage.Store(CacheKeys.AllProducts.ToString(), allProducts);
                 }
 
-                return allProducts;
-            }
-            finally
-            {
-                _getAllProductsLock.Release();
+                return allProducts ?? new List<Product>().AsReadOnly();
             }
         }
 
@@ -80,58 +79,40 @@ namespace eCommerce.Storefront.Services.Cache
             lock (_getTopSellingProductsLock)
             {
                 var response = new GetFeaturedProductsResponse();
-                var productViews = _cacheStorage.Retrieve<IEnumerable<ProductSummaryView>>(CacheKeys.TopSellingProducts.ToString());
 
-                if (productViews == null)
+                if (!_cacheStorage.TryRetrieve(CacheKeys.TopSellingProducts.ToString(), out IReadOnlyList<ProductSummaryView>? productViews))
                 {
                     response = _productCatalogService.GetFeaturedProducts();
 
-                    _cacheStorage.Store(CacheKeys.TopSellingProducts.ToString(), response.Products.ToList());
+                    // Cache an IMMUTABLE snapshot of the view models.
+                    _cacheStorage.Store(CacheKeys.TopSellingProducts.ToString(), response.Products.ToList().AsReadOnly());
                 }
                 else
                 {
-                    response.Products = productViews;
+                    // Return a NEW response object with the cached (immutable) views.
+                    // Callers get their own list instance so mutations don't leak.
+                    response.Products = productViews.ToList();
                 }
 
                 return response;
             }
         }
 
+        // DELEGATE to the inner service so the SQL path (with its exact filter
+        // semantics) is used. The cached AllProducts is NOT used here — this avoids
+        // the divergence bug where in-memory specs differ from the EF expression tree.
         public async Task<GetProductsByCategoryResponse> GetProductsByCategoryAsync(GetProductsByCategoryRequest request)
         {
-            var colourSpecification = new ProductIsInColorSpecification(request.ColorIds);
-            var brandSpecification = new ProductIsInBrandSpecification(request.BrandIds);
-            var sizeSpecification = new ProductIsInSizeSpecification(request.SizeIds);
-            var categorySpecification = new ProductIsInCategorySpecification(request.CategoryId);
-            var matchingProducts = (await FindAllProductsAsync()).Where(colourSpecification.IsSatisfiedBy)
-                .Where(brandSpecification.IsSatisfiedBy)
-                .Where(sizeSpecification.IsSatisfiedBy)
-                .Where(categorySpecification.IsSatisfiedBy);
-
-            switch (request.SortBy)
-            {
-                case ProductsSortBy.PriceLowToHigh:
-                    matchingProducts = matchingProducts.OrderBy(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name);
-
-                    break;
-                case ProductsSortBy.PriceHighToLow:
-                    matchingProducts = matchingProducts.OrderByDescending(p => p.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Name);
-
-                    break;
-            }
-
-            var response = CreateProductSearchResultFrom(matchingProducts, request);
-
-            response.SelectedCategoryName = GetAllCategories().Categories.FirstOrDefault(c => c.Id == request.CategoryId)?.Name;
-
-            return response;
+            return await _productCatalogService.GetProductsByCategoryAsync(request);
         }
 
         public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
+            var allTitles = await FindAllProductTitlesAsync();
+
             var response = new GetProductResponse
             {
-                Product = _mapper.Map<ProductTitle, ProductView>((await FindAllProductTitlesAsync()).FirstOrDefault(p => p.Id == request.ProductId))
+                Product = _mapper.Map<ProductTitle, ProductView>(allTitles.FirstOrDefault(p => p.Id == request.ProductId))
             };
 
             return response;
@@ -141,17 +122,21 @@ namespace eCommerce.Storefront.Services.Cache
         {
             lock (_getAllCategoriesLock)
             {
-                var response = _cacheStorage.Retrieve<GetAllCategoriesResponse>(CacheKeys.AllCategories.ToString());
-
-                if (response == null)
+                if (!_cacheStorage.TryRetrieve(CacheKeys.AllCategories.ToString(), out GetAllCategoriesResponse? response))
                 {
                     response = _productCatalogService.GetAllCategories();
+                    // Store an IMMUTABLE snapshot: new array of CategoryView.
                     response.Categories = [.. response.Categories];
 
                     _cacheStorage.Store(CacheKeys.AllCategories.ToString(), response);
                 }
 
-                return response;
+                // Return a fresh response with a fresh categories array so
+                // callers mutating the array or CategoryView don't affect cache.
+                return new GetAllCategoriesResponse
+                {
+                    Categories = response.Categories?.ToArray() ?? Array.Empty<CategoryView>()
+                };
             }
         }
 
@@ -161,3 +146,4 @@ namespace eCommerce.Storefront.Services.Cache
         }
     }
 }
+#nullable restore

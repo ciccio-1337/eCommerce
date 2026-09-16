@@ -158,7 +158,21 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            await _customerService.ModifyDeliveryAddressAsync(request);
+            try
+            {
+                await _customerService.ModifyDeliveryAddressAsync(request);
+            }
+            catch (CustomerNotFoundException)
+            {
+                await _cookieAuthentication.SignOutAsync();
+                return RedirectToAction("Register", "AccountRegister");
+            }
+            catch (DeliveryAddressNotFoundException)
+            {
+                // Stale address ID — silent redirect back to list is the existing
+                // GET behavior; keep it consistent.
+                return RedirectToAction("DeliveryAddresses");
+            }
 
             return await DeliveryAddresses();
         }
@@ -183,7 +197,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            await _customerService.AddDeliveryAddressAsync(request);
+            try
+            {
+                await _customerService.AddDeliveryAddressAsync(request);
+            }
+            catch (CustomerNotFoundException)
+            {
+                await _cookieAuthentication.SignOutAsync();
+                return RedirectToAction("Register", "AccountRegister");
+            }
 
             return await DeliveryAddresses();
         }

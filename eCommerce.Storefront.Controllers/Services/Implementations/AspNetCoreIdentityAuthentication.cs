@@ -107,5 +107,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             return user;
         }
+
+        public async Task DeleteUserAsync(string userId)
+        {
+            var identityUser = await _signInManager.UserManager.FindByIdAsync(userId);
+            if (identityUser != null)
+            {
+                await _signInManager.UserManager.DeleteAsync(identityUser);
+            }
+        }
     }
 }

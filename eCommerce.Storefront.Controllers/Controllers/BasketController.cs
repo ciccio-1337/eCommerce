@@ -10,6 +10,7 @@ using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using System.Threading.Tasks;
+using eCommerce.Storefront.Model;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -51,7 +52,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             request.BasketId = await GetBasketIdAsync();
 
-            var response = await _basketService.ModifyBasketAsync(request);
+            ModifyBasketResponse response;
+
+            try
+            {
+                response = await _basketService.ModifyBasketAsync(request);
+            }
+            catch (BasketDoesNotExistException)
+            {
+                // The basket was deleted (stale cookie, concurrent tab, manual cleanup).
+                // Return NotFound so the client can re-load the basket or start fresh.
+                return NotFound();
+            }
 
             if (response.Basket == null)
             {
@@ -91,7 +103,12 @@ namespace eCommerce.Storefront.Controllers.Controllers
             catch (DeliveryOptionNotFoundException)
             {
                 // A stale or tampered shipping-service id must not 500 the page.
-                return BadRequest("The selected delivery option is no longer available.");
+                return BadRequest(new { error = "The selected delivery option is no longer available." });
+            }
+            catch (BasketDoesNotExistException)
+            {
+                // Basket deleted concurrently (stale cookie, another tab).
+                return NotFound();
             }
 
             if (response.Basket == null)
@@ -118,13 +135,34 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return BadRequest();
             }
 
+            // Validate quantities > 0. The service treats <= 0 as "remove line", which
+            // should be an explicit user action (RemoveItem), not a silent side-effect
+            // of a bad qty value.
+            foreach (var item in jsonBasketQtyUpdateRequest.Items)
+            {
+                if (item.Qty <= 0)
+                {
+                    return BadRequest(new { error = "Quantity must be greater than zero." });
+                }
+            }
+
             var request = new ModifyBasketRequest
             {
                 BasketId = await GetBasketIdAsync(),
                 ItemsToUpdate = jsonBasketQtyUpdateRequest.ConvertToBasketItemUpdateRequests()
             };
             var basketDetailView = new BasketDetailView();
-            var response = await _basketService.ModifyBasketAsync(request);
+
+            ModifyBasketResponse response;
+
+            try
+            {
+                response = await _basketService.ModifyBasketAsync(request);
+            }
+            catch (BasketDoesNotExistException)
+            {
+                return NotFound();
+            }
 
             if (response.Basket == null)
             {

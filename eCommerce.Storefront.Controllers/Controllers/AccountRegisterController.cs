@@ -38,7 +38,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             await _shopDataContext.Database.BeginTransactionAsync();
 
-            User user;
+            User user = null;
 
             try
             {
@@ -60,6 +60,19 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 await SafeRollbackAsync();
                 _logger.LogError(ex, "An error occurred while registering user with email {Email}.", email);
+
+                // Identity user was created but customer creation will fail —
+                // attempt to clean up the orphaned Identity user so the email
+                // can be re-used. If this fails, we still surface the original
+                // error; the orphan is a lesser evil than a 500.
+                try
+                {
+                    await _authenticationService.DeleteUserAsync(user.Id);
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogError(cleanupEx, "Failed to delete orphaned Identity user {UserId} after registration failure.", user.Id);
+                }
 
                 throw;
             }

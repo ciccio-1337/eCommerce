@@ -9,6 +9,7 @@ using eCommerce.Storefront.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using eCommerce.Storefront.Services.Cache;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -16,9 +17,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class BrandsController(IEntityService<Brand, long> brandService, ILogger<BrandsController> logger) : ControllerBase
+    public class BrandsController(IEntityService<Brand, long> brandService,
+        ICachedProductCatalogService cachedProductCatalogService,
+        ILogger<BrandsController> logger) : ControllerBase
     {
         private readonly IEntityService<Brand, long> _brandService = brandService;
+        private readonly ICachedProductCatalogService _cachedProductCatalogService = cachedProductCatalogService;
         private readonly ILogger<BrandsController> _logger = logger;
 
         [HttpGet]
@@ -62,6 +66,8 @@ namespace eCommerce.Backoffice.Server.Controllers
                 });
 
                 brand.Id = b.Id;
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {
@@ -86,6 +92,8 @@ namespace eCommerce.Backoffice.Server.Controllers
                     Id = brand.Id,
                     Name = brand.Name
                 });
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -105,6 +113,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             try
             {
                 await _brandService.DeleteAsync(id);
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {

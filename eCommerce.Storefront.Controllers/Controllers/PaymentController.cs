@@ -38,10 +38,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
             catch (FormatException ex)
             {
                 // A malformed or missing 'custom' field means we cannot identify the order.
-                // Return 400 so PayPal does not enter an infinite IPN retry loop.
+                // Always return 200 OK so PayPal stops retrying; log for audit.
                 _logger.LogWarning(ex, "PaymentCallBack: received IPN with missing or invalid 'custom' field.");
 
-                return BadRequest();
+                return Ok();
             }
 
             var request = new GetOrderRequest
@@ -54,7 +54,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 _logger.LogError("PaymentCallBack: Order {OrderId} could not be retrieved.", orderId);
 
-                return BadRequest();
+                return Ok();
             }
 
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);
@@ -86,7 +86,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 {
                     _logger.LogError(ex, "IPN amount mismatch for order {OrderId}; rejecting.", orderId);
 
-                    return BadRequest("Payment amount does not match order total.");
+                    return Ok();
                 }
 
                 return Ok();
@@ -95,7 +95,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
             {
                 _logger.LogWarning("Payment not ok for order id {OrderId}, payment token {PaymentToken}", orderId, transactionResult.PaymentToken);
 
-                return BadRequest();
+                // Always 200 OK to stop PayPal retries; the order remains unpaid.
+                return Ok();
             }
         }
 

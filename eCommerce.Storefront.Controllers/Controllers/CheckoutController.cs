@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using eCommerce.Storefront.Model;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -79,7 +80,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 CustomerEmail = _cookieAuthentication.GetAuthenticationToken()
             };
 
-            await _customerService.AddDeliveryAddressAsync(request);
+            try
+            {
+                await _customerService.AddDeliveryAddressAsync(request);
+            }
+            catch (CustomerNotFoundException)
+            {
+                await _cookieAuthentication.SignOutAsync();
+                return RedirectToAction("Register", "AccountRegister");
+            }
 
             return await Checkout();
         }

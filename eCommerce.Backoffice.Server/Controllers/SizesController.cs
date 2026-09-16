@@ -5,6 +5,7 @@ using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Model.Products;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,9 +17,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
-    public class SizesController(IEntityService<ProductSize, long> sizeService, ILogger<SizesController> logger) : ControllerBase
+    public class SizesController(IEntityService<ProductSize, long> sizeService,
+        ICachedProductCatalogService cachedProductCatalogService,
+        ILogger<SizesController> logger) : ControllerBase
     {
         private readonly IEntityService<ProductSize, long> _sizeService = sizeService;
+        private readonly ICachedProductCatalogService _cachedProductCatalogService = cachedProductCatalogService;
         private readonly ILogger<SizesController> _logger = logger;
 
         [HttpGet]
@@ -54,6 +58,8 @@ namespace eCommerce.Backoffice.Server.Controllers
                 var productSize = await _sizeService.CreateAsync(new ProductSize { Id = size.Id, Name = size.Name });
 
                 size.Id = productSize.Id;
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {
@@ -74,6 +80,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             try
             {
                 await _sizeService.ModifyAsync(new ProductSize { Id = size.Id, Name = size.Name });
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -93,6 +101,8 @@ namespace eCommerce.Backoffice.Server.Controllers
             try
             {
                 await _sizeService.DeleteAsync(id);
+
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {
