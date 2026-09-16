@@ -29,6 +29,8 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        error = null;
+
         if (Id.HasValue)
         {
             try
@@ -37,7 +39,11 @@
             }
             catch (Exception)
             {
+                // Show the (disabled-save) form with an error banner instead of a
+                // permanent "Loading..." spinner when the record was deleted or the
+                // API is briefly down.
                 error = "Unable to load the color. Check the Id and try again.";
+                color = new ProductColorDto();
             }
         }
         else

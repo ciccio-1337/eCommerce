@@ -49,14 +49,41 @@
 
     public async Task UserLoginAsync()
     {
-        var httpResponse = await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model);
-        
-        loginResponse = await httpResponse.Content.ReadFromJsonAsync<LoginResponse>();
-
-        if (loginResponse != null && loginResponse.IsSuccess)
+        try
         {
-            await loginService.LoginAsync(loginResponse.Email);
-            navManager.NavigateTo("/admin");
+            var httpResponse = await Http.PostAsJsonAsync<LoginRequest>("api/accounts/login", model);
+
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                // Sign-in failures can carry a problem-details body instead of
+                // LoginResponse; treat any non-2xx as an invalid-credentials error
+                // rather than letting deserialization throw past the form.
+                loginResponse = new LoginResponse
+                {
+                    IsSuccess = false,
+                    Errors = ["Email or password is incorrect."]
+                };
+
+                return;
+            }
+
+            loginResponse = await httpResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+            if (loginResponse != null && loginResponse.IsSuccess)
+            {
+                await loginService.LoginAsync(loginResponse.Email);
+                navManager.NavigateTo("/admin");
+            }
+        }
+        catch (Exception)
+        {
+            // A network failure or a transient server error must not crash the
+            // login page; show a recoverable message instead.
+            loginResponse = new LoginResponse
+            {
+                IsSuccess = false,
+                Errors = ["Unable to reach the server. Please try again."]
+            };
         }
     }
 

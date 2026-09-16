@@ -238,7 +238,13 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (user == null)
             {
-                return NotFound();
+                // Generic failure instead of 404 so the response never reveals which
+                // emails are registered (email enumeration).
+                return Ok(new ChangePasswordResponse
+                {
+                    IsSuccess = false,
+                    Errors = ["The password reset link is invalid or has expired."]
+                });
             }
 
             try
@@ -254,7 +260,11 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
             catch (DbUpdateConcurrencyException) when (!_signInManager.UserManager.Users.AsNoTracking().Any(u => u.Email == changePasswordRequest.Email))
             {
-                return NotFound();
+                return Ok(new ChangePasswordResponse
+                {
+                    IsSuccess = false,
+                    Errors = ["The password reset link is invalid or has expired."]
+                });
             }
         }
 

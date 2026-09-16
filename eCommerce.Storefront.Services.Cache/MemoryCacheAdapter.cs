@@ -32,7 +32,7 @@ namespace eCommerce.Storefront.Services.Cache
         // callers should prefer TryRetrieve where the distinction matters.
         public T Retrieve<T>(string storageKey)
         {
-            return _memoryCache.Get<T>(storageKey) ?? default;
+            return _memoryCache.Get<T>(storageKey) ?? default!;
         }
 
         // Distinguishes "not in cache" (returns false) from "cached null" (returns true, out value null).

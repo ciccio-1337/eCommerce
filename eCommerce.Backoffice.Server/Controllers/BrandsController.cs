@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using System.Threading.Tasks;
@@ -69,6 +70,10 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 _cachedProductCatalogService.InvalidateProductCaches();
             }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                return BadRequest(ex.Message);
+            }
             catch (DbUpdateException ex)
             {
                 return HandleDbUpdateException(ex);
@@ -94,6 +99,10 @@ namespace eCommerce.Backoffice.Server.Controllers
                 });
 
                 _cachedProductCatalogService.InvalidateProductCaches();
+            }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (DbUpdateConcurrencyException)
             {

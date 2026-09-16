@@ -6,7 +6,7 @@
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (!string.IsNullOrEmpty(To))
+        if (firstRender && !string.IsNullOrEmpty(To))
         {
             NavigationManager.NavigateTo(To, forceLoad: true);
         }

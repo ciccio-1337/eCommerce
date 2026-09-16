@@ -92,7 +92,6 @@ else
     private PropertyInfo[] properties;
     private string[] columns;
     private string[] displayFormat;
-    private string[,] rows;
 
     protected override void OnParametersSet()
     {
@@ -101,7 +100,6 @@ else
             properties = typeof(ElementsType).GetProperties();
 
             LoadColumns(properties);
-            LoadRows(properties);
         }
     }
 
@@ -124,24 +122,18 @@ else
         }
         else
         {
+            // Guard against a caller constructing GridModel without Columns. UseAnnotations
+            // means the invocation would NRE below.
+            if (Model.Columns == null)
+            {
+                columns = new string[0];
+                displayFormat = new string[0];
+
+                return;
+            }
+
             columns = Model.Columns.Select(x => x.Caption).ToArray();
             displayFormat = Model.Columns.Select(x => x.Format).ToArray();
-        }
-    }
-
-    private void LoadRows(PropertyInfo[] properties)
-    {
-        rows = new string[Model.Rows.Count, properties.Length];
-
-        for (int row = 0; row < Model.Rows.Count; row++)
-        {
-            for (int col = 0; col < properties.Length; col++)
-            {
-                var val = properties[col].GetValue(Model.Rows[row]);
-
-                rows[row, col] = val == null ? string.Empty : (displayFormat[col] == null ? val.ToString() :
-                string.Format(displayFormat[col], val));
-            }
         }
     }
 }

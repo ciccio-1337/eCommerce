@@ -177,7 +177,16 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
-            await _roleManager.DeleteAsync(role);
+            try
+            {
+                await _roleManager.DeleteAsync(role);
+            }
+            catch (DbUpdateException)
+            {
+                // Deleting a role that is still assigned to users violates the FK
+                // constraint; surface a meaningful 400 instead of a 500.
+                return BadRequest("The role could not be deleted because it is still assigned to one or more users.");
+            }
 
             return NoContent();
         }

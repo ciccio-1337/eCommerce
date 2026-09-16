@@ -112,7 +112,7 @@
         model = new EditRoleRequest
         {
             Id = value.ToString(),
-            Name = roleResponses?.First(x=> x.Id.Equals(value.ToString())).Name ?? string.Empty
+            Name = roleResponses?.FirstOrDefault(x => x.Id.Equals(value.ToString()))?.Name ?? string.Empty
         };
 
         try
@@ -157,14 +157,30 @@
                 }
                 else
                 {
-                    roleResponses.First(x => x.Id.Equals(model.Id)).Name = model.Name;
+                    var existing = roleResponses.FirstOrDefault(x => x.Id.Equals(model.Id));
+                    if (existing != null)
+                    {
+                        existing.Name = model.Name;
+                    }
                 }
 
-                roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{editRoleResponse.Id}/users");
+                // Reload the users-in-role list; a failure here must not leave the
+                // form frozen on stale data (the editor closes regardless).
+                try
+                {
+                    roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{editRoleResponse.Id}/users");
+                }
+                catch (Exception)
+                {
+                    roleUserResponse = new List<RoleUserResponse>();
+                }
+
+                // Clear the selection so the role can be re-opened immediately,
+                // and close the editor.
+                value = null;
+                model = null;
 
                 StateHasChanged();
-
-                model = null;
             }
         }
         catch (Exception)
@@ -227,15 +243,24 @@
         {
             try
             {
-                await Http.DeleteAsync($"api/roles/{model.Id}");
-                roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
-                StateHasChanged();
+                var response = await Http.DeleteAsync($"api/roles/{model.Id}");
 
-                model = null;
+                // Only drop the row from the local list when the server confirmed
+                // the deletion (204). A 404 (already deleted elsewhere) or other
+                // failure must not make the UI claim success.
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
+                    value = null;
+                    model = null;
+                    editRoleResponse = null;
+
+                    StateHasChanged();
+                }
             }
             catch (Exception)
             {
-                // Error during role deletion
+                // Error during role deletion — the role stays in the list.
             }
         }
     }

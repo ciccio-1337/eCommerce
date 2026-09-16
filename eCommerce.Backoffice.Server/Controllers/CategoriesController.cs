@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Model.Products;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
+using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -18,11 +19,11 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     [IgnoreAntiforgeryToken]
     public class CategoriesController(IEntityService<Category, long> categoryService,
-        ICacheStorage cacheStorage,
+        ICachedProductCatalogService cachedProductCatalogService,
         ILogger<CategoriesController> logger) : ControllerBase
     {
         private readonly IEntityService<Category, long> _categoryService = categoryService;
-        private readonly ICacheStorage _cacheStorage = cacheStorage;
+        private readonly ICachedProductCatalogService _cachedProductCatalogService = cachedProductCatalogService;
         private readonly ILogger<CategoriesController> _logger = logger;
 
         [HttpGet]
@@ -67,7 +68,11 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 category.Id = c.Id;
 
-                _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
+                _cachedProductCatalogService.InvalidateProductCaches();
+            }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (DbUpdateException ex)
             {
@@ -92,7 +97,11 @@ namespace eCommerce.Backoffice.Server.Controllers
                     Id = category.Id,
                     Name = category.Name
                 });
-                _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
+                _cachedProductCatalogService.InvalidateProductCaches();
+            }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -112,7 +121,7 @@ namespace eCommerce.Backoffice.Server.Controllers
             try
             {
                 await _categoryService.DeleteAsync(id);
-                _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
+                _cachedProductCatalogService.InvalidateProductCaches();
             }
             catch (DbUpdateException ex)
             {

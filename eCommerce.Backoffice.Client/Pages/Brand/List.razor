@@ -3,11 +3,14 @@
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
+<Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
+
 <Grid Model="model" Title="Brands" ElementsType="BrandDto" OnCreate="@(() => NavigationManager.NavigateTo("/admin/brand/detail"))" OnEdit="@((item) => NavigationManager.NavigateTo($"/admin/brand/detail/{(item as BrandDto)?.Id}"))" OnDelete="@((item) => DeleteBrandAsync(item as BrandDto))" />
 
 @code {
     string route = "api/brands";
     GridModel<BrandDto> model;
+    string error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -33,19 +36,36 @@
 
     async Task DeleteBrandAsync(BrandDto item)
     {
-        var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item?.Id}");
+        if (item?.Id == null)
+        {
+            return;
+        }
 
-        if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
-        {                
-            model.Rows.Remove(item);
+        try
+        {
+            var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
 
-            var rows = model.Rows.ToList();
-            
-            model = new GridModel<BrandDto>
+            if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
             {
-                Rows = rows,
-                UseAnnotations = true
-            };
+                error = null;
+                model.Rows.Remove(item);
+
+                var rows = model.Rows.ToList();
+
+                model = new GridModel<BrandDto>
+                {
+                    Rows = rows,
+                    UseAnnotations = true
+                };
+            }
+            else
+            {
+                error = "The brand could not be deleted. It may already have been removed, or is in use by a product.";
+            }
+        }
+        catch (Exception)
+        {
+            error = "Unable to reach the server. Please try again.";
         }
     }
 }

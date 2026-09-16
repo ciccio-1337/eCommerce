@@ -91,7 +91,8 @@ namespace eCommerce.Storefront.Services.Cache
                 {
                     // Return a NEW response object with the cached (immutable) views.
                     // Callers get their own list instance so mutations don't leak.
-                    response.Products = productViews.ToList();
+                    // 'productViews' is guaranteed non-null when TryRetrieve returned true.
+                    response.Products = productViews!.ToList();
                 }
 
                 return response;
@@ -110,9 +111,13 @@ namespace eCommerce.Storefront.Services.Cache
         {
             var allTitles = await FindAllProductTitlesAsync();
 
+            // Mapster yields a null ProductView for an unknown/missing title, which is
+            // the same shape the uncached service produces for a non-existent product.
+            var title = allTitles.FirstOrDefault(p => p.Id == request.ProductId);
+
             var response = new GetProductResponse
             {
-                Product = _mapper.Map<ProductTitle, ProductView>(allTitles.FirstOrDefault(p => p.Id == request.ProductId))
+                Product = _mapper.Map<ProductTitle, ProductView>(title!)
             };
 
             return response;
@@ -135,7 +140,8 @@ namespace eCommerce.Storefront.Services.Cache
                 // callers mutating the array or CategoryView don't affect cache.
                 return new GetAllCategoriesResponse
                 {
-                    Categories = response.Categories?.ToArray() ?? Array.Empty<CategoryView>()
+                    // 'response' is non-null here: TryRetrieve returned true.
+                    Categories = response!.Categories?.ToArray() ?? Array.Empty<CategoryView>()
                 };
             }
         }
