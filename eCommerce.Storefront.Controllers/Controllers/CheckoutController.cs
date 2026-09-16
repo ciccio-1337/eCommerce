@@ -136,6 +136,12 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 // The selected delivery address no longer exists (removed in another tab).
                 return BadRequest("The selected delivery address is no longer available. Please choose another one.");
             }
+            catch (DeliveryOptionNotFoundException)
+            {
+                // The basket has no delivery option (all options were deleted or none
+                // seeded). Surface a clear error instead of a 500.
+                return BadRequest("No delivery option is available. Please try again later.");
+            }
             catch (BasketDoesNotExistException)
             {
                 // The basket was already converted into an order — e.g. the user double-

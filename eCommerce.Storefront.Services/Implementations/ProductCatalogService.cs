@@ -94,6 +94,9 @@ namespace eCommerce.Storefront.Services.Implementations
             var productsFound = productsMatchingRefinement.Select(p => p.Title).AsEnumerable().DistinctBy(t => t.Id).ToList();
 
             productSearchResultView.SelectedCategory = request.CategoryId;
+            // Index is 1-based throughout paging (see CropProductListToSatisfyGivenIndex);
+            // expose it so views/clients can report "page X of Y".
+            productSearchResultView.CurrentPage = request.Index;
             productSearchResultView.NumberOfTitlesFound = productsFound.GroupBy(t => t.Id).Select(g => g.First()).Count();
             productSearchResultView.TotalNumberOfPages = NoOfResultPagesGiven(request.NumberOfResultsPerPage, productSearchResultView.NumberOfTitlesFound);
             productSearchResultView.RefinementGroups = GenerateAvailableProductRefinementsFrom(productsFound);

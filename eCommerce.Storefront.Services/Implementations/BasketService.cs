@@ -93,8 +93,31 @@ namespace eCommerce.Storefront.Services.Implementations
                 customer.ThrowExceptionIfInvalid();
             }
 
-            _customerRepository.Save(customer);
-            await _uow.CommitAsync();
+            try
+            {
+                _customerRepository.Save(customer);
+                await _uow.CommitAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Two concurrent first-adds can both read customer.Basket == null and each
+                // insert a basket; the unique one-to-one CustomerId FK makes exactly one
+                // win and the loser hits a DbUpdateException here. Recover by reloading
+                // the winner's basket and adding the products to it instead of 500ing.
+                var latest = await _customerRepository.FindByAsync(basketRequest.CustomerEmail);
+
+                if (latest?.Basket == null)
+                {
+                    throw;
+                }
+
+                await AddProductsToBasketAsync(basketRequest.ProductsToAdd, latest.Basket);
+                _customerRepository.Save(latest);
+                await _uow.CommitAsync();
+
+                customer = latest;
+                basket = latest.Basket;
+            }
 
             response.Basket = _mapper.Map<Basket, BasketView>(basket);
 

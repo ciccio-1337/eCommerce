@@ -57,6 +57,15 @@ namespace eCommerce.Storefront.Services.Implementations
                 throw new DeliveryAddressNotFoundException(request.DeliveryId);
             }
 
+            if (basket.DeliveryOption == null)
+            {
+                // Delivery options are auto-assigned the cheapest one when a basket is
+                // created, but the relationship is an optional FK — a basket can reach
+                // checkout without one if every option was deleted (or none seeded).
+                // Fail with a clear domain error instead of an NRE in ConvertToOrder.
+                throw new DeliveryOptionNotFoundException();
+            }
+
             var order = ConvertToOrder(basket);
 
             order.Customer = customer;
@@ -81,33 +90,51 @@ namespace eCommerce.Storefront.Services.Implementations
             try
             {
                 var payment = new Payment(DateTime.UtcNow, paymentRequest.PaymentToken, paymentRequest.PaymentMerchant, paymentRequest.Amount);
-                
+
                 order.SetPayment(payment);
 
-                // Database-level double-payment guard: the in-memory lock only protects
-                // within a single process. If a concurrent IPN callback already recorded
-                // the payment, the conditional UPDATE affects zero rows and we refuse.
-                var paymentApplied = await _orderRepository.SetPaymentConditionallyAsync(order.Id, payment);
+                // The payment write (raw conditional UPDATE in OrderRepository) and the
+                // order-status write (SaveChanges) run inside ONE transaction so a
+                // failure between them cannot leave the payment columns committed while
+                // the order stays Open — a paid-in-DB-but-never-submitted order with no
+                // code path to recover. The confirmation email is sent only after the
+                // commit, so a dispatch confirmation is never sent for a rolled-back order.
+                var shouldSendConfirmationEmail = false;
 
-                if (!paymentApplied)
+                await using (var transaction = await _uow.BeginTransactionAsync())
                 {
-                    throw new OrderAlreadyPaidForException("Order was already paid for by a concurrent request.");
+                    // Database-level double-payment guard: the in-memory lock only protects
+                    // within a single process. If a concurrent IPN callback already recorded
+                    // the payment, the conditional UPDATE affects zero rows and we refuse.
+                    var paymentApplied = await _orderRepository.SetPaymentConditionallyAsync(order.Id, payment);
+
+                    if (!paymentApplied)
+                    {
+                        throw new OrderAlreadyPaidForException("Order was already paid for by a concurrent request.");
+                    }
+
+                    shouldSendConfirmationEmail = MarkOrderSubmittedIfPaid(order);
+
+                    _orderRepository.Save(order);
+                    await _uow.CommitAsync();
+                    await transaction.CommitAsync();
                 }
 
-                await SubmitAsync(order, paymentRequest.CustomerEmail);
-                _orderRepository.Save(order);
-                await _uow.CommitAsync();
+                if (shouldSendConfirmationEmail)
+                {
+                    await SendOrderConfirmationEmailAsync(order, paymentRequest.CustomerEmail);
+                }
             }
             catch (OrderAlreadyPaidForException)
             {
                 _logger.LogError("Order {OrderId} was already paid for; refusing duplicate payment.", order.Id);
-                
+
                 throw;
             }
             catch (PaymentAmountDoesNotEqualOrderTotalException)
             {
                 _logger.LogError("Payment amount for order {OrderId} does not match the order total; refusing invalid payment.", order.Id);
-                
+
                 throw;
             }
 
@@ -157,51 +184,64 @@ namespace eCommerce.Storefront.Services.Implementations
             return order;
         }
 
-        private async Task SubmitAsync(Order order, string customerEmail)
+        // Sets Status to Submitted when a payment is durably recorded and returns whether
+        // the dispatch-confirmation email should be sent. Asserts the order has not been
+        // submitted before (re-submitting after a partial failure is not recoverable).
+        private bool MarkOrderSubmittedIfPaid(Order order)
         {
-            if (order.Status == OrderStatus.Open)
-            {
-                var orderHasBeenPaidFor = order.OrderHasBeenPaidFor();
-
-                if (orderHasBeenPaidFor)
-                {
-                    order.Status = OrderStatus.Submitted;
-                }
-
-                // Only send the order confirmation email when the order has actually been
-                // paid for; a failed payment must not trigger a dispatch confirmation.
-                if (orderHasBeenPaidFor)
-                {
-                    var emailBody = new StringBuilder();
-                    var emailAddress = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail : order.Customer?.Email;
-                    var emailSubject = string.Format("Order #{0}", order.Id);
-
-                    emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));
-                    emailBody.AppendLine();
-                    emailBody.AppendLine("The following order will be packed and dispatched as soon as possible.");
-                    emailBody.AppendLine(order.ToString());
-                    emailBody.AppendLine();
-                    emailBody.AppendLine("Thank you for your custom.");
-
-                    var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
-                    var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
-
-                    if (!string.IsNullOrWhiteSpace(smtpPassword) && !string.IsNullOrWhiteSpace(emailAddress))
-                    {
-                        try
-                        {
-                            await _emailService.SendMailAsync(smtpUserName, emailAddress, emailSubject, emailBody.ToString());
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
-                        }
-                    }
-                }
-            }
-            else
+            if (order.Status != OrderStatus.Open)
             {
                 throw new InvalidOperationException("You cannot submit this order as it has already been submitted.");
+            }
+
+            var orderHasBeenPaidFor = order.OrderHasBeenPaidFor();
+
+            if (orderHasBeenPaidFor)
+            {
+                order.Status = OrderStatus.Submitted;
+            }
+
+            return orderHasBeenPaidFor;
+        }
+
+        // Sends the order confirmation email AFTER the payment + status write has been
+        // committed (never inside the transaction), so a customer is not told their
+        // order will be dispatched unless that state is durable.
+        private async Task SendOrderConfirmationEmailAsync(Order order, string customerEmail)
+        {
+            var emailAddress = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail : order.Customer?.Email;
+
+            if (string.IsNullOrWhiteSpace(emailAddress))
+            {
+                return;
+            }
+
+            var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
+
+            if (string.IsNullOrWhiteSpace(smtpPassword))
+            {
+                return;
+            }
+
+            var emailBody = new StringBuilder();
+            var emailSubject = string.Format("Order #{0}", order.Id);
+
+            emailBody.AppendLine(string.Format("Hello {0},", order.Customer.FirstName));
+            emailBody.AppendLine();
+            emailBody.AppendLine("The following order will be packed and dispatched as soon as possible.");
+            emailBody.AppendLine(order.ToString());
+            emailBody.AppendLine();
+            emailBody.AppendLine("Thank you for your custom.");
+
+            var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
+
+            try
+            {
+                await _emailService.SendMailAsync(smtpUserName, emailAddress, emailSubject, emailBody.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
             }
         }
     }
