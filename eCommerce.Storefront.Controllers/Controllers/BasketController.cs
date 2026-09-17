@@ -10,7 +10,6 @@ using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using System.Threading.Tasks;
-using eCommerce.Storefront.Model;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {

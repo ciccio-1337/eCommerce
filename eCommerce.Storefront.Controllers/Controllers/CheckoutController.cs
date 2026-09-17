@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using eCommerce.Storefront.Model;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
@@ -87,6 +86,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             catch (CustomerNotFoundException)
             {
                 await _cookieAuthentication.SignOutAsync();
+                
                 return RedirectToAction("Register", "AccountRegister");
             }
 

@@ -48,6 +48,7 @@
             if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
             {
                 error = null;
+                
                 model.Rows.Remove(item);
 
                 var rows = model.Rows.ToList();

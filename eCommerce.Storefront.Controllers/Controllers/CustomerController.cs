@@ -165,6 +165,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             catch (CustomerNotFoundException)
             {
                 await _cookieAuthentication.SignOutAsync();
+
                 return RedirectToAction("Register", "AccountRegister");
             }
             catch (DeliveryAddressNotFoundException)
@@ -204,6 +205,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             catch (CustomerNotFoundException)
             {
                 await _cookieAuthentication.SignOutAsync();
+                
                 return RedirectToAction("Register", "AccountRegister");
             }
 

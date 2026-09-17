@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using eCommerce.Storefront.Model.Basket;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Model.Shipping;

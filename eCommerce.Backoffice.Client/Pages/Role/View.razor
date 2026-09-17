@@ -156,8 +156,9 @@
                     roleResponses.Add(new RoleDto { Id = editRoleResponse.Id, Name = model.Name });
                 }
                 else
-                {
+{
                     var existing = roleResponses.FirstOrDefault(x => x.Id.Equals(model.Id));
+                    
                     if (existing != null)
                     {
                         existing.Name = model.Name;
@@ -250,7 +251,8 @@
                 // failure must not make the UI claim success.
                 if (response != null && response.IsSuccessStatusCode)
                 {
-                    roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
+            roleResponses?.RemoveAll(r => r.Id.Equals(model.Id));
+                    
                     value = null;
                     model = null;
                     editRoleResponse = null;

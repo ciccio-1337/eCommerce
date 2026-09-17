@@ -7,11 +7,9 @@ using System.Threading;
 using MapsterMapper;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
-using eCommerce.Storefront.Services.Cache.Specifications;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
-using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Services.Cache
 {
@@ -110,11 +108,9 @@ namespace eCommerce.Storefront.Services.Cache
         public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
             var allTitles = await FindAllProductTitlesAsync();
-
             // Mapster yields a null ProductView for an unknown/missing title, which is
             // the same shape the uncached service produces for a non-existent product.
             var title = allTitles.FirstOrDefault(p => p.Id == request.ProductId);
-
             var response = new GetProductResponse
             {
                 Product = _mapper.Map<ProductTitle, ProductView>(title!)
@@ -152,4 +148,3 @@ namespace eCommerce.Storefront.Services.Cache
         }
     }
 }
-#nullable restore

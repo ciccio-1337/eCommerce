@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -7,7 +6,6 @@ namespace eCommerce.Storefront.Services.Cache
     public class MemoryCacheAdapter(IMemoryCache memoryCache) : ICacheStorage
     {
         private readonly IMemoryCache _memoryCache = memoryCache;
-
         // Default TTL can be overridden via appsettings.json in production.
         // 10 minutes is the fallback for development / unconfigured keys.
         private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(10);
@@ -21,8 +19,7 @@ namespace eCommerce.Storefront.Services.Cache
         {
             ArgumentNullException.ThrowIfNull(data);
 
-            var options = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(DefaultTtl);
+            var options = new MemoryCacheEntryOptions().SetAbsoluteExpiration(DefaultTtl);
 
             _memoryCache.Set(key, data, options);
         }
@@ -46,6 +43,7 @@ namespace eCommerce.Storefront.Services.Cache
             }
 
             value = default;
+            
             return false;
         }
     }
