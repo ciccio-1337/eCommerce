@@ -20,6 +20,7 @@
 @using (Html.BeginForm())
 {
     @Html.AntiForgeryToken()
+    @Html.Hidden("returnUrl", ViewData["ReturnUrl"]?.ToString())
     <div>
         <fieldset>
             <legend>Account Information</legend>

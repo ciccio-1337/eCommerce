@@ -1,6 +1,6 @@
 @model eCommerce.Storefront.Controllers.ViewModels.BasketSummaryView
 
-@if (User.Identity.IsAuthenticated) 
+@if (User.Identity?.IsAuthenticated == true) 
 {
     <div id="smoverlay" class="smoverlay"></div>
     <div id="basketSummary">

@@ -178,6 +178,14 @@
                     hideOverlay("overlay");
 
                     disallowUpdates = false;
+                },
+                error: function (result) {
+                    // A failed getProducts POST must clear the overlay and re-enable
+                    // sorting, paging and refinement — otherwise disallowUpdates stays
+                    // true and the whole search UI is permanently disabled.
+                    hideOverlay("overlay");
+                    disallowUpdates = false;
+                    serviceFailed(result);
                 }
             });
         }

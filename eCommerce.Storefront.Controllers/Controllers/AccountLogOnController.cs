@@ -56,7 +56,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
 
+                // Preserve the auth-challenge return URL across a failed attempt so the
+                // form's hidden field still carries it on the retry.
                 ViewData["email"] = email;
+                ViewData["ReturnUrl"] = returnUrl;
 
                 return View(accountView);
             }
@@ -84,6 +87,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
             var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
 
             accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
+
+            // Seed the form's hidden returnUrl field (raw URL, e.g. "/Checkout/Checkout")
+            // so the POST can bind it and resume the original destination after login.
+            ViewData["ReturnUrl"] = returnUrl;
 
             return accountView;
         }

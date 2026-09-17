@@ -6,12 +6,21 @@
 @model eCommerce.Storefront.Controllers.ViewModels.ProductCatalog.BasketDetailView
 
 <script type="text/javascript">
+    // Any basket AJAX call that fails (e.g. server returns 400 for a zero qty) must
+    // clear the overlays, otherwise the semi-transparent cover stays up and the page
+    // is stuck until a full reload.
+    function onBasketUpdateFailed(jqXHR) {
+        hideOverlay("overlay");
+        hideOverlay("smoverlay");
+        alert("Your basket could not be updated. Please check the quantities you entered and try again.");
+    }
+
     function removeItem(productId) {
         var postData = { productId: productId };
-        
+
         showOverlay("overlay", "main");
         showOverlay("smoverlay", "basketSummary");
-        $.post('/Basket/RemoveItem', postData, updateBasket, "json");
+        $.post('/Basket/RemoveItem', postData, updateBasket, "json").fail(onBasketUpdateFailed);
     }
 
     function updateItemQtys() {
@@ -29,7 +38,7 @@
             postArr[index] = { 'productId': productId, 'qty': $(this).val() }
             index++;
         });
-        
+
         postData = { Items: postArr };
         var jsonData = JSON.stringify(postData);
 
@@ -39,7 +48,8 @@
             dataType: 'json',
             data: jsonData,
             contentType: 'application/json; charset=utf-8',
-            success: updateBasket
+            success: updateBasket,
+            error: onBasketUpdateFailed
         });
     }
 
@@ -48,7 +58,7 @@
 
         showOverlay("overlay", "main");
         showOverlay("smoverlay", "basketSummary");
-        $.post('/Basket/UpdateShipping', postData, updateBasket, "json");
+        $.post('/Basket/UpdateShipping', postData, updateBasket, "json").fail(onBasketUpdateFailed);
     }
 
     // Admin-entered strings (product names, size descriptors, shipping descriptions)

@@ -34,7 +34,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register(string password, string email, string firstName, string secondName)
+        public async Task<IActionResult> Register(string password, string email, string firstName, string secondName, string returnUrl)
         {
             await _shopDataContext.Database.BeginTransactionAsync();
 
@@ -53,6 +53,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 ViewData[FormDataKeys.Email.ToString()] = email;
                 ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                 ViewData[FormDataKeys.SecondName.ToString()] = secondName;
+                ViewData["ReturnUrl"] = returnUrl;
 
                 return View(accountView);
             }
@@ -95,8 +96,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     // left behind in the browser when the transaction is rolled back.
                     await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
 
-                    var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
-
+                    // Use the returnUrl bound from the form's hidden field; on the POST the
+                    // query string's ReturnUrl is gone (Html.BeginForm posts to
+                    // /AccountRegister/Register), so reading from the action arguments
+                    // here would always be null.
                     return RedirectBasedOn(returnUrl);
                 }
                 catch (EntityBaseIsInvalidException ex)
@@ -109,6 +112,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     ViewData[FormDataKeys.Email.ToString()] = email;
                     ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                     ViewData[FormDataKeys.SecondName.ToString()] = secondName;
+                    ViewData["ReturnUrl"] = returnUrl;
 
                     return View(accountView);
                 }
@@ -130,6 +134,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 ViewData[FormDataKeys.Email.ToString()] = email;
                 ViewData[FormDataKeys.FirstName.ToString()] = firstName;
                 ViewData[FormDataKeys.SecondName.ToString()] = secondName;
+                ViewData["ReturnUrl"] = returnUrl;
 
                 return View(accountView);
             }
@@ -163,6 +168,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
             var returnUrl = _actionArguments.GetValueForArgument(ActionArgumentKey.ReturnUrl);
 
             accountView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
+
+            // Seed the form's hidden returnUrl field (raw URL, e.g. "/Checkout/Checkout")
+            // so the POST can bind it and resume the original destination after registering.
+            ViewData["ReturnUrl"] = returnUrl;
 
             return accountView;
         }

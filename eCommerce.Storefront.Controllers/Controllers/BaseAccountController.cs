@@ -18,14 +18,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         protected IActionResult RedirectBasedOn(string returnUrl)
         {
-            if (returnUrl == ActionArgumentKey.GoToCheckout.ToString())
+            // The auth-challenge return URL is a raw path like "/Checkout/Checkout",
+            // so match it through GetReturnActionFrom (which recognises "checkout")
+            // instead of comparing to the "GoToCheckout" token — the two branches here
+            // never echo the raw URL back, keeping this free of open-redirects.
+            if (GetReturnActionFrom(returnUrl) == ActionArgumentKey.GoToCheckout)
             {
                 return RedirectToAction("Checkout", "Checkout");
             }
-            else
-            {
-                return RedirectToAction("Index", "Home");
-            }
+
+            return RedirectToAction("Index", "Home");
         }
 
         protected static ActionArgumentKey GetReturnActionFrom(string returnUrl)

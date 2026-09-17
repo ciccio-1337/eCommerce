@@ -18,6 +18,7 @@
 
 @using (Html.BeginForm()) {
     @Html.AntiForgeryToken()
+    @Html.Hidden("returnUrl", ViewData["ReturnUrl"]?.ToString())
     <div>
         <p>
             <label for="Email">Email</label><br />
