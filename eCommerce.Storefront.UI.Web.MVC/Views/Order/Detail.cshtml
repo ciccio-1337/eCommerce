@@ -5,14 +5,14 @@
 
 @model eCommerce.Storefront.Controllers.ViewModels.CustomerAccount.CustomerOrderView
 
-<h2>Order #@Model.Order.Id placed on @Model.Order.Created.ToLongDateString() at @Model.Order.Created.ToShortTimeString()</h2>    
+<h2>Order #@Model.Order.Id placed on @Model.Order.Created.ToLocalTime().ToLongDateString() at @Model.Order.Created.ToLocalTime().ToShortTimeString()</h2>    
 @if (Model.Order.OrderHasBeenPaidFor == false) 
 {
     <p>This order has not been paid. @Html.ActionLink("Pay", "CreatePaymentFor", "Payment", new { orderId = Model.Order.Id }, null)</p>
 }
 else
 {
-    <p>Paid on @Model.Order.PaymentDatePaid Payment ref @Model.Order.PaymentTransactionId</p>
+    <p>Paid on @Model.Order.PaymentDatePaid.ToLocalTime() Payment ref @Model.Order.PaymentTransactionId</p>
 }
 <ul>
 @foreach (var item in Model.Order.Items)

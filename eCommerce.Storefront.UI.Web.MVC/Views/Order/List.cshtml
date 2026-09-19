@@ -10,7 +10,7 @@
     @foreach(var order in Model.Orders)
     {
         <li>
-            @order.Created.ToLongDateString() 
+            @order.Created.ToLocalTime().ToLongDateString() 
 
             @if (order.IsSubmitted == false)
             {

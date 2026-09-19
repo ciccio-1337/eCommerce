@@ -15,7 +15,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
         public async Task<User> LoginAsync(string email, string password)
         {
             var user = new User();
-            var identityUser = await _signInManager.UserManager.FindByEmailAsync(email);
+            var identityUser = await _signInManager.UserManager.FindByEmailAsync(email ?? string.Empty);
 
             if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, true)).Succeeded)
             {

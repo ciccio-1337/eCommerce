@@ -48,7 +48,7 @@
                 {
                     @Html.ActionLink("Your Account", "Detail", "Customer")
                     <text> / </text>
-                    <form asp-controller="AccountLogOn" asp-action="LogOff" method="post" style="display:inline;">
+                    <form action="/AccountLogOn/LogOff" method="post" style="display:inline;">
                         @Html.AntiForgeryToken()
                         <button type="submit" style="background:none;border:none;padding:0;color:inherit;font:inherit;cursor:pointer;">Log Off</button>
                     </form>

@@ -13,7 +13,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             // Identity stores NormalizedEmail via UpperInvariantLookupNormalizer; matching
             // against the same normalization avoids both EF translation issues with
             // StringComparison and case-sensitivity problems at the SQL level.
-            var normalisedEmail = email.ToUpperInvariant();
+            var normalisedEmail = email?.ToUpperInvariant() ?? string.Empty;
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalisedEmail);
 
             if (user != null)

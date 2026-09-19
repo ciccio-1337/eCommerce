@@ -71,11 +71,11 @@ namespace eCommerce.Storefront.Services.Implementations
             switch (request.SortBy)
             {
                 case ProductsSortBy.PriceLowToHigh:
-                    productsMatchingRefinement = productsMatchingRefinement.OrderBy(p => p.Title.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Title.Name);
+                    productsMatchingRefinement = productsMatchingRefinement.OrderBy(p => p.Title.Price).ThenBy(p => p.Title.Brand.Name).ThenBy(p => p.Title.Name);
 
                     break;
                 case ProductsSortBy.PriceHighToLow:
-                    productsMatchingRefinement = productsMatchingRefinement.OrderByDescending(p => p.Title.Price).ThenBy(p => p.Brand.Name).ThenBy(p => p.Title.Name);
+                    productsMatchingRefinement = productsMatchingRefinement.OrderByDescending(p => p.Title.Price).ThenBy(p => p.Title.Brand.Name).ThenBy(p => p.Title.Name);
 
                     break;
             }
