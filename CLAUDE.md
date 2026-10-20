@@ -1,4 +1,4 @@
-# AGENTS.md
+# CLAUDE.md
 
 ## Stack
 - .NET 10 solution (`eCommerce.sln`). Two products:
