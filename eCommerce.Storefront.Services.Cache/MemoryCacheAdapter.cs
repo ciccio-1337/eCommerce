@@ -35,7 +35,7 @@ namespace eCommerce.Storefront.Services.Cache
         // Distinguishes "not in cache" (returns false) from "cached null" (returns true, out value null).
         // This enables negative caching (store null to mean "does not exist") and avoids
         // re-fetching on every request when a null was cached.
-        public bool TryRetrieve<T>(string storageKey, out T? value)
+        public bool TryRetrieve<T>(string storageKey, out T value)
         {
             if (_memoryCache.TryGetValue(storageKey, out value))
             {
