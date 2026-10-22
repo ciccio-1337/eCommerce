@@ -18,7 +18,7 @@
 
 ## Build/Test
 - CI (.github/workflows/dotnet-core.yml): `dotnet restore` → `dotnet build --configuration Release --no-restore` → `dotnet test --no-restore --verbosity normal`
-- Tests: `eCommerce.Storefront.Tests` uses MSTest 4.4.0 with `EnableMSTestRunner` and `OutputType Exe`. Run all tests: `dotnet test` (uses Microsoft.Testing.Platform per `global.json`). To run a single test/project: `dotnet test eCommerce.Storefront.Tests/eCommerce.Storefront.Tests.csproj` or filter as MSTest supports.
+- Tests: `eCommerce.Storefront.Tests` uses MSTest 4.5.1 with `EnableMSTestRunner` and `OutputType Exe`. Run all tests: `dotnet test` (uses Microsoft.Testing.Platform per `global.json`). To run a single test/project: `dotnet test eCommerce.Storefront.Tests/eCommerce.Storefront.Tests.csproj` or filter as MSTest supports.
 - If building/publishing for Docker, produce publish output in `bin/Release/net10.0/publish/` for the MVC project (Dockerfile expects that path).
 
 ## Architecture notes
