@@ -8,27 +8,27 @@ namespace eCommerce.Storefront.Model.Products
 
         public string Name
         {
-            get { return Title.Name; }
+            get { return Title?.Name; }
         }
 
         public decimal Price
         {
-            get { return Title.Price; }
+            get { return Title?.Price ?? 0m; }
         }
 
         public Brand Brand
         {
-            get { return Title.Brand; }
+            get { return Title?.Brand; }
         }
 
         public ProductColor Color
         {
-            get { return Title.Color; }
+            get { return Title?.Color; }
         }
 
         public Category Category
         {
-            get { return Title.Category; }
+            get { return Title?.Category; }
         }
         
         protected override void Validate()

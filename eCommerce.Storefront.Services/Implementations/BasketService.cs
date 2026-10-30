@@ -147,6 +147,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 basket.SetDeliveryOption(deliveryOption);
             }
 
+            // Never persist an empty basket that has no products in it.
+            if (!basket.Items.Any())
+            {
+                response.Basket = _mapper.Map<Basket, BasketView>(basket);
+
+                return response;
+            }
+
             basket.ThrowExceptionIfInvalid();
             _basketRepository.Save(basket);
             await _uow.CommitAsync();

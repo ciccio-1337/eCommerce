@@ -5,3 +5,4 @@
 /.sonarqube
 .DS_Store
 /obj
+plans/

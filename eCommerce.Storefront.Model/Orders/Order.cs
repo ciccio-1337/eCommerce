@@ -174,7 +174,7 @@ namespace eCommerce.Storefront.Model.Orders
 
             if (DeliveryAddress == null)
             {
-                AddBrokenRule(new BusinessRule() { Property = nameof(DeliveryAddress), Rule = "An order must have a valid delilvery address." });
+                AddBrokenRule(new BusinessRule() { Property = nameof(DeliveryAddress), Rule = "An order must have a valid delivery address." });
             }
 
             if (Items == null || !Items.Any())
