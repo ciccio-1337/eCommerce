@@ -90,7 +90,16 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 // User settings.
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 options.User.RequireUniqueEmail = true;
+                // Customers must prove ownership of their email address before signing in.
+                options.SignIn.RequireConfirmedEmail = true;
             });
+            // Revalidate the security stamp on every request so deleted users, password
+            // changes, and role removals invalidate existing cookies.
+            serviceCollection.Configure<SecurityStampValidatorOptions>(options =>
+            {
+                options.ValidationInterval = TimeSpan.FromMinutes(5);
+            });
+            serviceCollection.AddScoped<ISecurityStampValidator, SecurityStampValidator<IdentityUser>>();
             serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
@@ -98,7 +107,11 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<double?>("CookieAuthenticationTimeout") ?? 30);
                 options.LoginPath = "/AccountLogOn/LogOn";
                 options.AccessDeniedPath = "/AccountLogOn/LogOn";
-                options.SlidingExpiration = true;
+                options.SlidingExpiration = false;
+                options.Events = new CookieAuthenticationEvents
+                {
+                    OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync
+                };
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
@@ -118,7 +131,11 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<double?>("CookieAuthenticationTimeout") ?? 30);
                 options.LoginPath = "/admin/account/login";
                 options.AccessDeniedPath = "/admin/account/login";
-                options.SlidingExpiration = true;
+                options.SlidingExpiration = false;
+                options.Events = new CookieAuthenticationEvents
+                {
+                    OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync
+                };
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
@@ -163,7 +180,6 @@ namespace eCommerce.Storefront.UI.Web.MVC
             serviceCollection.AddScoped(typeof(IEntityService<,>), typeof(EntityService<,>));
             serviceCollection.AddScoped<IProductCatalogService, ProductCatalogService>();
             serviceCollection.AddScoped<IBasketService, BasketService>();
-            serviceCollection.AddScoped<ICookieStorageService, CookieStorageService>();
             serviceCollection.AddScoped<ICustomerService, CustomerService>();
             // Order Service
             serviceCollection.AddScoped<IOrderService, OrderService>();
@@ -200,6 +216,34 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 if (!context.Response.Headers.ContainsKey("Referrer-Policy"))
                 {
                     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+                }
+
+                if (!context.Response.Headers.ContainsKey("Content-Security-Policy"))
+                {
+                    context.Response.Headers.Append(
+                        "Content-Security-Policy",
+                        "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
+                        "form-action 'self' https://www.sandbox.paypal.com https://www.paypal.com; " +
+                        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval'; " +
+                        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
+                        "connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'");
+                }
+
+                if (!context.Response.Headers.ContainsKey("Permissions-Policy"))
+                {
+                    context.Response.Headers.Append(
+                        "Permissions-Policy",
+                        "camera=(), microphone=(), geolocation=(), payment=()");
+                }
+
+                if (!context.Response.Headers.ContainsKey("Cross-Origin-Opener-Policy"))
+                {
+                    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
+                }
+
+                if (!context.Response.Headers.ContainsKey("Cross-Origin-Resource-Policy"))
+                {
+                    context.Response.Headers.Append("Cross-Origin-Resource-Policy", "same-origin");
                 }
 
                 if (!context.Response.Headers.ContainsKey(HeaderNames.CacheControl))

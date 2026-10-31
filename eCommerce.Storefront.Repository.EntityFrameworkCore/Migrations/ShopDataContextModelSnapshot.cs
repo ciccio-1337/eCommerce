@@ -15,7 +15,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -144,24 +144,6 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = "3d5bc7f9-e445-46fe-b284-894c3f0a1873",
-                            AccessFailedCount = 0,
-                            ConcurrencyStamp = "d092d71e-b8fe-44fb-85b6-06c27fab1fc1",
-                            Email = "admin@ecommerce.com",
-                            EmailConfirmed = true,
-                            LockoutEnabled = true,
-                            NormalizedEmail = "ADMIN@ECOMMERCE.COM",
-                            NormalizedUserName = "ADMIN@ECOMMERCE.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIV3gNJplD9fTYjDhH/lOnFcVVF16+jxwjD6hHx3OPFjOsbJOZsZE9smVDPFxDbZbw==",
-                            PhoneNumberConfirmed = false,
-                            SecurityStamp = "4LMSVL7MBG3LGFPYFJ3QJTEMSPVVIWRD",
-                            TwoFactorEnabled = false,
-                            UserName = "admin@ecommerce.com"
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -222,13 +204,6 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("AspNetUserRoles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            UserId = "3d5bc7f9-e445-46fe-b284-894c3f0a1873",
-                            RoleId = "f01eb6e7-a59f-4094-a38e-db1acb888a27"
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>

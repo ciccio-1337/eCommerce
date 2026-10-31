@@ -4,6 +4,7 @@ using eCommerce.Storefront.Controllers.ViewModels.Account;
 using eCommerce.Storefront.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
@@ -27,6 +28,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> LogOn(string email, string password, string returnUrl)
         {
             try

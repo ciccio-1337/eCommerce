@@ -1,0 +1,22 @@
+@{
+    Layout = "Site";
+    var confirmed = (bool?)ViewData["Confirmed"] == true;
+    ViewData["Title"] = confirmed ? "Email confirmed" : "Confirmation failed";
+}
+
+@if (confirmed)
+{
+    <h2>Email confirmed</h2>
+    <p>
+        Your email address is confirmed and your account is now active.
+        @Html.ActionLink("Log on", "LogOn", "AccountLogOn") to continue.
+    </p>
+}
+else
+{
+    <h2>Confirmation failed</h2>
+    <p>
+        This confirmation link is invalid or has expired. If you already confirmed
+        your address, try to @Html.ActionLink("log on", "LogOn", "AccountLogOn").
+    </p>
+}

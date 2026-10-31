@@ -1,60 +1,76 @@
-using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Client.Services.Interfaces;
+using eCommerce.Backoffice.Shared.Model.Accounts;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.JSInterop;
 
 namespace eCommerce.Backoffice.Client.Services.Implementations
 {
-    public class CustomAuthStateProvider(IJSRuntime javaScriptRuntime) : AuthenticationStateProvider, ILoginService
+    /// <summary>
+    /// Builds the client authentication state from the server. The browser never
+    /// decides who the user is or which roles they hold: a successful
+    /// <c>GET /api/accounts/me</c> response is the only source of truth.
+    /// </summary>
+    public class CustomAuthStateProvider(
+        HttpClient httpClient,
+        AntiforgeryTokenProvider antiforgeryTokenProvider) : AuthenticationStateProvider, ILoginService
     {
-        private readonly IJSRuntime _javaScriptRuntime = javaScriptRuntime;
-        private static readonly string _authenticationStateKey = "AuthenticationState";
         private static AuthenticationState Anonymous => new(new ClaimsPrincipal(new ClaimsIdentity()));
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var authState = await GetAuthStateAsync();
-
-            if (string.IsNullOrWhiteSpace(authState))
+            try
             {
-                await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
+                var currentUser = await httpClient.GetFromJsonAsync<CurrentUserResponse>("api/accounts/me");
 
+                if (currentUser is null || string.IsNullOrWhiteSpace(currentUser.Email))
+                {
+                    return Anonymous;
+                }
+
+                return BuildAuthenticationState(currentUser);
+            }
+            catch
+            {
+                // Unauthenticated, server unreachable, or a non-success response.
                 return Anonymous;
             }
-
-            return BuildAuthenticationState(Encoding.UTF8.GetString(Convert.FromBase64String(authState)));
         }
 
-        public async Task LoginAsync(string email)
+        public async Task LoginAsync()
         {
-            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.setItem", _authenticationStateKey, Convert.ToBase64String(Encoding.UTF8.GetBytes(email)));
+            antiforgeryTokenProvider.Invalidate();
 
-            var authState = BuildAuthenticationState(email);
+            var authenticationState = await GetAuthenticationStateAsync();
 
-            NotifyAuthenticationStateChanged(Task.FromResult(authState));
+            NotifyAuthenticationStateChanged(Task.FromResult(authenticationState));
         }
 
-        public async Task LogoutAsync()
+        public Task LogoutAsync()
         {
-            await _javaScriptRuntime.InvokeVoidAsync("sessionStorage.removeItem", _authenticationStateKey);
+            antiforgeryTokenProvider.Invalidate();
 
             NotifyAuthenticationStateChanged(Task.FromResult(Anonymous));
+
+            return Task.CompletedTask;
         }
 
-        public async Task<string> GetAuthStateAsync()
+        private static AuthenticationState BuildAuthenticationState(CurrentUserResponse currentUser)
         {
-            return await _javaScriptRuntime.InvokeAsync<string>("sessionStorage.getItem", _authenticationStateKey);
-        }
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.Name, currentUser.Email)
+            };
 
-        private static AuthenticationState BuildAuthenticationState(string email)
-        {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([
-                new(ClaimTypes.Name, email),
-                new(ClaimTypes.Role, "Admin")
-            ], "jwt")));
+            foreach (var role in currentUser.Roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(claims, "server")));
         }
     }
 }

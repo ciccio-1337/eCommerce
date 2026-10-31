@@ -1,0 +1,20 @@
+@{
+    Layout = "Site";
+    ViewData["Title"] = "Check your email";
+}
+
+<h2>Check your email</h2>
+
+<p>
+    We created your account, but it is not active yet. We sent a confirmation link to
+    <strong>@ViewData["Email"]</strong>.
+</p>
+
+<p>
+    Open the link in that message to activate your account, then
+    @Html.ActionLink("log on", "LogOn", "AccountLogOn").
+</p>
+
+<p>
+    The link can take a few minutes to arrive. Check your spam folder if you do not see it.
+</p>

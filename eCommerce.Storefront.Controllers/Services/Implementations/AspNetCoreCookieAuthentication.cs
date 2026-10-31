@@ -1,37 +1,38 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 
 namespace eCommerce.Storefront.Controllers.Services.Implementations
 {
-    public class AspNetCoreCookieAuthentication(IHttpContextAccessor httpContextAccessor) : ICookieAuthentication
+    public class AspNetCoreCookieAuthentication(
+        IHttpContextAccessor httpContextAccessor,
+        SignInManager<IdentityUser> signInManager) : ICookieAuthentication
     {
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly SignInManager<IdentityUser> _signInManager = signInManager;
 
         public async Task SetAuthenticationTokenAsync(string userId, string email, IEnumerable<string> roles)
         {
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, userId),
-                new(ClaimTypes.Name, email)
-            };
+            var user = await _signInManager.UserManager.FindByIdAsync(userId);
 
-            if (roles is not null && roles.Any())
+            if (user is null)
             {
-                foreach (var role in roles)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, role));
-                }
+                throw new InvalidOperationException(
+                    "Cannot create an authentication cookie for an unknown user.");
             }
 
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            // Build the principal from the Identity store so it carries the current
+            // roles and the security-stamp claim that the cookie validator checks.
+            var principal = await _signInManager.CreateUserPrincipalAsync(user);
 
-            await _httpContextAccessor?.HttpContext?.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
+            await _httpContextAccessor.HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal);
         }
 
         public string GetAuthenticationToken()
@@ -41,7 +42,8 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
         public async Task SignOutAsync()
         {
-            await _httpContextAccessor?.HttpContext?.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await _httpContextAccessor.HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme);
         }
     }
 }

@@ -5,10 +5,12 @@ using eCommerce.Storefront.Controllers.ViewModels.Account;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.CustomerService;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -17,12 +19,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
         ICustomerService customerService,
         ICookieAuthentication cookieAuthentication,
         IActionArguments actionArguments,
+        IEmailService emailService,
+        IConfiguration configuration,
         ILogger<AccountRegisterController> logger,
         ShopDataContext shopDataContext) : BaseAccountController(authenticationService,
             customerService,
             cookieAuthentication,
             actionArguments)
     {
+        private readonly IEmailService _emailService = emailService;
+        private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<AccountRegisterController> _logger = logger;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
 
@@ -34,6 +40,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("registration")]
         public async Task<IActionResult> Register(string password, string email, string firstName, string secondName, string returnUrl)
         {
             await _shopDataContext.Database.BeginTransactionAsync();
@@ -42,101 +49,170 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             try
             {
-                user = await _authenticationService.RegisterUserAsync(email, password, true, ["Customer"]);
+                // The account stays unconfirmed until the customer proves ownership
+                // of the address by following the emailed link.
+                user = await _authenticationService.RegisterUserAsync(email, password, false, ["Customer"]);
             }
             catch (InvalidOperationException ex)
             {
                 await SafeRollbackAsync();
 
-                var accountView = InitializeAccountViewWithIssue(true, ex.Message);
-
-                ViewData[FormDataKeys.Email.ToString()] = email;
-                ViewData[FormDataKeys.FirstName.ToString()] = firstName;
-                ViewData[FormDataKeys.SecondName.ToString()] = secondName;
-                ViewData["ReturnUrl"] = returnUrl;
-
-                return View(accountView);
+                return RegistrationFailed(email, firstName, secondName, returnUrl, ex.Message);
             }
             catch (Exception ex)
             {
                 await SafeRollbackAsync();
-                _logger.LogError(ex, "An error occurred while registering user with email {Email}.", email);
+                _logger.LogError(ex, "An error occurred while creating a new account.");
 
-                // Identity user was created but customer creation will fail —
-                // attempt to clean up the orphaned Identity user so the email
-                // can be re-used. If this fails, we still surface the original
-                // error; the orphan is a lesser evil than a 500.
-                try
-                {
-                    await _authenticationService.DeleteUserAsync(user.Id);
-                }
-                catch (Exception cleanupEx)
-                {
-                    _logger.LogError(cleanupEx, "Failed to delete orphaned Identity user {UserId} after registration failure.", user.Id);
-                }
+                await TryDeleteUserAsync(user);
 
                 throw;
             }
 
-            if (user != null && user.IsAuthenticated)
-            {
-                try
-                {
-                    await _customerService.CreateCustomerAsync(new CreateCustomerRequest
-                    {
-                        UserId = user.Id,
-                        Email = email,
-                        FirstName = firstName,
-                        SecondName = secondName
-                    });
-
-                    await _shopDataContext.Database.CommitTransactionAsync();
-
-                    // Set the auth cookie AFTER the commit succeeds so it is not
-                    // left behind in the browser when the transaction is rolled back.
-                    await _cookieAuthentication.SetAuthenticationTokenAsync(user.Id, user.Email, ["Customer"]);
-
-                    // Use the returnUrl bound from the form's hidden field; on the POST the
-                    // query string's ReturnUrl is gone (Html.BeginForm posts to
-                    // /AccountRegister/Register), so reading from the action arguments
-                    // here would always be null.
-                    return RedirectBasedOn(returnUrl);
-                }
-                catch (EntityBaseIsInvalidException ex)
-                {
-                    await SafeRollbackAsync();
-                    await _cookieAuthentication.SignOutAsync();
-
-                    var accountView = InitializeAccountViewWithIssue(true, ex.Message);
-
-                    ViewData[FormDataKeys.Email.ToString()] = email;
-                    ViewData[FormDataKeys.FirstName.ToString()] = firstName;
-                    ViewData[FormDataKeys.SecondName.ToString()] = secondName;
-                    ViewData["ReturnUrl"] = returnUrl;
-
-                    return View(accountView);
-                }
-                catch (Exception ex)
-                {
-                    await SafeRollbackAsync();
-                    await _cookieAuthentication.SignOutAsync();
-                    _logger.LogError(ex, "An error occurred while creating the customer with email {Email}.", email);
-
-                    throw;
-                }
-            }
-            else
+            if (user is null)
             {
                 await SafeRollbackAsync();
 
-                var accountView = InitializeAccountViewWithIssue(true, "Sorry we could not authenticate you. Please try again.");
+                return RegistrationFailed(
+                    email,
+                    firstName,
+                    secondName,
+                    returnUrl,
+                    "Sorry we could not create your account. Please try again.");
+            }
 
-                ViewData[FormDataKeys.Email.ToString()] = email;
-                ViewData[FormDataKeys.FirstName.ToString()] = firstName;
-                ViewData[FormDataKeys.SecondName.ToString()] = secondName;
-                ViewData["ReturnUrl"] = returnUrl;
+            try
+            {
+                await _customerService.CreateCustomerAsync(new CreateCustomerRequest
+                {
+                    UserId = user.Id,
+                    Email = email,
+                    FirstName = firstName,
+                    SecondName = secondName
+                });
 
-                return View(accountView);
+                await _shopDataContext.Database.CommitTransactionAsync();
+            }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                await SafeRollbackAsync();
+                await TryDeleteUserAsync(user);
+
+                return RegistrationFailed(email, firstName, secondName, returnUrl, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                await SafeRollbackAsync();
+                _logger.LogError(ex, "An error occurred while creating the customer profile for user {UserId}.", user.Id);
+
+                await TryDeleteUserAsync(user);
+
+                throw;
+            }
+
+            try
+            {
+                await SendConfirmationEmailAsync(user, email);
+            }
+            catch (Exception ex)
+            {
+                // The account exists and is valid; a mail-transport failure must not
+                // roll it back. Surface the pending state so the customer can retry
+                // once the mail configuration is fixed.
+                _logger.LogError(ex, "Failed to send the confirmation email for user {UserId}.", user.Id);
+            }
+
+            ViewData["Title"] = "Check your email";
+            ViewData["Email"] = email;
+
+            return View("RegistrationPending");
+        }
+
+        [HttpGet]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ConfirmEmail(string userId, string code)
+        {
+            var confirmed = await _authenticationService.ConfirmEmailAsync(userId, code);
+
+            ViewData["Title"] = confirmed ? "Email confirmed" : "Confirmation failed";
+            ViewData["Confirmed"] = confirmed;
+
+            return View();
+        }
+
+        private async Task SendConfirmationEmailAsync(User user, string email)
+        {
+            var code = await _authenticationService.GenerateEmailConfirmationTokenAsync(user.Id);
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                throw new InvalidOperationException("Could not generate an email confirmation token.");
+            }
+
+            var relativeUrl = Url.Action(nameof(ConfirmEmail), "AccountRegister", new
+            {
+                userId = user.Id,
+                code
+            });
+
+            var confirmationUrl = BuildPublicUrl(relativeUrl);
+
+            var from = _configuration["MailSettings:Smtp:Network:UserName"]
+                ?? _configuration["MailSettingsSmtpNetworkUserName"]
+                ?? string.Empty;
+
+            await _emailService.SendMailAsync(
+                from,
+                email,
+                "Confirm your email address",
+                $"Welcome! Please confirm your account by opening this link: {confirmationUrl}");
+        }
+
+        /// <summary>
+        /// Builds an absolute URL from the configured public base address instead
+        /// of trusting the request Host header.
+        /// </summary>
+        private string BuildPublicUrl(string relativePath)
+        {
+            var configuredBaseUrl = _configuration["App:PublicBaseUrl"];
+            var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
+                ? $"{Request.Scheme}://{Request.Host}"
+                : configuredBaseUrl;
+
+            return $"{baseUrl.TrimEnd('/')}/{relativePath?.TrimStart('/')}";
+        }
+
+        private IActionResult RegistrationFailed(
+            string email,
+            string firstName,
+            string secondName,
+            string returnUrl,
+            string message)
+        {
+            var accountView = InitializeAccountViewWithIssue(true, message);
+
+            ViewData[FormDataKeys.Email.ToString()] = email;
+            ViewData[FormDataKeys.FirstName.ToString()] = firstName;
+            ViewData[FormDataKeys.SecondName.ToString()] = secondName;
+            ViewData["ReturnUrl"] = returnUrl;
+
+            return View("Register", accountView);
+        }
+
+        private async Task TryDeleteUserAsync(User user)
+        {
+            if (user is null || string.IsNullOrWhiteSpace(user.Id))
+            {
+                return;
+            }
+
+            try
+            {
+                await _authenticationService.DeleteUserAsync(user.Id);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogError(cleanupEx, "Failed to delete orphaned Identity user {UserId}.", user.Id);
             }
         }
 

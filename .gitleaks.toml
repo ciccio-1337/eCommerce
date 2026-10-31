@@ -1,0 +1,16 @@
+# Secret scanning configuration.
+#
+# Extends the default gitleaks rules and only allow-lists values that are
+# documented, non-secret placeholders in the repository. Anything that looks
+# like a real credential must be reported.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented development placeholders"
+regexes = [
+  '''PLACEHOLDER''',
+  '''(?i)changeme''',
+  '''(?i)your[-_]?(password|secret|token|key)''',
+  '''sb-[a-z0-9]+@business\.example\.com'''
+]

@@ -17,7 +17,6 @@ namespace eCommerce.Backoffice.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-    [IgnoreAntiforgeryToken]
     public class BrandsController(IEntityService<Brand, long> brandService,
         ICachedProductCatalogService cachedProductCatalogService,
         ILogger<BrandsController> logger) : ControllerBase

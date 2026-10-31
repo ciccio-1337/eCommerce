@@ -132,7 +132,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 if (string.IsNullOrWhiteSpace(configuredBusinessEmail)
                     || !string.Equals(collection["receiver_email"], configuredBusinessEmail, StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("PayPal IPN: receiver_email '{Receiver}' does not match configured business email for order {OrderId}; ignoring.", collection["receiver_email"], orderRequest.Id);
+                    _logger.LogWarning("PayPal IPN: receiver_email does not match the configured business email for order {OrderId}; ignoring.", orderRequest.Id);
 
                     return transactionResult;
                 }

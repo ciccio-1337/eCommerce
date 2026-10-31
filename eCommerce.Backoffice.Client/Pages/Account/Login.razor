@@ -71,7 +71,7 @@
 
             if (loginResponse != null && loginResponse.IsSuccess)
             {
-                await loginService.LoginAsync(loginResponse.Email);
+                await loginService.LoginAsync();
                 navManager.NavigateTo("/admin");
             }
         }

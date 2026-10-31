@@ -93,7 +93,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
             else
             {
-                _logger.LogWarning("Payment not ok for order id {OrderId}, payment token {PaymentToken}", orderId, transactionResult.PaymentToken);
+                _logger.LogWarning("Payment not ok for order id {OrderId}.", orderId);
 
                 // Always 200 OK to stop PayPal retries; the order remains unpaid.
                 return Ok();

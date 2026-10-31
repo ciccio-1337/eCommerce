@@ -33,34 +33,7 @@
         <a class="dismiss">x</a>
     </div>
 
-    <script type="text/javascript">
-        (function () {
-            let total = 0;
-            let loaded = 0;
-            let standardFetch = fetch;
-
-            fetch = function (url, options) {
-                total++;
-
-                let promise = standardFetch(url, options);
-
-                promise.then((data) => {
-                    let element = document.getElementById('loadingText');
-
-                    if (typeof (element) != 'undefined' && element != null) {
-                        loaded++;
-
-                        let progress = Math.floor(((loaded / total) * 100));
-                        let url = new URL(data.url);
-
-                        element.innerHTML = progress + '% - <i>loaded ' + url.pathname + '</i>';
-                    }
-                });
-
-                return promise;
-            }
-        })();
-    </script>
+    <script src="js/loading.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
 </body>

@@ -16,7 +16,6 @@ namespace eCommerce.Backoffice.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-    [IgnoreAntiforgeryToken]
     public class SizesController(IEntityService<ProductSize, long> sizeService,
         ICachedProductCatalogService cachedProductCatalogService,
         ILogger<SizesController> logger) : ControllerBase

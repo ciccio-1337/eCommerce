@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,7 +14,6 @@ namespace eCommerce.Backoffice.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-    [IgnoreAntiforgeryToken]
     public class RolesController(RoleManager<IdentityRole> roleManager,
         UserManager<IdentityUser> userManager) : ControllerBase
     {
@@ -97,6 +97,12 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
+            if (IsBuiltInRole(identityRole.Name)
+                && !string.Equals(identityRole.Name, request.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("The built-in roles cannot be renamed.");
+            }
+
             identityRole.Name = request.Name;
 
             try
@@ -148,6 +154,17 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
+            if (!addRemoveRoleRequest.Add
+                && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                var administrators = await _userManager.GetUsersInRoleAsync("Admin");
+
+                if (administrators.Count <= 1)
+                {
+                    return BadRequest("The last administrator role cannot be removed.");
+                }
+            }
+
             try
             {
                 if (addRemoveRoleRequest.Add)
@@ -158,6 +175,10 @@ namespace eCommerce.Backoffice.Server.Controllers
                 {
                     await _userManager.RemoveFromRoleAsync(user, role.Name);
                 }
+
+                // Role changes must invalidate existing cookies so the new
+                // authorization decision takes effect immediately.
+                await _userManager.UpdateSecurityStampAsync(user);
             }
             catch (DbUpdateConcurrencyException) when (!_roleManager.Roles.AsNoTracking().Any(r => r.Id == addRemoveRoleRequest.RoleId) || !_userManager.Users.AsNoTracking().Any(u => u.Id == addRemoveRoleRequest.UserId))
             {
@@ -177,6 +198,11 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
+            if (IsBuiltInRole(role.Name))
+            {
+                return BadRequest("The built-in roles cannot be deleted.");
+            }
+
             try
             {
                 await _roleManager.DeleteAsync(role);
@@ -190,5 +216,9 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             return NoContent();
         }
+
+        private static bool IsBuiltInRole(string roleName) =>
+            string.Equals(roleName, "Admin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(roleName, "Customer", StringComparison.OrdinalIgnoreCase);
     }
 }

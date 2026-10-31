@@ -16,13 +16,13 @@ using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [IgnoreAntiforgeryToken]
     public class AccountsController(IEmailService emailService,
         SignInManager<IdentityUser> signInManager,
         IConfiguration configuration,
@@ -47,6 +47,27 @@ namespace eCommerce.Backoffice.Server.Controllers
                 Id = u.Id,
                 Email = u.Email
             }).ToListAsync();
+        }
+
+        [HttpGet("me")]
+        [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser()
+        {
+            var user = await _signInManager.UserManager.GetUserAsync(User);
+
+            if (user is null)
+            {
+                return Unauthorized();
+            }
+
+            var roles = await _signInManager.UserManager.GetRolesAsync(user);
+
+            return Ok(new CurrentUserResponse
+            {
+                Email = user.Email ?? string.Empty,
+                Roles = roles.ToList()
+            });
         }
 
         [HttpPost]
@@ -78,7 +99,8 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             if (!string.IsNullOrWhiteSpace(smtpPassword))
             {
-                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}";
+                var urlConfirmation = BuildPublicUrl(
+                    $"admin/account/emailconfirmation/?userid={HttpUtility.UrlEncode(user.Id)}&code={HttpUtility.UrlEncode(code)}");
 
                 try
                 {
@@ -86,7 +108,7 @@ namespace eCommerce.Backoffice.Server.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
+                    _logger.LogError(ex, "Failed to send the confirmation email for user {UserId}.", user.Id);
                 }
             }
             else
@@ -116,6 +138,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{id}/[action]")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> EmailConfirmation(string id, EmailConfirmationRequest confirmationRequest)
         {
             if (id != confirmationRequest.UserId)
@@ -147,29 +170,28 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost("forgotpassword")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
-            var response = new ForgotPasswordResponse();
+            // Always return the same response, whether the account exists, is
+            // confirmed, or the mail transport fails. This prevents enumeration.
+            var response = new ForgotPasswordResponse { IsSuccess = true };
             var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
-            // Always return the same generic 200 response regardless of whether the email
-            // exists or is confirmed. This avoids leaking which accounts are registered
-            // (email enumeration) and whether they are unconfirmed.
             if (user != null && await _signInManager.UserManager.IsEmailConfirmedAsync(user))
             {
                 var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
                 var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
-                var urlConfirmation = $"{Request.Scheme}://{Request.Host}/admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}";
+                var urlConfirmation = BuildPublicUrl(
+                    $"admin/account/changepassword/?code={HttpUtility.UrlEncode(code)}");
 
                 try
                 {
                     await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
-
-                    response.IsSuccess = true;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send email to {Email}", user.Email);
+                    _logger.LogError(ex, "Failed to send the password reset email for user {UserId}.", user.Id);
                 }
             }
 
@@ -177,6 +199,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
         {
             var response = new LoginResponse();
@@ -201,22 +224,14 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return Ok(response);
             }
 
-            var claims = new List<Claim>
-            {
-                new (ClaimTypes.Name, loginRequest.Email),
-                new (ClaimTypes.NameIdentifier, user.Id)
-            };
+            // The Identity principal carries the security-stamp claim and the current
+            // roles, so the cookie validator can revoke the session after a password
+            // change, role removal, or account deletion.
+            var principal = await _signInManager.CreateUserPrincipalAsync(user);
 
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
+            await HttpContext.SignInAsync(JwtBearerDefaults.AuthenticationScheme, principal);
 
-            var claimsIdentity = new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
-
-            await HttpContext?.SignInAsync(JwtBearerDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
-
-            response.Email = loginRequest.Email;
+            response.Email = user.Email ?? loginRequest.Email;
             response.IsSuccess = true;
 
             return Ok(response);
@@ -232,8 +247,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("[action]")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest changePasswordRequest)
         {
+            const string invalidLinkMessage = "The password reset link is invalid or has expired.";
+
             var user = await _signInManager.UserManager.FindByEmailAsync(changePasswordRequest.Email);
 
             if (user == null)
@@ -243,27 +261,42 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return Ok(new ChangePasswordResponse
                 {
                     IsSuccess = false,
-                    Errors = ["The password reset link is invalid or has expired."]
+                    Errors = [invalidLinkMessage]
                 });
             }
 
             try
             {
                 var result = await _signInManager.UserManager.ResetPasswordAsync(user, changePasswordRequest.Code, changePasswordRequest.Password);
-                var changePasswordResponse = new ChangePasswordResponse
-                {
-                    IsSuccess = result.Succeeded,
-                    Errors = result.Errors.Select(x => x.Description)
-                };
 
-                return Ok(changePasswordResponse);
+                if (result.Succeeded)
+                {
+                    return Ok(new ChangePasswordResponse { IsSuccess = true });
+                }
+
+                // An invalid or expired token must be indistinguishable from an
+                // unknown account; only genuine password-policy errors are surfaced.
+                if (result.Errors.Any(error => error.Code == "InvalidToken"))
+                {
+                    return Ok(new ChangePasswordResponse
+                    {
+                        IsSuccess = false,
+                        Errors = [invalidLinkMessage]
+                    });
+                }
+
+                return Ok(new ChangePasswordResponse
+                {
+                    IsSuccess = false,
+                    Errors = result.Errors.Select(x => x.Description)
+                });
             }
             catch (DbUpdateConcurrencyException) when (!_signInManager.UserManager.Users.AsNoTracking().Any(u => u.Email == changePasswordRequest.Email))
             {
                 return Ok(new ChangePasswordResponse
                 {
                     IsSuccess = false,
-                    Errors = ["The password reset link is invalid or has expired."]
+                    Errors = [invalidLinkMessage]
                 });
             }
         }
@@ -277,6 +310,16 @@ namespace eCommerce.Backoffice.Server.Controllers
             if (user == null)
             {
                 return NotFound();
+            }
+
+            if (await _signInManager.UserManager.IsInRoleAsync(user, "Admin"))
+            {
+                var administrators = await _signInManager.UserManager.GetUsersInRoleAsync("Admin");
+
+                if (administrators.Count <= 1)
+                {
+                    return BadRequest("The last administrator account cannot be deleted.");
+                }
             }
 
             await _shopDataContext.Database.BeginTransactionAsync();
@@ -305,6 +348,21 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Builds an absolute URL from the configured public base address. Never
+        /// trusts the request Host header for links that carry security tokens.
+        /// </summary>
+        private string BuildPublicUrl(string relativePath)
+        {
+            var configuredBaseUrl = _configuration["App:PublicBaseUrl"];
+
+            var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
+                ? $"{Request.Scheme}://{Request.Host}"
+                : configuredBaseUrl;
+
+            return $"{baseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}";
         }
     }
 }

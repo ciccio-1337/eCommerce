@@ -18,19 +18,6 @@
     <script src="~/js/jquery-jtemplates.js"></script>
     <script src="~/js/json2.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <script>
-        $(document).ready(function () {
-            $(document).ajaxSend(function (t, a, i) {
-                if (a && i && ('POST' === i.type.toUpperCase() || 'PUT' === i.type.toUpperCase() || 'DELETE' === i.type.toUpperCase())) {
-                    var token = $('input[name="__RequestVerificationToken"]').val();
-
-                    if (token) {
-                        a.setRequestHeader('RequestVerificationToken', token);
-                    }
-                }
-            });
-        });
-    </script>
 </head>
 
 <body>

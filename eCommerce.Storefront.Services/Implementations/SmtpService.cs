@@ -40,6 +40,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
             var portText = _configuration["MailSettings:Smtp:Network:Port"] ?? _configuration["MailSettingsSmtpNetworkPort"] ?? "25";
             var useDefaultText = _configuration["MailSettings:Smtp:Network:DefaultCredentials"] ?? _configuration["MailSettingsSmtpNetworkDefaultCredentials"] ?? bool.FalseString;
+            var enableSslText = _configuration["MailSettings:Smtp:Network:EnableSsl"] ?? bool.TrueString;
             var userName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"] ?? string.Empty;
             var password = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"] ?? string.Empty;
 
@@ -51,6 +52,13 @@ namespace eCommerce.Storefront.Services.Implementations
             if (!bool.TryParse(useDefaultText, out var useDefaultCredentials))
             {
                 useDefaultCredentials = false;
+            }
+
+            // STARTTLS is enabled unless explicitly disabled. Plaintext SMTP must
+            // never be the accidental default.
+            if (!bool.TryParse(enableSslText, out var enableSsl))
+            {
+                enableSsl = true;
             }
 
             using var message = new MailMessage();
@@ -72,6 +80,7 @@ namespace eCommerce.Storefront.Services.Implementations
 
             smtp.UseDefaultCredentials = useDefaultCredentials;
             smtp.Credentials = new NetworkCredential(userName, password);
+            smtp.EnableSsl = enableSsl;
 
             try
             {
@@ -79,7 +88,7 @@ namespace eCommerce.Storefront.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email to {To} with subject '{Subject}'.", to, subject);
+                _logger.LogError(ex, "Failed to send an email with subject '{Subject}'.", subject);
 
                 throw;
             }

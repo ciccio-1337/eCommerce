@@ -6,3 +6,19 @@
 .DS_Store
 /obj
 plans/
+
+# Local databases and data-protection keys must never be committed.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+/keys/
+/*/keys/
+
+# Local secrets and certificates.
+.env
+.env.*
+*.pfx
+*.p12
+secrets.json

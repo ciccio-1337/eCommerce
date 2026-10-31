@@ -19,6 +19,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, true)).Succeeded)
             {
+                // RequireConfirmedEmail is enforced here explicitly: this method uses
+                // CheckPasswordSignInAsync, which only validates the password.
+                if (!await _signInManager.UserManager.IsEmailConfirmedAsync(identityUser))
+                {
+                    throw new InvalidOperationException(
+                        "Please confirm your email address before signing in. Check your inbox for the confirmation link.");
+                }
+
                 user.Id = identityUser.Id;
                 // Use the canonical email stored in the Identity store, not the raw login
                 // input. The auth-token cookie drives later lookups (GetAuthenticationToken)
@@ -51,16 +59,21 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             {
                 user.Id = identityUser.Id;
                 user.Email = email;
-                user.IsAuthenticated = true;
+                // A user who still has to confirm their email address must not be
+                // issued an authentication cookie yet.
+                user.IsAuthenticated = confirmEmail;
 
                 if (roles?.Count() > 0)
                 {
+                    var rolesAssigned = true;
+
                     foreach (var role in roles)
                     {
                         result = await _signInManager.UserManager.AddToRoleAsync(identityUser, role);
 
                         if (!result.Succeeded)
                         {
+                            rolesAssigned = false;
                             user.IsAuthenticated = false;
                             user.Id = user.Email = null;
 
@@ -75,7 +88,7 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                         }
                     }
 
-                    if (user.IsAuthenticated)
+                    if (rolesAssigned)
                     {
                         user.Roles = roles;
                     }
@@ -116,6 +129,37 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             {
                 await _signInManager.UserManager.DeleteAsync(identityUser);
             }
+        }
+
+        public async Task<bool> ConfirmEmailAsync(string userId, string code)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(code))
+            {
+                return false;
+            }
+
+            var identityUser = await _signInManager.UserManager.FindByIdAsync(userId);
+
+            if (identityUser is null)
+            {
+                return false;
+            }
+
+            var result = await _signInManager.UserManager.ConfirmEmailAsync(identityUser, code);
+
+            return result.Succeeded;
+        }
+
+        public async Task<string> GenerateEmailConfirmationTokenAsync(string userId)
+        {
+            var identityUser = await _signInManager.UserManager.FindByIdAsync(userId);
+
+            if (identityUser is null)
+            {
+                return null;
+            }
+
+            return await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(identityUser);
         }
     }
 }
