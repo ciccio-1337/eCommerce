@@ -4,6 +4,7 @@ using eCommerce.Storefront.Controllers.Controllers;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.OrderService;
+using eCommerce.Storefront.Services.ViewModels;
 using MapsterMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -61,6 +62,42 @@ namespace eCommerce.Storefront.Tests.Controllers
             var result = await _controller.PaymentCallBack(collection);
 
             Assert.IsInstanceOfType(result, typeof(OkResult));
+        }
+
+        [TestMethod]
+        public async Task PaymentCallBack_WhenUnexpectedExceptionOccurs_ReturnsOk()
+        {
+            _paymentServiceMock.Setup(x => x.GetOrderIdFor(It.IsAny<IFormCollection>())).Returns(123);
+            _orderServiceMock
+                .Setup(x => x.GetOrderAsync(It.IsAny<GetOrderRequest>()))
+                .ThrowsAsync(new InvalidOperationException("boom"));
+            var collection = new FormCollection(new System.Collections.Generic.Dictionary<string, Microsoft.Extensions.Primitives.StringValues>());
+
+            var result = await _controller.PaymentCallBack(collection);
+
+            Assert.IsInstanceOfType(result, typeof(OkResult));
+        }
+
+        [TestMethod]
+        public async Task CreatePaymentFor_WhenOrderHasAlreadyBeenPaid_RedirectsToOrderDetail()
+        {
+            _cookieAuthMock.Setup(x => x.GetAuthenticationToken()).Returns("customer@test.com");
+            _orderServiceMock
+                .Setup(x => x.GetOrderAsync(It.IsAny<GetOrderRequest>()))
+                .ReturnsAsync(new GetOrderResponse
+                {
+                    Order = new OrderView { Id = 7, OrderHasBeenPaidFor = true }
+                });
+
+            var result = await _controller.CreatePaymentFor(7);
+
+            var redirect = result as RedirectToActionResult;
+
+            Assert.IsNotNull(redirect);
+            Assert.AreEqual("Detail", redirect.ActionName);
+            Assert.AreEqual("Order", redirect.ControllerName);
+            Assert.AreEqual(7L, redirect.RouteValues["orderId"]);
+            _paymentServiceMock.Verify(x => x.GeneratePostDataFor(It.IsAny<eCommerce.Storefront.Model.Orders.OrderPaymentRequest>()), Times.Never);
         }
 
         [TestMethod]

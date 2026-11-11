@@ -29,6 +29,23 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> PaymentCallBack(IFormCollection collection)
         {
+            try
+            {
+                return await ProcessPaymentCallBackAsync(collection);
+            }
+            catch (Exception ex)
+            {
+                // Never return 5xx to PayPal: it retries on server errors, which can
+                // loop forever on a malformed or otherwise unexpected IPN. Log the
+                // failure and acknowledge the notification instead.
+                _logger.LogError(ex, "PaymentCallBack: unexpected error while processing an IPN.");
+
+                return Ok();
+            }
+        }
+
+        private async Task<IActionResult> ProcessPaymentCallBackAsync(IFormCollection collection)
+        {
             long orderId;
 
             try
@@ -113,6 +130,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
             if (response?.Order == null)
             {
                 return NotFound();
+            }
+
+            if (response.Order.OrderHasBeenPaidFor)
+            {
+                // A paid order must never be sent to PayPal again: the second IPN
+                // would be rejected as a duplicate and the customer could be charged
+                // without the order recording the second payment.
+                _logger.LogWarning("CreatePaymentFor: order {OrderId} has already been paid for.", orderId);
+
+                return RedirectToAction("Detail", "Order", new { orderId });
             }
 
             var orderPaymentRequest = _mapper.Map<OrderView, OrderPaymentRequest>(response.Order);

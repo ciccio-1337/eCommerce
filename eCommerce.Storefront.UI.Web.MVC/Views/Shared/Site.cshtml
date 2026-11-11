@@ -64,7 +64,9 @@
         </div>
         @await Html.PartialAsync("~/Views/Shared/SiteFooter.cshtml")
     </div>
-    @Html.AntiForgeryToken()
+    <div id="global-antiforgery-token" style="display:none;">
+        @Html.AntiForgeryToken()
+    </div>
 </body>
 
 </html>

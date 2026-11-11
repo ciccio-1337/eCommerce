@@ -10,8 +10,13 @@
         showOverlay("smoverlay", "basketSummary", 5);
 
         var postData = { productId: $("#productsizes").val() };
-        
-        $.post('/Basket/AddToBasket', postData, updateBasket, "json");
+
+        $.post('/Basket/AddToBasket', postData, updateBasket, "json")
+            .fail(function () {
+                // Without this the overlay stays visible forever after a failed POST.
+                hideOverlay("smoverlay");
+                alert("We could not add this item to your basket. Please try again.");
+            });
     }
 
     function updateBasket(basketSummaryView) {

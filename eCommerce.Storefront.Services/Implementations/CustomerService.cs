@@ -80,7 +80,9 @@ namespace eCommerce.Storefront.Services.Implementations
             customer.FirstName = request.FirstName;
             customer.SecondName = request.SecondName;
 
-            if (!string.Equals(customer.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase))
+            var emailChanged = !string.Equals(customer.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase);
+
+            if (emailChanged)
             {
                 var existingUserWithNewEmail = await _customerRepository.FindByAsync(request.NewEmail);
 
@@ -97,7 +99,14 @@ namespace eCommerce.Storefront.Services.Implementations
             try
             {
                 _customerRepository.Save(customer);
-                await _customerRepository.SaveEmailAsync(customer.UserId, customer.Email);
+
+                if (emailChanged)
+                {
+                    // The repository resets EmailConfirmed and the security stamp: the
+                    // new address must be proven before the account can sign in again.
+                    await _customerRepository.SaveEmailAsync(customer.UserId, customer.Email);
+                }
+
                 await _uow.CommitAsync();
             }
             catch (DbUpdateException)
@@ -109,6 +118,7 @@ namespace eCommerce.Storefront.Services.Implementations
             }
 
             response.Customer = _mapper.Map<Customer, CustomerView>(customer);
+            response.EmailChanged = emailChanged;
 
             return response;
         }

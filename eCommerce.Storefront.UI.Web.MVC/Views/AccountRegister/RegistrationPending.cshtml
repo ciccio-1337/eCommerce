@@ -18,3 +18,19 @@
 <p>
     The link can take a few minutes to arrive. Check your spam folder if you do not see it.
 </p>
+
+@if (!string.IsNullOrWhiteSpace(ViewData["ResendMessage"]?.ToString()))
+{
+    <p>@ViewData["ResendMessage"]</p>
+}
+
+<form method="post" action="/AccountRegister/ResendConfirmation">
+    @Html.AntiForgeryToken()
+    <p>
+        <label for="email">Email</label><br />
+        <input type="email" id="email" name="email" value="@ViewData["Email"]" required />
+    </p>
+    <p>
+        <button type="submit">Resend confirmation email</button>
+    </p>
+</form>

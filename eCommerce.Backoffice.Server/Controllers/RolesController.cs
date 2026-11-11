@@ -42,20 +42,17 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
-            var roleUserResponses = new List<RoleUserResponse>();
+            // Two queries instead of one IsInRoleAsync round-trip per user (N+1).
             var users = await _userManager.Users.AsNoTracking().ToListAsync();
+            var usersInRole = await _userManager.GetUsersInRoleAsync(identityRole.Name);
+            var inRoleIds = usersInRole.Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
 
-            foreach (var user in users)
+            var roleUserResponses = users.Select(user => new RoleUserResponse
             {
-                var roleUserResponse = new RoleUserResponse
-                {
-                    Id = user.Id,
-                    Name = user.UserName,
-                    InRole = await _userManager.IsInRoleAsync(user, identityRole.Name)
-                };
-
-                roleUserResponses.Add(roleUserResponse);
-            }
+                Id = user.Id,
+                Name = user.UserName,
+                InRole = inRoleIds.Contains(user.Id)
+            }).ToList();
 
             return roleUserResponses;
         }
@@ -70,8 +67,16 @@ namespace eCommerce.Backoffice.Server.Controllers
             if (result.Succeeded)
             {
                 identityRole = await _roleManager.FindByNameAsync(identityRole.Name);
-                response.Id = identityRole.Id;
-                response.IsSuccess = true;
+
+                if (identityRole == null)
+                {
+                    response.Errors = ["The role was created but could not be reloaded."];
+                }
+                else
+                {
+                    response.Id = identityRole.Id;
+                    response.IsSuccess = true;
+                }
             }
             else
             {
@@ -167,18 +172,24 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             try
             {
-                if (addRemoveRoleRequest.Add)
+                var roleResult = addRemoveRoleRequest.Add
+                    ? await _userManager.AddToRoleAsync(user, role.Name)
+                    : await _userManager.RemoveFromRoleAsync(user, role.Name);
+
+                if (!roleResult.Succeeded)
                 {
-                    await _userManager.AddToRoleAsync(user, role.Name);
-                }
-                else
-                {
-                    await _userManager.RemoveFromRoleAsync(user, role.Name);
+                    // Never report success when Identity rejected the change.
+                    return BadRequest(roleResult.Errors.Select(x => x.Description));
                 }
 
                 // Role changes must invalidate existing cookies so the new
                 // authorization decision takes effect immediately.
-                await _userManager.UpdateSecurityStampAsync(user);
+                var stampResult = await _userManager.UpdateSecurityStampAsync(user);
+
+                if (!stampResult.Succeeded)
+                {
+                    return BadRequest(stampResult.Errors.Select(x => x.Description));
+                }
             }
             catch (DbUpdateConcurrencyException) when (!_roleManager.Roles.AsNoTracking().Any(r => r.Id == addRemoveRoleRequest.RoleId) || !_userManager.Users.AsNoTracking().Any(u => u.Id == addRemoveRoleRequest.UserId))
             {

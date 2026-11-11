@@ -188,8 +188,8 @@ namespace eCommerce.Storefront.UI.Web.MVC
             serviceCollection.AddScoped<ILocalAuthenticationService, AspNetCoreIdentityAuthentication>();
             // Controller Helpers
             serviceCollection.AddScoped<IActionArguments, HttpRequestActionArguments>();
-            // Payment
-            serviceCollection.AddScoped<IPaymentService, PayPalPaymentService>();
+            // Payment is registered as a typed HttpClient in AddInfrastructure; do not
+            // add a second registration here or it shadows the typed-client config.
             // Caching Strategies
             serviceCollection.AddScoped<ICacheStorage, MemoryCacheAdapter>();
             serviceCollection.AddScoped<ICachedProductCatalogService, CachedProductCatalogService>();

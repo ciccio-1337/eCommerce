@@ -69,9 +69,12 @@ namespace eCommerce.Storefront.Services.Implementations
             }
             else
             {
+                var deliveryOption = await GetCheapestDeliveryOptionAsync()
+                    ?? throw new DeliveryOptionNotFoundException();
+
                 basket = new Basket();
 
-                basket.SetDeliveryOption(await GetCheapestDeliveryOptionAsync());
+                basket.SetDeliveryOption(deliveryOption);
                 basket.SetCustomer(customer);
             }
 

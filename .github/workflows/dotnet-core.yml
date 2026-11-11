@@ -39,4 +39,12 @@ jobs:
       run: dotnet test --no-restore --verbosity normal
 
     - name: Audit NuGet packages for known vulnerabilities
-      run: dotnet list package --vulnerable --include-transitive
+      shell: bash
+      run: |
+        output=$(dotnet list package --vulnerable --include-transitive 2>&1)
+        echo "$output"
+
+        if echo "$output" | grep -q "has the following vulnerable packages"; then
+          echo "::error::Vulnerable NuGet packages detected."
+          exit 1
+        fi

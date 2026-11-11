@@ -5,6 +5,15 @@
 
 @model eCommerce.Storefront.Controllers.ViewModels.CustomerAccount.CustomerDeliveryAddressView
 
+@if (!string.IsNullOrWhiteSpace(ViewData["IssueMessage"]?.ToString()))
+{
+    <p>
+        <div style="color: #D63301; background-color: #FFCCBA; padding:15px 10px 15px 50px;">
+            @ViewData["IssueMessage"]
+        </div>
+    </p>
+}
+
 <h2>Add Delivery Address</h2>
 @using (Html.BeginForm())
 {

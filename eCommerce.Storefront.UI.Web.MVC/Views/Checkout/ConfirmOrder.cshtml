@@ -23,12 +23,12 @@
     @foreach(var item in Model.Basket.Items) 
     {
         <li>
-            @item.Qty of @item.ProductName at @string.Format("{0:F}", item.ProductPrice)
+            @item.Qty of @item.ProductName at @item.ProductPrice
         </li>
     }
     </ul>
-    <p>Total: @string.Format("{0:F}", Model.Basket.ItemsTotal)</p>
-    <p>Delivery Charge: @string.Format("{0:F}", Model.Basket.DeliveryCost)</p>
-    <p>Total: @string.Format("{0:F}", Model.Basket.BasketTotal)</p>
+    <p>Total: @Model.Basket.ItemsTotal</p>
+    <p>Delivery Charge: @Model.Basket.DeliveryCost</p>
+    <p>Total: @Model.Basket.BasketTotal</p>
     <input id="Submit" type="submit" value="Place Order" /><br /><br />
 }

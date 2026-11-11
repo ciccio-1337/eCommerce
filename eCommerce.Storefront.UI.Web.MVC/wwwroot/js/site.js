@@ -34,7 +34,7 @@ $(document).ready(function () {
             && ('POST' === settings.type.toUpperCase()
                 || 'PUT' === settings.type.toUpperCase()
                 || 'DELETE' === settings.type.toUpperCase())) {
-            var token = $('input[name="__RequestVerificationToken"]').val();
+            var token = $('#global-antiforgery-token input[name="__RequestVerificationToken"]').val();
 
             if (token) {
                 jqXHR.setRequestHeader('RequestVerificationToken', token);

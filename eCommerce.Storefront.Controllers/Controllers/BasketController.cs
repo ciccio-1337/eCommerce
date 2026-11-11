@@ -215,9 +215,21 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 createBasketRequest.ProductsToAdd.Add(productId);
 
-                var response = await _basketService.CreateBasketAsync(createBasketRequest);
+                try
+                {
+                    var response = await _basketService.CreateBasketAsync(createBasketRequest);
 
-                basketSummaryView = response.Basket.ConvertToSummary();
+                    basketSummaryView = response.Basket.ConvertToSummary();
+                }
+                catch (CustomerNotFoundException)
+                {
+                    return Unauthorized(new { error = "Please sign in again to add items to your basket." });
+                }
+                catch (DeliveryOptionNotFoundException)
+                {
+                    // No shipping option exists yet (none seeded or all deleted).
+                    return BadRequest(new { error = "No delivery option is currently available. Please try again later." });
+                }
             }
 
             return Ok(basketSummaryView);

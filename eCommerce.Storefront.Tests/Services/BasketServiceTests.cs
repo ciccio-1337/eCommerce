@@ -10,6 +10,7 @@ using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interface
 using eCommerce.Storefront.Services.Implementations;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
+using eCommerce.Storefront.Tests.Infrastructure;
 using MapsterMapper;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -58,6 +59,31 @@ namespace eCommerce.Storefront.Tests.Services
 
             Assert.IsNotNull(response);
             Assert.IsNotNull(response.Basket);
+        }
+
+        [TestMethod]
+        public async Task CreateBasketAsync_WhenNoDeliveryOptionExists_ThrowsDeliveryOptionNotFoundException()
+        {
+            var request = new CreateBasketRequest
+            {
+                CustomerEmail = "customer@test.com",
+                ProductsToAdd = new List<long>()
+            };
+
+            _customerRepositoryMock
+                .Setup(x => x.FindByAsync("customer@test.com"))
+                .ReturnsAsync(new Customer
+                {
+                    UserId = "user-1",
+                    FirstName = "John",
+                    SecondName = "Doe",
+                    Email = "customer@test.com"
+                });
+            _deliveryOptionRepositoryMock
+                .Setup(x => x.FindAll())
+                .Returns(new List<DeliveryOption>().AsAsyncQueryable());
+
+            await Assert.ThrowsExactlyAsync<DeliveryOptionNotFoundException>(() => _basketService.CreateBasketAsync(request));
         }
 
         [TestMethod]

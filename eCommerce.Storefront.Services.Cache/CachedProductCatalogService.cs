@@ -1,5 +1,4 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,17 +15,17 @@ namespace eCommerce.Storefront.Services.Cache
     public class CachedProductCatalogService(ICacheStorage cacheStorage,
         IProductCatalogService productCatalogService,
         IProductTitleRepository productTitleRepository,
-        IProductRepository productRepository,
         IMapper mapper) : ICachedProductCatalogService
     {
         private readonly ICacheStorage _cacheStorage = cacheStorage;
         private readonly IProductCatalogService _productCatalogService = productCatalogService;
         private readonly IProductTitleRepository _productTitleRepository = productTitleRepository;
-        private readonly IProductRepository _productRepository = productRepository;
-        private readonly Lock _getTopSellingProductsLock = new();
-        private readonly Lock _getAllProductTitlesLock = new();
-        private readonly Lock _getAllProductsLock = new();
-        private readonly Lock _getAllCategoriesLock = new();
+        // The service is registered scoped, so instance locks would give every request
+        // its own lock and provide no cache-stampede protection. Static locks are shared
+        // by all instances (the underlying IMemoryCache is already shared).
+        private static readonly Lock GetTopSellingProductsLock = new();
+        private static readonly Lock GetAllProductTitlesLock = new();
+        private static readonly Lock GetAllCategoriesLock = new();
         private readonly IMapper _mapper = mapper;
 
         // Invalidate all product-related cache entries. Called by backoffice
@@ -39,9 +38,9 @@ namespace eCommerce.Storefront.Services.Cache
             _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
         }
 
-        private async Task<IReadOnlyList<ProductTitle>> FindAllProductTitlesAsync()
+        private IReadOnlyList<ProductTitle> FindAllProductTitles()
         {
-            lock (_getAllProductTitlesLock)
+            lock (GetAllProductTitlesLock)
             {
                 if (!_cacheStorage.TryRetrieve(CacheKeys.AllProductTitles.ToString(), out IReadOnlyList<ProductTitle>? allProductTitles))
                 {
@@ -56,25 +55,9 @@ namespace eCommerce.Storefront.Services.Cache
             }
         }
 
-        private async Task<IReadOnlyList<Product>> FindAllProductsAsync()
-        {
-            lock (_getAllProductsLock)
-            {
-                if (!_cacheStorage.TryRetrieve(CacheKeys.AllProducts.ToString(), out IReadOnlyList<Product>? allProducts))
-                {
-                    // Materialize and cache an IMMUTABLE snapshot.
-                    allProducts = _productRepository.FindAll().ToList().AsReadOnly();
-
-                    _cacheStorage.Store(CacheKeys.AllProducts.ToString(), allProducts);
-                }
-
-                return allProducts ?? new List<Product>().AsReadOnly();
-            }
-        }
-
         public GetFeaturedProductsResponse GetFeaturedProducts()
         {
-            lock (_getTopSellingProductsLock)
+            lock (GetTopSellingProductsLock)
             {
                 var response = new GetFeaturedProductsResponse();
 
@@ -82,15 +65,16 @@ namespace eCommerce.Storefront.Services.Cache
                 {
                     response = _productCatalogService.GetFeaturedProducts();
 
-                    // Cache an IMMUTABLE snapshot of the view models.
-                    _cacheStorage.Store(CacheKeys.TopSellingProducts.ToString(), response.Products.ToList().AsReadOnly());
+                    // Cache a deep, immutable snapshot of the view models.
+                    _cacheStorage.Store(CacheKeys.TopSellingProducts.ToString(),
+                        response.Products.Select(CloneProductSummary).ToList().AsReadOnly());
                 }
                 else
                 {
-                    // Return a NEW response object with the cached (immutable) views.
-                    // Callers get their own list instance so mutations don't leak.
+                    // Deep-copy the cached views: returning the cached instances would
+                    // let a caller that mutates one corrupt the shared cache.
                     // 'productViews' is guaranteed non-null when TryRetrieve returned true.
-                    response.Products = productViews!.ToList();
+                    response.Products = productViews!.Select(CloneProductSummary).ToList();
                 }
 
                 return response;
@@ -105,9 +89,9 @@ namespace eCommerce.Storefront.Services.Cache
             return await _productCatalogService.GetProductsByCategoryAsync(request);
         }
 
-        public async Task<GetProductResponse> GetProductAsync(GetProductRequest request)
+        public Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
-            var allTitles = await FindAllProductTitlesAsync();
+            var allTitles = FindAllProductTitles();
             // Mapster yields a null ProductView for an unknown/missing title, which is
             // the same shape the uncached service produces for a non-existent product.
             var title = allTitles.FirstOrDefault(p => p.Id == request.ProductId);
@@ -116,28 +100,28 @@ namespace eCommerce.Storefront.Services.Cache
                 Product = _mapper.Map<ProductTitle, ProductView>(title!)
             };
 
-            return response;
+            return Task.FromResult(response);
         }
 
         public GetAllCategoriesResponse GetAllCategories()
         {
-            lock (_getAllCategoriesLock)
+            lock (GetAllCategoriesLock)
             {
                 if (!_cacheStorage.TryRetrieve(CacheKeys.AllCategories.ToString(), out GetAllCategoriesResponse? response))
                 {
                     response = _productCatalogService.GetAllCategories();
-                    // Store an IMMUTABLE snapshot: new array of CategoryView.
-                    response.Categories = [.. response.Categories];
+                    // Store an immutable, deep-copied snapshot.
+                    response.Categories = response.Categories?.Select(CloneCategory).ToArray() ?? [];
 
                     _cacheStorage.Store(CacheKeys.AllCategories.ToString(), response);
                 }
 
-                // Return a fresh response with a fresh categories array so
-                // callers mutating the array or CategoryView don't affect cache.
+                // Return a fresh response with fresh CategoryView instances so
+                // callers mutating either the array or an item don't affect cache.
                 return new GetAllCategoriesResponse
                 {
                     // 'response' is non-null here: TryRetrieve returned true.
-                    Categories = response!.Categories?.ToArray() ?? Array.Empty<CategoryView>()
+                    Categories = response!.Categories?.Select(CloneCategory).ToArray() ?? []
                 };
             }
         }
@@ -146,5 +130,19 @@ namespace eCommerce.Storefront.Services.Cache
         {
             return _productCatalogService.CreateProductSearchResultFrom(productsMatchingRefinement, request);
         }
+
+        private static ProductSummaryView CloneProductSummary(ProductSummaryView product) => new()
+        {
+            Id = product.Id,
+            BrandName = product.BrandName,
+            Name = product.Name,
+            Price = product.Price
+        };
+
+        private static CategoryView CloneCategory(CategoryView category) => new()
+        {
+            Id = category.Id,
+            Name = category.Name
+        };
     }
 }

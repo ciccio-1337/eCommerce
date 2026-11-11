@@ -17,12 +17,12 @@ else
 <ul>
 @foreach (var item in Model.Order.Items)
 {
-    <li>@item.Qty of @item.ProductName (@item.ProductSizeName) at @string.Format("{0:F}", item.Price)</li>
+    <li>@item.Qty of @item.ProductName (@item.ProductSizeName) at @item.Price</li>
 }
 </ul>    
-<p>Shipping Charge: @string.Format("{0:F}", Model.Order.ShippingCharge)</p>
+<p>Shipping Charge: @Model.Order.ShippingCharge</p>
 <p>Shipping Via: @Model.Order.ShippingServiceCourierName - @Model.Order.ShippingServiceDescription</p>
-<p>Total: @string.Format("{0:F}", Model.Order.Total)</p>
+<p>Total: @Model.Order.Total</p>
 <p>Delivery Address</p>
 @Model.Order.DeliveryAddress.AddressLine<br />
 @Model.Order.DeliveryAddress.City<br />

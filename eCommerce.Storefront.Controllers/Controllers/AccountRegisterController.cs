@@ -10,7 +10,10 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -21,6 +24,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         IActionArguments actionArguments,
         IEmailService emailService,
         IConfiguration configuration,
+        IWebHostEnvironment environment,
         ILogger<AccountRegisterController> logger,
         ShopDataContext shopDataContext) : BaseAccountController(authenticationService,
             customerService,
@@ -29,6 +33,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
     {
         private readonly IEmailService _emailService = emailService;
         private readonly IConfiguration _configuration = configuration;
+        private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountRegisterController> _logger = logger;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
 
@@ -43,7 +48,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [EnableRateLimiting("registration")]
         public async Task<IActionResult> Register(string password, string email, string firstName, string secondName, string returnUrl)
         {
-            await _shopDataContext.Database.BeginTransactionAsync();
+            await using var transaction = await _shopDataContext.Database.BeginTransactionAsync();
 
             User user = null;
 
@@ -112,7 +117,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             try
             {
-                await SendConfirmationEmailAsync(user, email);
+                await SendConfirmationEmailAsync(user.Id, email);
             }
             catch (Exception ex)
             {
@@ -140,9 +145,48 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return View();
         }
 
-        private async Task SendConfirmationEmailAsync(User user, string email)
+        [HttpPost]
+        [EnableRateLimiting("registration")]
+        public async Task<IActionResult> ResendConfirmation(string email)
         {
-            var code = await _authenticationService.GenerateEmailConfirmationTokenAsync(user.Id);
+            // The response is deliberately identical whether the address exists, is
+            // already confirmed, or the mail transport fails: this endpoint must not
+            // become an account-enumeration oracle.
+            ViewData["Title"] = "Check your email";
+            ViewData["Email"] = email;
+            ViewData["ResendMessage"] =
+                "If the address belongs to an account that is not confirmed yet, a new confirmation link has been sent.";
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return View("RegistrationPending");
+            }
+
+            var normalizedEmail = email.ToUpperInvariant();
+            var user = await _shopDataContext.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+            if (user == null || user.EmailConfirmed)
+            {
+                return View("RegistrationPending");
+            }
+
+            try
+            {
+                await SendConfirmationEmailAsync(user.Id, user.Email ?? email);
+            }
+            catch (Exception ex)
+            {
+                // Log only: the caller gets the neutral message above.
+                _logger.LogError(ex, "Failed to resend the confirmation email for user {UserId}.", user.Id);
+            }
+
+            return View("RegistrationPending");
+        }
+
+        private async Task SendConfirmationEmailAsync(string userId, string email)
+        {
+            var code = await _authenticationService.GenerateEmailConfirmationTokenAsync(userId);
 
             if (string.IsNullOrWhiteSpace(code))
             {
@@ -151,7 +195,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             var relativeUrl = Url.Action(nameof(ConfirmEmail), "AccountRegister", new
             {
-                userId = user.Id,
+                userId,
                 code
             });
 
@@ -170,16 +214,25 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         /// <summary>
         /// Builds an absolute URL from the configured public base address instead
-        /// of trusting the request Host header.
+        /// of trusting the request Host header. Outside Development the setting is
+        /// mandatory (Program.cs also validates it at startup).
         /// </summary>
         private string BuildPublicUrl(string relativePath)
         {
             var configuredBaseUrl = _configuration["App:PublicBaseUrl"];
-            var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
-                ? $"{Request.Scheme}://{Request.Host}"
-                : configuredBaseUrl;
 
-            return $"{baseUrl.TrimEnd('/')}/{relativePath?.TrimStart('/')}";
+            if (string.IsNullOrWhiteSpace(configuredBaseUrl))
+            {
+                if (!_environment.IsDevelopment())
+                {
+                    throw new InvalidOperationException(
+                        "App:PublicBaseUrl must be configured in non-development environments.");
+                }
+
+                configuredBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            return $"{configuredBaseUrl.TrimEnd('/')}/{relativePath?.TrimStart('/')}";
         }
 
         private IActionResult RegistrationFailed(

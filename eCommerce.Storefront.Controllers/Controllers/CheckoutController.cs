@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using eCommerce.Storefront.Model;
 using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -88,6 +89,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 await _cookieAuthentication.SignOutAsync();
                 
                 return RedirectToAction("Register", "AccountRegister");
+            }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                // The address view has no data annotations, so validation happens in
+                // the domain model. Re-render the form with the submitted values and
+                // a user-facing message instead of returning a 500.
+                ViewData["IssueMessage"] = ex.Message;
+
+                return View("AddDeliveryAddress", deliveryAddressView);
             }
 
             return await Checkout();

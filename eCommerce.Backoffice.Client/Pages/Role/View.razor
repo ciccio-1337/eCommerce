@@ -192,49 +192,71 @@
 
     public async Task SaveRoleUserAsync()
     {
-        var isSuccess = false;
-
-        if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(userId))
+        if (string.IsNullOrEmpty(model.Id) || string.IsNullOrEmpty(userId))
         {
+            return;
+        }
+
+        try
+        {
+            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true }))?.Content?.ReadFromJsonAsync<bool>();
+
+            if (!isSuccess)
+            {
+                editRoleResponse = new EditRoleResponse { Errors = ["The user could not be added to the role."] };
+                return;
+            }
+
             try
             {
-                isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true }))?.Content?.ReadFromJsonAsync<bool>();
+                roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
             }
             catch (Exception)
             {
-                // Error handled below
+                roleUserResponse = new List<RoleUserResponse>();
+                editRoleResponse = new EditRoleResponse { Errors = ["The role was updated but the user list could not be refreshed."] };
             }
-        }
-
-        if (isSuccess)
-        {
-            roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
 
             StateHasChanged();
+        }
+        catch (Exception)
+        {
+            editRoleResponse = new EditRoleResponse { Errors = ["Unable to update the role assignment. Please try again."] };
         }
     }
 
     public async Task RemoveRoleUserAsync(string id)
     {
-        var isSuccess = false;
-
-        if (!string.IsNullOrEmpty(model.Id) && !string.IsNullOrEmpty(id))
+        if (string.IsNullOrEmpty(model.Id) || string.IsNullOrEmpty(id))
         {
+            return;
+        }
+
+        try
+        {
+            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false }))?.Content?.ReadFromJsonAsync<bool>();
+
+            if (!isSuccess)
+            {
+                editRoleResponse = new EditRoleResponse { Errors = ["The user could not be removed from the role."] };
+                return;
+            }
+
             try
             {
-                isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false }))?.Content?.ReadFromJsonAsync<bool>();
+                roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
             }
             catch (Exception)
             {
-                // Error handled below
+                roleUserResponse = new List<RoleUserResponse>();
+                editRoleResponse = new EditRoleResponse { Errors = ["The role was updated but the user list could not be refreshed."] };
             }
-        }
-
-        if (isSuccess)
-        {
-            roleUserResponse = await Http.GetFromJsonAsync<List<RoleUserResponse>>($"api/roles/{model.Id}/users");
 
             StateHasChanged();
+        }
+        catch (Exception)
+        {
+            editRoleResponse = new EditRoleResponse { Errors = ["Unable to update the role assignment. Please try again."] };
         }
     }
 

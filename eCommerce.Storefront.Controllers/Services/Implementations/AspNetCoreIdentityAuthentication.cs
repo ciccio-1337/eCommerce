@@ -19,8 +19,9 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
             if (identityUser != null && (await _signInManager.CheckPasswordSignInAsync(identityUser, password, true)).Succeeded)
             {
-                // RequireConfirmedEmail is enforced here explicitly: this method uses
-                // CheckPasswordSignInAsync, which only validates the password.
+                // CheckPasswordSignInAsync already enforces RequireConfirmedEmail through
+                // PreSignInCheck/CanSignInAsync. Keep the explicit check only to surface a
+                // clearer, actionable message to the customer.
                 if (!await _signInManager.UserManager.IsEmailConfirmedAsync(identityUser))
                 {
                     throw new InvalidOperationException(

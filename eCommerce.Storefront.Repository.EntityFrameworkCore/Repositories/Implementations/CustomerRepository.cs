@@ -1,19 +1,24 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Implementations
 {
-    public class CustomerRepository(IUnitOfWork uow, ShopDataContext dataContext) : Repository<Customer, long>(uow, dataContext), ICustomerRepository
+    public class CustomerRepository(IUnitOfWork uow,
+        ShopDataContext dataContext,
+        ILookupNormalizer lookupNormalizer) : Repository<Customer, long>(uow, dataContext), ICustomerRepository
     {
+        private readonly ILookupNormalizer _lookupNormalizer = lookupNormalizer;
         public async Task<Customer> FindByAsync(string email)
         {
-            // Identity stores NormalizedEmail via UpperInvariantLookupNormalizer; matching
-            // against the same normalization avoids both EF translation issues with
-            // StringComparison and case-sensitivity problems at the SQL level.
-            var normalisedEmail = email?.ToUpperInvariant() ?? string.Empty;
+            // Identity stores NormalizedEmail via the configured ILookupNormalizer;
+            // matching against the same normalization avoids both EF translation issues
+            // with StringComparison and case-sensitivity problems at the SQL level.
+            var normalisedEmail = _lookupNormalizer.NormalizeEmail(email) ?? string.Empty;
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalisedEmail);
 
             if (user != null)
@@ -67,13 +72,28 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
         {
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id.Equals(userId));
 
-            if (user != null)
+            if (user == null)
             {
-                user.UserName = user.Email = email;
-                user.NormalizedUserName = user.NormalizedEmail = email.ToUpperInvariant();
-
-                _dataContext.Users.Update(user);
+                return;
             }
+
+            var normalizedEmail = _lookupNormalizer.NormalizeEmail(email) ?? string.Empty;
+
+            if (string.Equals(user.NormalizedEmail, normalizedEmail, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            user.UserName = user.Email = email;
+            user.NormalizedEmail = normalizedEmail;
+            user.NormalizedUserName = _lookupNormalizer.NormalizeName(email) ?? normalizedEmail;
+
+            // Changing the sign-in address is a security-sensitive operation: the new
+            // address has not been proven yet, and existing sessions must be revoked.
+            user.EmailConfirmed = false;
+            user.SecurityStamp = Guid.NewGuid().ToString();
+
+            _dataContext.Users.Update(user);
         }
     }
 }

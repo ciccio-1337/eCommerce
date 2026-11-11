@@ -1,0 +1,33 @@
+@{
+    Layout = "Site";
+    ViewData["Title"] = "Confirm your new email";
+}
+
+<h2>Confirm your new email</h2>
+
+@if (!string.IsNullOrWhiteSpace(ViewData["IssueMessage"]?.ToString()))
+{
+    <p>
+        <div style="color: #D63301; background-color: #FFCCBA; padding:15px 10px 15px 50px;">
+            @ViewData["IssueMessage"]
+        </div>
+    </p>
+}
+
+<p>
+    Your email address was changed to <strong>@ViewData["Email"]</strong>, but the
+    account is not active again yet. We sent a confirmation link to that address.
+</p>
+
+<p>
+    Open the link in that message to confirm the new address, then
+    @Html.ActionLink("log on", "LogOn", "AccountLogOn") again.
+</p>
+
+<form method="post" action="/AccountRegister/ResendConfirmation">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="email" value="@ViewData["Email"]" />
+    <p>
+        <button type="submit">Resend confirmation email</button>
+    </p>
+</form>

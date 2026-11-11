@@ -15,7 +15,9 @@ using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
@@ -27,6 +29,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         IConfiguration configuration,
         IEntityService<Customer, long> customerService,
         ShopDataContext shopDataContext,
+        IWebHostEnvironment environment,
         ILogger<AccountsController> logger) : ControllerBase
     {
         private readonly IEmailService _emailService = emailService;
@@ -34,6 +37,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly IConfiguration _configuration = configuration;
         private readonly IEntityService<Customer, long> _customerService = customerService;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
+        private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountsController> _logger = logger;
 
         [HttpGet]
@@ -92,6 +96,22 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return Ok(registerResponse);
             }
 
+            // The endpoint is administrator-only, so a newly created backoffice account
+            // is an administrator by default. Without this the account could never log
+            // in (Login requires the Admin role) even after confirming its email.
+            var roleResult = await _signInManager.UserManager.AddToRoleAsync(user, "Admin");
+
+            if (!roleResult.Succeeded)
+            {
+                await _signInManager.UserManager.DeleteAsync(user);
+
+                return Ok(new RegisterResponse
+                {
+                    IsSuccess = false,
+                    Errors = roleResult.Errors.Select(x => x.Description)
+                });
+            }
+
             var code = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
             var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
             var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
@@ -103,7 +123,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 try
                 {
-                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>");
+                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Email confirmation", $"Please confirm your account by <a href='{urlConfirmation}'>clicking here</a>", isBodyHtml: true);
                 }
                 catch (Exception ex)
                 {
@@ -186,7 +206,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 try
                 {
-                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>");
+                    await _emailService.SendMailAsync(smtpUserName, user.Email, "Reset password", $"Please reset your password by <a href='{urlConfirmation}'>clicking here</a>", isBodyHtml: true);
                 }
                 catch (Exception ex)
                 {
@@ -321,11 +341,20 @@ namespace eCommerce.Backoffice.Server.Controllers
                 }
             }
 
-            await _shopDataContext.Database.BeginTransactionAsync();
+            await using var transaction = await _shopDataContext.Database.BeginTransactionAsync();
 
             try
             {
-                await _signInManager.UserManager.DeleteAsync(user);
+                var deleteResult = await _signInManager.UserManager.DeleteAsync(user);
+
+                if (!deleteResult.Succeeded)
+                {
+                    // Do not delete the Customer profile and claim success when the
+                    // Identity user could not be removed: that leaves an orphaned user.
+                    await transaction.RollbackAsync();
+
+                    return BadRequest(deleteResult.Errors.Select(x => x.Description));
+                }
 
                 var customers = _customerService.Get(c => c.UserId.Equals(id));
 
@@ -337,13 +366,13 @@ namespace eCommerce.Backoffice.Server.Controllers
                     }
                 }
 
-                await _shopDataContext.Database.CommitTransactionAsync();
+                await transaction.CommitAsync();
 
                 return NoContent();
             }
             catch
             {
-                await _shopDataContext.Database.RollbackTransactionAsync();
+                await transaction.RollbackAsync();
 
                 throw;
             }
@@ -357,11 +386,18 @@ namespace eCommerce.Backoffice.Server.Controllers
         {
             var configuredBaseUrl = _configuration["App:PublicBaseUrl"];
 
-            var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
-                ? $"{Request.Scheme}://{Request.Host}"
-                : configuredBaseUrl;
+            if (string.IsNullOrWhiteSpace(configuredBaseUrl))
+            {
+                if (!_environment.IsDevelopment())
+                {
+                    throw new InvalidOperationException(
+                        "App:PublicBaseUrl must be configured in non-development environments.");
+                }
 
-            return $"{baseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}";
+                configuredBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            return $"{configuredBaseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}";
         }
     }
 }

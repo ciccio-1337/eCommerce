@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using eCommerce.Storefront.Controllers.ViewModels.CustomerAccount;
 using eCommerce.Storefront.Services.Implementations;
@@ -10,13 +11,27 @@ using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
     [Authorize(Roles = "Customer")]
     public class CustomerController(ICustomerService customerService,
-        ICookieAuthentication cookieAuthentication) : BaseController(cookieAuthentication, customerService)
+        ICookieAuthentication cookieAuthentication,
+        ILocalAuthenticationService authenticationService,
+        IEmailService emailService,
+        IConfiguration configuration,
+        IWebHostEnvironment environment,
+        ILogger<CustomerController> logger) : BaseController(cookieAuthentication, customerService)
     {
+        private readonly ILocalAuthenticationService _authenticationService = authenticationService;
+        private readonly IEmailService _emailService = emailService;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly IWebHostEnvironment _environment = environment;
+        private readonly ILogger<CustomerController> _logger = logger;
         public async Task<IActionResult> Detail()
         {
             var customerRequest = new GetCustomerRequest
@@ -71,6 +86,31 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     await _cookieAuthentication.SignOutAsync();
 
                     return RedirectToAction("Register", "AccountRegister");
+                }
+
+                if (response.EmailChanged)
+                {
+                    try
+                    {
+                        await SendEmailChangeConfirmationAsync(userId, response.Customer.Email);
+                    }
+                    catch (Exception ex)
+                    {
+                        // The address is already persisted and therefore unconfirmed; the
+                        // customer must still sign out and use the resend form if needed.
+                        _logger.LogError(ex, "Failed to send the email-change confirmation for user {UserId}.", userId);
+                        ViewData["IssueMessage"] =
+                            "Your email was updated, but we could not send the confirmation message. Please resend it below.";
+                    }
+
+                    // Changing the sign-in address revokes the current session (the
+                    // security stamp changed), so force a fresh login after confirmation.
+                    await _cookieAuthentication.SignOutAsync();
+
+                    ViewData["Title"] = "Confirm your new email";
+                    ViewData["Email"] = response.Customer.Email;
+
+                    return View("~/Views/AccountRegister/EmailChangePending.cshtml");
                 }
 
                 await _cookieAuthentication.SetAuthenticationTokenAsync(userId, customerDetailView.Customer.Email, ["Customer"]);
@@ -174,6 +214,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 // GET behavior; keep it consistent.
                 return RedirectToAction("DeliveryAddresses");
             }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                ViewData["IssueMessage"] = ex.Message;
+
+                return View(new CustomerDeliveryAddressView
+                {
+                    Address = deliveryAddressView,
+                    BasketSummary = await GetBasketSummaryViewAsync()
+                });
+            }
 
             return await DeliveryAddresses();
         }
@@ -208,8 +258,64 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 
                 return RedirectToAction("Register", "AccountRegister");
             }
+            catch (EntityBaseIsInvalidException ex)
+            {
+                ViewData["IssueMessage"] = ex.Message;
+
+                return View(new CustomerDeliveryAddressView
+                {
+                    Address = deliveryAddressView,
+                    BasketSummary = await GetBasketSummaryViewAsync()
+                });
+            }
 
             return await DeliveryAddresses();
+        }
+
+        private async Task SendEmailChangeConfirmationAsync(string userId, string email)
+        {
+            var code = await _authenticationService.GenerateEmailConfirmationTokenAsync(userId);
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                throw new InvalidOperationException("Could not generate an email confirmation token.");
+            }
+
+            var relativeUrl = $"/AccountRegister/ConfirmEmail?userId={Uri.EscapeDataString(userId)}&code={Uri.EscapeDataString(code)}";
+            var confirmationUrl = BuildPublicUrl(relativeUrl);
+
+            var from = _configuration["MailSettings:Smtp:Network:UserName"]
+                ?? _configuration["MailSettingsSmtpNetworkUserName"]
+                ?? string.Empty;
+
+            await _emailService.SendMailAsync(
+                from,
+                email,
+                "Confirm your new email address",
+                $"You asked to change the email address on your account. Confirm it by opening this link: {confirmationUrl}");
+        }
+
+        /// <summary>
+        /// Builds an absolute URL from the configured public base address instead of
+        /// trusting the request Host header. Outside Development the configuration is
+        /// mandatory (and validated at startup by Program.cs).
+        /// </summary>
+        private string BuildPublicUrl(string relativePath)
+        {
+            var configuredBaseUrl = _configuration["App:PublicBaseUrl"];
+
+            if (string.IsNullOrWhiteSpace(configuredBaseUrl))
+            {
+                if (!_environment.IsDevelopment())
+                {
+                    throw new InvalidOperationException(
+                        "App:PublicBaseUrl must be configured in non-development environments.");
+                }
+
+                configuredBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            return $"{configuredBaseUrl.TrimEnd('/')}/{relativePath?.TrimStart('/')}";
         }
     }
 }

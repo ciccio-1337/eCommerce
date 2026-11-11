@@ -13,7 +13,7 @@ namespace eCommerce.Storefront.Services.Implementations
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<SmtpService> _logger = logger;
 
-        public async Task SendMailAsync(string from, string to, string subject, string body)
+        public async Task SendMailAsync(string from, string to, string subject, string body, bool isBodyHtml = false)
         {
             if (string.IsNullOrWhiteSpace(from))
             {
@@ -69,12 +69,11 @@ namespace eCommerce.Storefront.Services.Implementations
             
             message.Subject = subject ?? string.Empty;
             message.Body = body ?? string.Empty;
-            // Email bodies are always plain text (StringBuilder-built by callers such as
-            // OrderService.SubmitAsync). The previous heuristic that auto-detected HTML
-            // by searching for '<' and '>' would fire on product names like 'Size < 3XL'
-            // or customer names containing angle brackets, silently switching the email
-            // to HTML rendering and mangling the layout.
-            message.IsBodyHtml = false;
+            // Plain text by default: storefront bodies are StringBuilder-built by callers
+            // such as OrderService.SubmitAsync, and the previous heuristic that
+            // auto-detected HTML by searching for '<' and '>' would fire on product names
+            // like 'Size < 3XL'. Callers that intentionally send HTML opt in explicitly.
+            message.IsBodyHtml = isBodyHtml;
 
             using var smtp = new SmtpClient(host, port);
 

@@ -168,6 +168,16 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                     return transactionResult;
                 }
 
+                // Payment.Validate rejects an empty transaction id, so a verified IPN
+                // with no txn_id must never reach the "payment ok" path (it would
+                // otherwise throw later and surface as a 500 to PayPal).
+                if (string.IsNullOrWhiteSpace(transactionId))
+                {
+                    _logger.LogWarning("PayPal IPN: missing txn_id for order {OrderId}.", orderRequest.Id);
+
+                    return transactionResult;
+                }
+
                 transactionResult.PaymentToken = transactionId;
                 transactionResult.Amount = amountPaid;
                 transactionResult.PaymentMerchant = "PayPal";
