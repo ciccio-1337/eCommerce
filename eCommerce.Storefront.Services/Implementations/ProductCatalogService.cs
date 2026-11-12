@@ -107,16 +107,17 @@ namespace eCommerce.Storefront.Services.Implementations
 
         private IEnumerable<ProductSummaryView> CropProductListToSatisfyGivenIndex(int pageIndex, int numberOfResultsPerPage, IEnumerable<ProductTitle> productsFound)
         {
-            if (pageIndex > 1)
-            {
-                var numToSkip = (pageIndex - 1) * numberOfResultsPerPage;
+            // Defensive bounds: the controller clamps client input, but the service
+            // must not overflow page arithmetic even if called directly.
+            pageIndex = Math.Max(1, pageIndex);
+            numberOfResultsPerPage = Math.Clamp(numberOfResultsPerPage, 1, 100);
+            var numToSkip = Math.Min(((long)pageIndex - 1) * numberOfResultsPerPage, int.MaxValue);
 
-                return _mapper.Map<IEnumerable<ProductTitle>, IEnumerable<ProductSummaryView>>(productsFound.GroupBy(t => t.Id).Select(g => g.First()).Skip(numToSkip).Take(numberOfResultsPerPage));
-            }
-            else
-            {
-                return _mapper.Map<IEnumerable<ProductTitle>, IEnumerable<ProductSummaryView>>(productsFound.GroupBy(t => t.Id).Select(g => g.First()).Take(numberOfResultsPerPage));
-            }
+            return _mapper.Map<IEnumerable<ProductTitle>, IEnumerable<ProductSummaryView>>(
+                productsFound.GroupBy(t => t.Id)
+                    .Select(g => g.First())
+                    .Skip((int)numToSkip)
+                    .Take(numberOfResultsPerPage));
         }
 
         private static int NoOfResultPagesGiven(int numberOfResultsPerPage, int numberOfTitlesFound)
@@ -128,7 +129,6 @@ namespace eCommerce.Storefront.Services.Implementations
 
             return (int)Math.Ceiling((double)numberOfTitlesFound / numberOfResultsPerPage);
         }
-
         private List<RefinementGroup> GenerateAvailableProductRefinementsFrom(IEnumerable<ProductTitle> productsFound)
         {
             var brandsRefinementGroup = ConvertToRefinementGroup(productsFound.Where(p => p.Brand != null).Select(p => p.Brand).GroupBy(b => b.Id).Select(g => g.First()).ToList().ConvertAll(b => (IProductAttribute)b), RefinementGroupings.Brand);

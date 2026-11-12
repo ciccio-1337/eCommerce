@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Net.Http.Headers;
+using System.Security.Cryptography;
 using SameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Mapster;
@@ -31,6 +32,13 @@ namespace eCommerce.Storefront.UI.Web.MVC
 {
     public static class BootStrapper
     {
+        /// <summary>
+        /// HttpContext.Items key holding the per-request CSP nonce. Razor views use
+        /// it to authorise their inline script blocks without allowing all inline
+        /// scripts (<c>'unsafe-inline'</c>).
+        /// </summary>
+        public const string CspNonceKey = "CspNonce";
+
         public static IServiceCollection AddInfrastructure(this IServiceCollection serviceCollection, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
             var config = TypeAdapterConfig.GlobalSettings;
@@ -41,9 +49,9 @@ namespace eCommerce.Storefront.UI.Web.MVC
             // forwards plain HTTP to the app). SameAsRequest would then mark the auth,
             // backoffice, and anti-forgery cookies as non-Secure because the *inbound*
             // request is HTTP, letting them travel in plaintext over the internal network.
-            // In production always require Secure; development over localhost HTTP keeps
-            // SameAsRequest so the cookies still work.
-            var secureCookiesOnly = hostEnvironment.IsProduction(); 
+            // Require Secure in every environment except local development; staging and
+            // QA commonly terminate TLS at a proxy too.
+            var secureCookiesOnly = Infrastructure.SecurityConfiguration.RequireSecureCookies(hostEnvironment);
             
             serviceCollection.AddSingleton(config);
             serviceCollection.AddScoped<IMapper, ServiceMapper>();
@@ -93,11 +101,12 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 // Customers must prove ownership of their email address before signing in.
                 options.SignIn.RequireConfirmedEmail = true;
             });
-            // Revalidate the security stamp on every request so deleted users, password
-            // changes, and role removals invalidate existing cookies.
+            // Revalidate the security stamp frequently so deleted users, password
+            // changes, and role removals invalidate existing cookies. A shorter
+            // interval narrows the window in which a revoked session still works.
             serviceCollection.Configure<SecurityStampValidatorOptions>(options =>
             {
-                options.ValidationInterval = TimeSpan.FromMinutes(5);
+                options.ValidationInterval = TimeSpan.FromMinutes(1);
             });
             serviceCollection.AddScoped<ISecurityStampValidator, SecurityStampValidator<IdentityUser>>();
             serviceCollection.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -203,6 +212,11 @@ namespace eCommerce.Storefront.UI.Web.MVC
         {
             webApplication.Use(async (context, next) =>
             {
+                // A fresh nonce per response. Inline scripts carry the same value,
+                // so an injected <script> without the nonce is refused by the browser.
+                var cspNonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+                context.Items[CspNonceKey] = cspNonce;
+
                 if (!context.Response.Headers.ContainsKey(HeaderNames.XContentTypeOptions))
                 {
                     context.Response.Headers.Append(HeaderNames.XContentTypeOptions, "nosniff");
@@ -222,11 +236,7 @@ namespace eCommerce.Storefront.UI.Web.MVC
                 {
                     context.Response.Headers.Append(
                         "Content-Security-Policy",
-                        "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
-                        "form-action 'self' https://www.sandbox.paypal.com https://www.paypal.com; " +
-                        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval'; " +
-                        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
-                        "connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'");
+                        BuildContentSecurityPolicy(cspNonce));
                 }
 
                 if (!context.Response.Headers.ContainsKey("Permissions-Policy"))
@@ -265,6 +275,17 @@ namespace eCommerce.Storefront.UI.Web.MVC
             });
 
             return webApplication;
+        }
+
+        internal static string BuildContentSecurityPolicy(string nonce)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(nonce);
+
+            return "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
+                   "form-action 'self' https://www.sandbox.paypal.com https://www.paypal.com; " +
+                   $"script-src 'self' 'nonce-{nonce}' 'wasm-unsafe-eval'; " +
+                   "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
+                   "connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'";
         }
     }
 }

@@ -10,6 +10,7 @@ using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
+    [AllowAnonymous]
     public class AccountRegisterController(ILocalAuthenticationService authenticationService,
         ICustomerService customerService,
         ICookieAuthentication cookieAuthentication,

@@ -10,6 +10,9 @@ namespace eCommerce.Storefront.Model.Customers
         [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
         public static partial Regex EmailRegex();
 
+        // Keep in sync with CustomerConfiguration (FirstName/SecondName max 100).
+        public const int MaxNameLength = 100;
+
         private readonly IList<DeliveryAddress> _deliveryAddressBook = [];
         private Basket.Basket _basket;
 
@@ -55,10 +58,18 @@ namespace eCommerce.Storefront.Model.Customers
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(FirstName), Rule = "A customer must have a first name." });
             }
+            else if (FirstName.Length > MaxNameLength)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(FirstName), Rule = $"A first name must be at most {MaxNameLength} characters." });
+            }
 
             if (string.IsNullOrWhiteSpace(SecondName))
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(SecondName), Rule = "A customer must have a second name." });
+            }
+            else if (SecondName.Length > MaxNameLength)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(SecondName), Rule = $"A second name must be at most {MaxNameLength} characters." });
             }
 
             if (!EmailRegex().IsMatch(Email ?? string.Empty))

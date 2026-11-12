@@ -105,6 +105,34 @@ namespace eCommerce.Storefront.Tests.Controllers
         }
 
         [TestMethod]
+        public async Task Detail_WhenEmailChangesWithoutValidPassword_BlocksTheChange()
+        {
+            var customerView = new CustomerView
+            {
+                Email = "new@test.com",
+                FirstName = "John",
+                SecondName = "Doe"
+            };
+
+            _cookieAuthenticationMock.Setup(x => x.GetAuthenticationToken()).Returns("old@test.com");
+            _authenticationServiceMock
+                .Setup(x => x.ValidatePasswordAsync("old@test.com", "wrong-password"))
+                .ReturnsAsync(false);
+
+            var result = await _controller.Detail(customerView, "wrong-password");
+
+            var viewResult = result as ViewResult;
+
+            Assert.IsNotNull(viewResult);
+            Assert.AreEqual(
+                "Enter your current password to change your email address.",
+                viewResult.ViewData["IssueMessage"]);
+            _customerServiceMock.Verify(
+                x => x.ModifyCustomerAsync(It.IsAny<ModifyCustomerRequest>()),
+                Times.Never);
+        }
+
+        [TestMethod]
         public async Task Detail_WhenEmailChanges_SignsOutAndReturnsEmailChangePendingView()
         {
             var customerView = new CustomerView
@@ -123,6 +151,9 @@ namespace eCommerce.Storefront.Tests.Controllers
                     EmailChanged = true
                 });
             _authenticationServiceMock
+                .Setup(x => x.ValidatePasswordAsync("old@test.com", "current-password"))
+                .ReturnsAsync(true);
+            _authenticationServiceMock
                 .Setup(x => x.GenerateEmailConfirmationTokenAsync("user-1"))
                 .ReturnsAsync("confirmation-token");
             _emailServiceMock
@@ -138,7 +169,7 @@ namespace eCommerce.Storefront.Tests.Controllers
                 }
             };
 
-            var result = await _controller.Detail(customerView);
+            var result = await _controller.Detail(customerView, "current-password");
 
             var viewResult = result as ViewResult;
 
@@ -152,6 +183,16 @@ namespace eCommerce.Storefront.Tests.Controllers
                     "new@test.com",
                     It.IsAny<string>(),
                     It.Is<string>(body => body.Contains("https://store.example.com/AccountRegister/ConfirmEmail")),
+                    false),
+                Times.Once);
+            // The previous address is warned as well, so a hijacked session cannot
+            // silently move the account to an attacker-controlled mailbox.
+            _emailServiceMock.Verify(
+                x => x.SendMailAsync(
+                    It.IsAny<string>(),
+                    "old@test.com",
+                    "Your email address was changed",
+                    It.Is<string>(body => body.Contains("old@test.com") && body.Contains("new@test.com")),
                     false),
                 Times.Once);
         }

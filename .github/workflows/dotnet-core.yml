@@ -24,6 +24,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # The action scans the commits in the event only. A full-history scan catches
+    # credentials that were committed and later deleted (deleting a file does not
+    # un-leak it). Burned values are allow-listed in .gitleaks.toml only until the
+    # history rewrite is completed.
+    - name: Scan the full git history for committed secrets
+      run: |
+        docker run --rm -v "$GITHUB_WORKSPACE:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 \
+          detect --source=/repo --log-opts="--all" --redact --verbose --exit-code=1
+
     - name: Setup .NET
       uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
       with:

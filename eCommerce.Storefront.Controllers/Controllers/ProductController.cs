@@ -6,11 +6,16 @@ using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Services.Cache;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
+    [AllowAnonymous]
     public class ProductController(IConfiguration configuration,
         ICookieAuthentication cookieAuthentication,
         ICustomerService customerService,
@@ -18,8 +23,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
             customerService,
             cachedProductCatalogService)
     {
+        // Bounds for the anonymous search endpoint. Without them a caller can
+        // overflow paging arithmetic or build arbitrarily large OR expression
+        // trees, turning a cheap request into CPU/memory exhaustion.
+        internal const int MaxPageIndex = 10_000;
+        internal const int MaxRefinementsPerGroup = 50;
+
         private readonly IConfiguration _configuration = configuration;
 
+        [HttpGet]
+        [EnableRateLimiting("catalog")]
         public async Task<IActionResult> GetProductsByCategory(long categoryId)
         {
             var productSearchRequest = GenerateInitialProductSearchRequestFrom(categoryId);
@@ -61,14 +74,26 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("catalog")]
         public async Task<IActionResult> GetProducts([FromBody] ProductSearchRequest jsonProductSearchRequest)
         {
+            if (jsonProductSearchRequest != null
+                && (ExceedsRefinementLimit(jsonProductSearchRequest.ColorIds)
+                    || ExceedsRefinementLimit(jsonProductSearchRequest.SizeIds)
+                    || ExceedsRefinementLimit(jsonProductSearchRequest.BrandIds)))
+            {
+                return BadRequest(new { error = $"Select at most {MaxRefinementsPerGroup} refinements per group." });
+            }
+
             var productSearchRequest = GenerateProductSearchRequestFrom(jsonProductSearchRequest);
             var response = await _cachedProductCatalogService.GetProductsByCategoryAsync(productSearchRequest);
             var productSearchResultView = await GetProductSearchResultViewFromAsync(response);
 
             return Ok(productSearchResultView);
         }
+
+        private static bool ExceedsRefinementLimit(long[] ids) =>
+            ids != null && ids.Length > MaxRefinementsPerGroup;
 
         private GetProductsByCategoryRequest GenerateProductSearchRequestFrom(ProductSearchRequest jsonProductSearchRequest)
         {
@@ -79,7 +104,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             if (jsonProductSearchRequest != null)
             {
-                productSearchRequest.Index = jsonProductSearchRequest.Index;
+                // Clamp instead of trusting the client: 0/negative values used to
+                // produce a negative Skip, and int.MaxValue overflowed the page
+                // arithmetic. Both surfaced as 500s.
+                productSearchRequest.Index = Math.Clamp(jsonProductSearchRequest.Index, 1, MaxPageIndex);
                 productSearchRequest.CategoryId = jsonProductSearchRequest.CategoryId;
                 productSearchRequest.SortBy = jsonProductSearchRequest.SortBy;
 
@@ -90,15 +118,15 @@ namespace eCommerce.Storefront.Controllers.Controllers
                         switch ((RefinementGroupings)jsonRefinementGroup.GroupId)
                         {
                             case RefinementGroupings.Brand:
-                                productSearchRequest.BrandIds = jsonRefinementGroup.SelectedRefinements;
+                                productSearchRequest.BrandIds = LimitRefinements(jsonRefinementGroup.SelectedRefinements);
 
                                 break;
                             case RefinementGroupings.Color:
-                                productSearchRequest.ColorIds = jsonRefinementGroup.SelectedRefinements;
+                                productSearchRequest.ColorIds = LimitRefinements(jsonRefinementGroup.SelectedRefinements);
 
                                 break;
                             case RefinementGroupings.Size:
-                                productSearchRequest.SizeIds = jsonRefinementGroup.SelectedRefinements;
+                                productSearchRequest.SizeIds = LimitRefinements(jsonRefinementGroup.SelectedRefinements);
 
                                 break;
                             default:
@@ -110,6 +138,9 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
             return productSearchRequest;
         }
+
+        private static long[] LimitRefinements(long[] refinements) =>
+            refinements?.Take(MaxRefinementsPerGroup).ToArray() ?? [];
 
         public async Task<IActionResult> Detail(long id)
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Controllers;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
@@ -98,6 +99,15 @@ namespace eCommerce.Storefront.Tests.Controllers
             Assert.AreEqual("Order", redirect.ControllerName);
             Assert.AreEqual(7L, redirect.RouteValues["orderId"]);
             _paymentServiceMock.Verify(x => x.GeneratePostDataFor(It.IsAny<eCommerce.Storefront.Model.Orders.OrderPaymentRequest>()), Times.Never);
+        }
+
+        [TestMethod]
+        public void CreatePaymentFor_IsPostOnly()
+        {
+            var method = typeof(PaymentController).GetMethod(nameof(PaymentController.CreatePaymentFor));
+
+            Assert.IsNotNull(method);
+            Assert.IsNotNull(method.GetCustomAttribute<HttpPostAttribute>());
         }
 
         [TestMethod]

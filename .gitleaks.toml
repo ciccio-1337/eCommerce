@@ -7,10 +7,20 @@
 useDefault = true
 
 [allowlist]
-description = "Documented development placeholders"
+description = "Documented development placeholders and explicitly burned historical values"
 regexes = [
   '''PLACEHOLDER''',
   '''(?i)changeme''',
   '''(?i)your[-_]?(password|secret|token|key)''',
-  '''sb-[a-z0-9]+@business\.example\.com'''
+  '''sb-[a-z0-9]+@business\.example\.com''',
+  # ---------------------------------------------------------------------------
+  # BURNED HISTORICAL SECRETS — present in commits before 184fc32.
+  # These entries exist only so the full-history scanner can run while the
+  # operational work (rotate every value, rewrite history, force-push) is
+  # pending. They MUST be removed once the history has been purged.
+  # ---------------------------------------------------------------------------
+  '''Ciccio_110590''',
+  '''YawZitNzuASTzARiZIJpFhHGAQ8MVq9gK2BHDYm9cvY=''',
+  '''f260761961044d299a49b608b898e62e3ed0e5a0b96046ecbbc3a1598e32f3a3''',
+  '''AQAAAAIAAYagAAAAEIV3gNJplD9fTYjDhH/lOnFcVVF16+jxwjD6hHx3OPFjOsbJOZsZE9smVDPFxDbZbw=='''
 ]

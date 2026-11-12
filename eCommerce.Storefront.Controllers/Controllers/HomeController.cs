@@ -5,10 +5,12 @@ using eCommerce.Storefront.Controllers.ViewModels;
 using System.Diagnostics;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using System.Threading.Tasks;
 
 namespace eCommerce.Storefront.Controllers.Controllers
 {
+    [AllowAnonymous]
     public class HomeController(ICookieAuthentication cookieAuthentication,
         ICustomerService customerService,
         ICachedProductCatalogService cachedProductCatalogService) : ProductCatalogBaseController(cookieAuthentication,

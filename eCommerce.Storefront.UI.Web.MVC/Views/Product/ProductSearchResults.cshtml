@@ -17,7 +17,7 @@
             @foreach (var refinement in refinementGroup.Refinements)
             {
                 <li>
-                    <a class="availableItem" id="@("RefGrp-" + @refinementGroup.GroupId.ToString() + "-" + refinement.Id.ToString())" href="JavaScript:refineSearch(@refinementGroup.GroupId, @refinement.Id.ToString())">
+                    <a class="availableItem" id="@("RefGrp-" + @refinementGroup.GroupId.ToString() + "-" + refinement.Id.ToString())" href="#" data-group-id="@refinementGroup.GroupId" data-refinement-id="@refinement.Id">
                         @refinement.Name
                     </a>
                 </li>
@@ -27,7 +27,7 @@
     }
 }
 
-<script type="text/javascript">
+<script type="text/javascript" nonce="@(Context.Items["CspNonce"])">
     // Array to store the refinment selections made by a user.
     var refinementSelections = [];
     // Flag to stop user selecting doing anything while page is being reloaded.
@@ -38,27 +38,64 @@
     // Flag to show if last action was a narrowing or critera widerning selection.
     var lastActionWasToNarrowProductRefinement = false;
 
-    // Admin-entered strings (product names, brand names) are rendered client-side by
-    // jTemplates, which inserts values as raw HTML — never HTML-encodes them. Escape
-    // before templating so a malicious value cannot execute script in a customer's browser.
-    function escapeHtml(value) {
-        if (value === null || value === undefined) {
-            return value;
-        }
-        
-        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    // Product cards are built with DOM APIs and .text(), so admin-entered names and
+    // brands become text nodes rather than raw HTML. This removes the jTemplates
+    // dependency (and with it the need for 'unsafe-eval').
+    function renderProducts(products) {
+        var $list = $("<ul>").addClass("items-list");
+        var detailUrl = '@Url.Action("Detail", "Product")/';
+
+        $.each(products || [], function (_, product) {
+            if (!product) {
+                return;
+            }
+
+            var url = detailUrl + product.id;
+            var $item = $("<li>").addClass("item-detail");
+
+            var $imageLink = $("<a>").addClass("item-productimage-link").attr("href", url);
+            $("<img>").addClass("item-productimage")
+                .attr("src", "/content/images/products/" + product.id + ".jpg")
+                .attr("alt", "Product " + product.id)
+                .appendTo($imageLink);
+            $item.append($imageLink);
+
+            var $name = $("<div>").addClass("item-productname");
+            $("<a>").attr("href", url)
+                .text(product.brandName + " " + product.name)
+                .appendTo($name);
+            $item.append($name);
+
+            $("<div>").addClass("item-price").text(product.price).appendTo($item);
+
+            $list.append($item);
+        });
+
+        $("#items").empty().append($list);
     }
 
     // OnPage Load function, run when DOM is fully loaded.
     // =================================================================
     $(document).ready(function() {
-        $('#ddlSortBy').change(function() {
+        $('#ddlSortBy').on('change', function() {
             if (disallowUpdates == false) {
                 displayPage(1);
             }
         });
-        
+
+        // Delegated handlers replace javascript: links, which CSP refuses. Select by
+        // data attribute: the refinement state helpers call removeClass() and would
+        // otherwise strip a marker class after the first selection.
+        $(document).on('click', '[data-refinement-id]', function(event) {
+            event.preventDefault();
+            refineSearch($(this).attr('data-group-id'), $(this).attr('data-refinement-id'));
+        });
+
+        $(document).on('click', '.page-link', function(event) {
+            event.preventDefault();
+            displayPage($(this).attr('data-page'));
+        });
+
         jQuery("#dialog-noproducts").dialog({
             bgiframe: true, 
             autoOpen: false, 
@@ -144,24 +181,11 @@
                 data: jsonData,
                 contentType: 'application/json; charset=utf-8',
                 success: function(data) {
-                    var mydata = { items: data.products };
-
-                    if (data.products) {
-                        $.each(data.products, function (_, product) {
-                            if (!product) {
-                                return;
-                            }
-                            product.name = escapeHtml(product.name);
-                            product.brandName = escapeHtml(product.brandName);
-                        });
-                    }
-
-                    if (data.products.length == 0) {
+                    if (!data.products || data.products.length == 0) {
                         showNoProductsFoundDialogBoxAndRevertSelection();
                     }
 
-                    $("#items").setTemplate($("#productItemTemplate").html());
-                    $("#items").processTemplate(mydata);
+                    renderProducts(data.products);
                     $('#numberOfProductsFound').text(data.numberOfTitlesFound);
                     buildPageLinksFor("#pageLinksTop", data.currentPage, data.totalNumberOfPages);
                     buildPageLinksFor("#pageLinksBottom", data.currentPage, data.totalNumberOfPages);
@@ -358,18 +382,17 @@
     // Method to build the paging links after a refine selection.
     // ===============================================================
     function buildPageLinksFor(spanId, index, totalPages) {
-        var i = 1;
-        var html = '';
+        var $container = $(spanId).empty();
 
-        for (i = 1; i <= totalPages; i++) {
-            if (i == index) {
-                html = html + "<a class='selected' href='JavaScript:displayPage(" + i + ")'>" + i + "</a>&nbsp;";
-            } else {
-                html = html + "<a class='notselected' href='JavaScript:displayPage(" + i + ")'>" + i + "</a>&nbsp;";
-            }
+        for (var i = 1; i <= totalPages; i++) {
+            $("<a>").addClass(i == index ? "selected" : "notselected")
+                .addClass("page-link")
+                .attr("href", "#")
+                .attr("data-page", i)
+                .text(i)
+                .appendTo($container);
+            $container.append("\u00a0");
         }
-
-        $(spanId).html(html);
     }
 
     // Helper methods to determine the state of a refinment.
@@ -431,7 +454,7 @@
                     <span id="pageLinksTop">
                         @for (int i = 1; i <= Model.TotalNumberOfPages; i++)
                         {
-                            <a class="@(Model.CurrentPage == i ? "selected" : "notselected")" href="@("JavaScript:displayPage(" + i + ")")">
+                            <a class="page-link @(Model.CurrentPage == i ? "selected" : "notselected")" href="#" data-page="@i">
                                 @i
                             </a>
                         }
@@ -476,7 +499,7 @@
             <span id="pageLinksBottom">
                 @for (int i = 1; i <= Model.TotalNumberOfPages; i++)
                 {
-                    <a class="@(Model.CurrentPage == i ? "selected" : "notselected")" href="@("JavaScript:displayPage(" + i + ")")">
+                    <a class="page-link @(Model.CurrentPage == i ? "selected" : "notselected")" href="#" data-page="@i">
                         @i
                     </a>
                 }
@@ -485,21 +508,6 @@
     </span>
     <p>&nbsp;</p>
 
-    <script type="text/html" id="productItemTemplate">
-        <ul class="items-list">
-        {#foreach $T.items as record}
-            <li class="item-detail">
-                <a class="item-productimage-link" href="/Product/Detail/{$T.record.id}">
-                    <img class="item-productimage" src="/content/images/products/{$T.record.id}.jpg" />
-                </a>
-                <div class="item-productname">
-                    <a href="/Product/Detail/{$T.record.id}">{$T.record.brandName} {$T.record.name}</a>
-                </div>
-                <div class="item-price">{$T.record.price}</div>
-            </li>
-        {#/for}
-        </ul>
-    </script>
     @Html.Hidden("categoryId", Model.SelectedCategory.ToString())
 </div>
 <div id="dialog-noproducts" title="No products found matching your refinement">

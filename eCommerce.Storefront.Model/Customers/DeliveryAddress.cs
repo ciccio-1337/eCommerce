@@ -1,7 +1,10 @@
 namespace eCommerce.Storefront.Model.Customers
 {
     public class DeliveryAddress : EntityBase<long>
-    {        
+    {
+        // Keep in sync with DeliveryAddressConfiguration (all columns max 50).
+        public const int MaxFieldLength = 50;
+
         public string AddressLine { get; set; }
         public string City { get; set; }
         public string State { get; set; }
@@ -12,34 +15,37 @@ namespace eCommerce.Storefront.Model.Customers
 
         protected override void Validate()
         {    
-            if (string.IsNullOrWhiteSpace(AddressLine))
-            {
-                AddBrokenRule(new BusinessRule() { Property = nameof(AddressLine), Rule = "The line of a delivery address is required." });
-            }
-
-            if (string.IsNullOrWhiteSpace(City))
-            {
-                AddBrokenRule(new BusinessRule() { Property = nameof(City), Rule = "A delivery address must have a city." });
-            }
-
-            if (string.IsNullOrWhiteSpace(Country))
-            {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Country), Rule = "A delivery address must have a country." });
-            }
-
-            if (string.IsNullOrWhiteSpace(ZipCode))
-            {
-                AddBrokenRule(new BusinessRule() { Property = nameof(ZipCode), Rule = "A delivery address must have a zip code." });
-            }
-
-            if (string.IsNullOrWhiteSpace(Name))
-            {
-                AddBrokenRule(new BusinessRule() { Property = nameof(Name), Rule = "A delivery address must have a name." });
-            }
+            ValidateRequired(nameof(AddressLine), AddressLine, "The line of a delivery address is required.");
+            ValidateRequired(nameof(City), City, "A delivery address must have a city.");
+            ValidateRequired(nameof(Country), Country, "A delivery address must have a country.");
+            ValidateRequired(nameof(ZipCode), ZipCode, "A delivery address must have a zip code.");
+            ValidateRequired(nameof(Name), Name, "A delivery address must have a name.");
+            ValidateLength(nameof(AddressLine), AddressLine);
+            ValidateLength(nameof(City), City);
+            ValidateLength(nameof(State), State);
+            ValidateLength(nameof(Country), Country);
+            ValidateLength(nameof(ZipCode), ZipCode);
+            ValidateLength(nameof(Name), Name);
 
             if (Customer == null)
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(Customer), Rule = "A delivery address must be associated with a customer." });
+            }
+        }
+
+        private void ValidateRequired(string property, string value, string message)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                AddBrokenRule(new BusinessRule() { Property = property, Rule = message });
+            }
+        }
+
+        private void ValidateLength(string property, string value)
+        {
+            if (value != null && value.Length > MaxFieldLength)
+            {
+                AddBrokenRule(new BusinessRule() { Property = property, Rule = $"{property} must be at most {MaxFieldLength} characters." });
             }
         }
     }

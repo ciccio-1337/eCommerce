@@ -27,6 +27,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [IgnoreAntiforgeryToken]
+        [AllowAnonymous]
         public async Task<IActionResult> PaymentCallBack(IFormCollection collection)
         {
             try
@@ -117,6 +118,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
+        [HttpPost]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreatePaymentFor(long orderId)
         {
@@ -148,11 +150,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
             return View("PaymentPost", paymentPostData);
         }
 
+        [AllowAnonymous]
         public IActionResult PaymentComplete()
         {
             return View();
         }
 
+        [AllowAnonymous]
         public IActionResult PaymentCancel()
         {
             return View();

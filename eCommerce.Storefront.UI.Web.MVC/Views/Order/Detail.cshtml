@@ -8,7 +8,13 @@
 <h2>Order #@Model.Order.Id placed on @Model.Order.Created.ToLocalTime().ToLongDateString() at @Model.Order.Created.ToLocalTime().ToShortTimeString()</h2>    
 @if (Model.Order.OrderHasBeenPaidFor == false) 
 {
-    <p>This order has not been paid. @Html.ActionLink("Pay", "CreatePaymentFor", "Payment", new { orderId = Model.Order.Id }, null)</p>
+    <p>
+        This order has not been paid.
+        <form method="post" action="@Url.Action("CreatePaymentFor", "Payment", new { orderId = Model.Order.Id })" style="display:inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit">Pay</button>
+        </form>
+    </p>
 }
 else
 {

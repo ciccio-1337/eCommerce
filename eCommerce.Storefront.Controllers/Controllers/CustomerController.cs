@@ -59,14 +59,32 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Detail(CustomerView customerView)
+        public async Task<IActionResult> Detail(CustomerView customerView, string currentPassword)
         {
+            var currentEmail = _cookieAuthentication.GetAuthenticationToken();
+            var emailChanging = !string.IsNullOrWhiteSpace(customerView.Email)
+                && !string.Equals(currentEmail, customerView.Email, StringComparison.OrdinalIgnoreCase);
+
+            // Changing the sign-in address is an account-takeover primitive when a
+            // session is stolen. Require the current password (step-up re-auth) so a
+            // borrowed cookie alone cannot move the account to an attacker address.
+            if (emailChanging && !await _authenticationService.ValidatePasswordAsync(currentEmail, currentPassword))
+            {
+                ViewData["IssueMessage"] = "Enter your current password to change your email address.";
+
+                return View(new CustomerDetailView
+                {
+                    Customer = customerView,
+                    BasketSummary = await GetBasketSummaryViewAsync()
+                });
+            }
+
             var request = new ModifyCustomerRequest
             {
                 NewEmail = customerView.Email,
                 FirstName = customerView.FirstName,
                 SecondName = customerView.SecondName,
-                CurrentEmail = _cookieAuthentication.GetAuthenticationToken()
+                CurrentEmail = currentEmail
             };
             var customerDetailView = new CustomerDetailView
             {
@@ -90,6 +108,18 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
                 if (response.EmailChanged)
                 {
+                    // Warn the *old* address as well. If the change was made by an
+                    // attacker, the legitimate owner must be able to notice and revert
+                    // it; the new address only receives the confirmation link.
+                    try
+                    {
+                        await SendEmailChangeNoticeAsync(currentEmail, response.Customer.Email);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send the email-change notice to the old address for user {UserId}.", userId);
+                    }
+
                     try
                     {
                         await SendEmailChangeConfirmationAsync(userId, response.Customer.Email);
@@ -270,6 +300,26 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
 
             return await DeliveryAddresses();
+        }
+
+        private async Task SendEmailChangeNoticeAsync(string oldEmail, string newEmail)
+        {
+            if (string.IsNullOrWhiteSpace(oldEmail))
+            {
+                return;
+            }
+
+            var from = _configuration["MailSettings:Smtp:Network:UserName"]
+                ?? _configuration["MailSettingsSmtpNetworkUserName"]
+                ?? string.Empty;
+
+            await _emailService.SendMailAsync(
+                from,
+                oldEmail,
+                "Your email address was changed",
+                $"The email address on your account was changed from {oldEmail} to {newEmail}. "
+                + "If you did not make this change, contact support immediately: the new address must be "
+                + "confirmed before the account can sign in again.");
         }
 
         private async Task SendEmailChangeConfirmationAsync(string userId, string email)

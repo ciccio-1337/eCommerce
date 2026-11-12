@@ -5,7 +5,7 @@
 
 @model eCommerce.Storefront.Controllers.ViewModels.ProductCatalog.ProductDetailView
 
-<script type="text/javascript">
+<script type="text/javascript" nonce="@(Context.Items["CspNonce"])">
     function addProductToBasket() {
         showOverlay("smoverlay", "basketSummary", 5);
 
@@ -27,6 +27,13 @@
     function navigateToLogOn() {
         location.href = '/AccountLogOn/LogOn';
     }
+
+    // Bind from script instead of inline onclick attributes so the CSP can keep
+    // refusing all inline event handlers.
+    $(document).ready(function () {
+        $("#addToBasket").on("click", addProductToBasket);
+        $("#logOnToBuy").on("click", navigateToLogOn);
+    });
 </script>
 
 <h2>@Model.Product.BrandName @Model.Product.Name</h2>
@@ -46,11 +53,11 @@
             </select>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <input type="button" value="+ Add to cart" onclick="JavaScript:addProductToBasket();" />
+                <input type="button" value="+ Add to cart" id="addToBasket" />
             }
             else
             {
-                <input type="button" value="+ Add to cart" onclick="JavaScript:navigateToLogOn();" />
+                <input type="button" value="+ Add to cart" id="logOnToBuy" />
             }
         </p>
     </div>

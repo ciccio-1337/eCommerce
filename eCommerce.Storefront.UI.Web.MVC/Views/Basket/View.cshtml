@@ -5,7 +5,7 @@
 
 @model eCommerce.Storefront.Controllers.ViewModels.ProductCatalog.BasketDetailView
 
-<script type="text/javascript">
+<script type="text/javascript" nonce="@(Context.Items["CspNonce"])">
     // Any basket AJAX call that fails (e.g. server returns 400 for a zero qty) must
     // clear the overlays, otherwise the semi-transparent cover stays up and the page
     // is stuck until a full reload.
@@ -61,59 +61,135 @@
         $.post('/Basket/UpdateShipping', postData, updateBasket, "json").fail(onBasketUpdateFailed);
     }
 
-    // Admin-entered strings (product names, size descriptors, shipping descriptions)
-    // are rendered client-side by jTemplates, which inserts values as raw HTML — never
-    // HTML-encodes them. Escape the fields before templating so a malicious value cannot
-    // execute script in a customer's browser.
-    function escapeHtml(value) {
-        if (value === null || value === undefined) {
-            return value;
-        }
+    // The basket is rebuilt with DOM APIs and .text() rather than a client-side
+    // template engine. Untrusted values (admin-entered product/shipping names)
+    // therefore become text nodes, never markup, and the page no longer needs
+    // jTemplates (or 'unsafe-eval' in the Content-Security-Policy).
+    function renderBasket(view) {
+        var basket = (view && view.basket) || {};
+        var items = basket.items || [];
+        var deliveryOptions = (view && view.deliveryOptions) || [];
 
-        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-    }
+        var $table = $("<table>").attr("width", "100%");
 
-    function escapeBasketDataForTemplate(view) {
-        if (!view) {
-            return;
-        }
+        var $headerRow = $("<tr>");
+        $("<th>").attr("id", "product").text("Product").appendTo($headerRow);
+        $("<th>").attr("id", "qty").text("Qty").appendTo($headerRow);
+        $("<th>").attr("id", "price").css("text-align", "right").text("Price").appendTo($headerRow);
+        $("<th>").attr("id", "total").css("text-align", "right").text("Total").appendTo($headerRow);
+        $table.append($headerRow);
+        $table.append($("<tr>").append($("<td>").attr("colspan", "4").append($("<hr/>"))));
 
-        if (view.basket && view.basket.items) {
-            $.each(view.basket.items, function (_, item) {
-                if (!item) {
-                    return;
-                }
+        $.each(items, function (_, item) {
+            if (!item) {
+                return;
+            }
 
-                item.productName = escapeHtml(item.productName);
-                item.productSizeName = escapeHtml(item.productSizeName);
-            });
-        }
+            var $row = $("<tr>");
 
-        if (view.deliveryOptions) {
-            $.each(view.deliveryOptions, function (_, option) {
-                if (!option) {
-                    return;
-                }
+            var $productCell = $("<td>");
+            $("<span>").text(item.productName + " - " + item.productSizeName).appendTo($productCell);
+            $productCell.append($("<br/>"));
+            $("<a>").attr("href", "#")
+                .addClass("remove-item")
+                .attr("data-product-id", item.productId)
+                .text("remove this item")
+                .appendTo($productCell);
+            $row.append($productCell);
 
-                option.shippingServiceDescription = escapeHtml(option.shippingServiceDescription);
-            });
-        }
+            var $qtyCell = $("<td>");
+            $("<input>").addClass("itemQtyBox")
+                .attr("id", "Qty-" + item.productId)
+                .attr("type", "text")
+                .val(item.qty)
+                .appendTo($qtyCell);
+            $row.append($qtyCell);
+
+            $("<td>").css("text-align", "right").text(item.productPrice).appendTo($row);
+            $("<td>").css("text-align", "right").text(item.lineTotal).appendTo($row);
+
+            $table.append($row);
+        });
+
+        var $updateRow = $("<tr>");
+        $updateRow.append($("<td>"));
+        var $updateCell = $("<td>");
+        $("<a>").attr("href", "#").addClass("update-qtys").text("update").appendTo($updateCell);
+        $updateRow.append($updateCell);
+        $updateRow.append($("<td>"));
+        $updateRow.append($("<td>"));
+        $table.append($updateRow);
+        $table.append($("<tr>").append($("<td>").attr("colspan", "4").append($("<hr/>"))));
+
+        var $basketTotalRow = $("<tr>");
+        $basketTotalRow.append($("<td>").css("text-align", "right").attr("colspan", "3").text("Basket: "));
+        $basketTotalRow.append($("<td>").css("text-align", "right").text(basket.itemsTotal));
+        $table.append($basketTotalRow);
+
+        var $shippingRow = $("<tr>");
+        var $shippingLabelCell = $("<td>").css("text-align", "right").attr("colspan", "3").text("Shipping: ");
+        var $shippingSelect = $("<select>").addClass("item-sortdropdown")
+            .attr("name", "ddlShippingService")
+            .attr("id", "ddlShippingService");
+        $.each(deliveryOptions, function (_, option) {
+            if (!option) {
+                return;
+            }
+
+            $("<option>").val(option.id)
+                .text(option.shippingServiceDescription)
+                .prop("selected", option.id === basket.deliveryOptionId)
+                .appendTo($shippingSelect);
+        });
+        $shippingLabelCell.append($shippingSelect);
+        $shippingRow.append($shippingLabelCell);
+        $shippingRow.append($("<td>").css("text-align", "right").text(basket.deliveryCost));
+        $table.append($shippingRow);
+
+        var $totalRow = $("<tr>");
+        $totalRow.append($("<td>").css("text-align", "right").attr("colspan", "3").text("Total: "));
+        $totalRow.append($("<td>").css("text-align", "right").text(basket.basketTotal));
+        $table.append($totalRow);
+
+        var $checkoutRow = $("<tr>");
+        $checkoutRow.append($("<td>").attr("colspan", "3"));
+        var $checkoutCell = $("<td>").css("text-align", "right");
+        $("<a>").attr("href", '@Url.Action("Checkout", "Checkout")').text("Check Out").appendTo($checkoutCell);
+        $checkoutRow.append($checkoutCell);
+        $table.append($checkoutRow);
+
+        $("#basketDisplay").empty().append($table);
     }
 
     function updateBasket(basketDetailView) {
         if (basketDetailView.basketSummary.numberOfItems == 0) {
             $("#basketDisplay").text("You have no items in your basket.");
         } else {
-            escapeBasketDataForTemplate(basketDetailView);
-            $("#basketDisplay").setTemplate($("#basketTemplate").html());
-            $("#basketDisplay").processTemplate(basketDetailView);
+            renderBasket(basketDetailView);
         }
 
         updateBasketSummary(basketDetailView.basketSummary);
         hideOverlay("overlay");
         hideOverlay("smoverlay");
     }
+
+    // Delegated handlers replace javascript: links and inline on* attributes,
+    // which CSP treats as inline script.
+    $(document).ready(function () {
+        $(document).on("click", ".remove-item", function (event) {
+            event.preventDefault();
+            removeItem($(this).attr("data-product-id"));
+        });
+
+        $(document).on("click", ".update-qtys", function (event) {
+            event.preventDefault();
+            updateItemQtys();
+        });
+
+        $(document).on("change", "#ddlShippingService", function () {
+            updateShippingService(this);
+        });
+    });
 </script>
 
 <h2>Your Basket</h2>
@@ -135,7 +211,7 @@
             {
                 <tr>
                     <td>@item.ProductName - @item.ProductSizeName<br />
-                        <a href="JavaScript:removeItem(@item.ProductId)">remove this item</a>
+                        <a href="#" class="remove-item" data-product-id="@item.ProductId">remove this item</a>
                     </td>
                     <td>@Html.TextBox("Qty-" + item.ProductId.ToString(), item.Qty, new { @class = "itemQtyBox" })</td>
                     <td style="text-align: right">@item.ProductPrice</td>
@@ -144,7 +220,7 @@
             }
             <tr>
                 <td></td>
-                <td><a href="JavaScript:updateItemQtys();">update</a></td>
+                <td><a href="#" class="update-qtys">update</a></td>
                 <td></td>
                 <td></td>
             </tr>
@@ -157,7 +233,7 @@
             </tr>
             <tr>
                 <td style="text-align: right" colspan="3">Shipping:
-                    <select class="item-sortdropdown" name="ddlShippingService" onchange="JavaScript:updateShippingService(this);" id="ddlShippingService">
+                    <select class="item-sortdropdown" name="ddlShippingService" id="ddlShippingService">
                     @foreach (var deliveryOption in Model.DeliveryOptions)
                     {
                         <option value="@deliveryOption.Id" @if (Model.Basket.DeliveryOptionId == deliveryOption.Id) { <text>selected</text> } >
@@ -186,64 +262,3 @@ else
 {
     <text>You have no items in your basket.</text>
 }
-
-<script type="text/html" id="basketTemplate">
-    <table width="100%">
-        <tr>
-            <th id="product">Product</th>
-            <th id="qty">Qty</th>
-            <th id="price" style="text-align: right">Price</th>
-            <th id="total" style="text-align: right">Total</th>
-        </tr>
-        <tr>
-            <td colspan="4"><hr /></td>
-        </tr>
-        {#foreach $T.basket.items as record}
-            <tr>
-                <td>{$T.record.productName} - {$T.record.productSizeName}<br />
-                    <a href="JavaScript:removeItem({$T.record.productId})">
-                        remove this item
-                    </a>
-                </td>
-                <td>
-                    <input class="itemQtyBox" id="Qty-{$T.record.productId}" type="text" value="{$T.record.qty}" />
-                </td>
-                <td style="text-align: right">{$T.record.productPrice}</td>
-                <td style="text-align: right">{$T.record.lineTotal}</td>
-            </tr>
-        {#/for}
-        <tr>
-            <td></td>
-            <td><a href="JavaScript:updateItemQtys();">update</a></td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr>
-            <td colspan="4"><hr /></td>
-        </tr>
-        <tr>
-            <td style="text-align: right" colspan="3">Basket: </td>
-            <td style="text-align: right">{$T.basket.itemsTotal}</td>
-        </tr>
-        <tr>
-            <td style="text-align: right" colspan="3">Shipping:
-                <select class="item-sortdropdown" name="ddlShippingService" onchange="JavaScript:updateShippingService(this);" id="ddlShippingService">
-                {#foreach $T.deliveryOptions as deliveryOption}
-                    <option value="{$T.deliveryOption.id}" {#if $T.deliveryOption.id == $T.basket.deliveryOptionId} selected {#/if}>{$T.deliveryOption.shippingServiceDescription}</option>
-                {#/for}
-                </select>
-            </td>
-            <td style="text-align: right">{$T.basket.deliveryCost}</td>
-        </tr>
-        <tr>
-            <td style="text-align: right" colspan="3"> Total: </td>
-            <td style="text-align: right">{$T.basket.basketTotal}</td>
-        </tr>
-        <tr>
-            <td colspan="3"></td>
-            <td style="text-align: right">
-                @Html.ActionLink("Check Out", "Checkout", "Checkout")
-            </td>
-        </tr>
-    </table>
-</script>

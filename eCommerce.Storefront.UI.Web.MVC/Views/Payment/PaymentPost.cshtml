@@ -6,7 +6,7 @@
 @model eCommerce.Storefront.Controllers.Models.PaymentPostData
 
 <h2>Payment Post</h2>
-<script type="text/javascript">    
+<script type="text/javascript" nonce="@(Context.Items["CspNonce"])">
     $(document).ready(function() {
         $('#paymentForm').submit();
     });

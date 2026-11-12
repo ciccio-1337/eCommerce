@@ -6,6 +6,7 @@ using eCommerce.Storefront.Services.Implementations;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using eCommerce.Storefront.Services.Cache;
 using Microsoft.AspNetCore.Authorization;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
@@ -22,6 +23,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
             cachedProductCatalogService)
     {
         private readonly IBasketService _basketService = basketService;
+
+        // A basket line quantity is bounded so a scripted request cannot create
+        // huge totals or overflow downstream decimal/order arithmetic.
+        internal const int MaxQuantityPerLine = 1000;
+        internal const int MaxLinesPerUpdate = 100;
 
         public async Task<IActionResult> Detail()
         {
@@ -127,11 +133,17 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("catalog")]
         public async Task<IActionResult> UpdateItems([FromBody] BasketQtyUpdateRequest jsonBasketQtyUpdateRequest)
         {
             if (jsonBasketQtyUpdateRequest == null || jsonBasketQtyUpdateRequest.Items == null || jsonBasketQtyUpdateRequest.Items.Length == 0)
             {
                 return BadRequest();
+            }
+
+            if (jsonBasketQtyUpdateRequest.Items.Length > MaxLinesPerUpdate)
+            {
+                return BadRequest(new { error = $"At most {MaxLinesPerUpdate} basket lines can be updated at once." });
             }
 
             // Validate quantities > 0. The service treats <= 0 as "remove line", which
@@ -142,6 +154,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 if (item.Qty <= 0)
                 {
                     return BadRequest(new { error = "Quantity must be greater than zero." });
+                }
+
+                if (item.Qty > MaxQuantityPerLine)
+                {
+                    return BadRequest(new { error = $"Quantity must not exceed {MaxQuantityPerLine} per line." });
                 }
             }
 
@@ -180,6 +197,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("catalog")]
         public async Task<IActionResult> AddToBasket(long productId)
         {
             var basketSummaryView = new BasketSummaryView();

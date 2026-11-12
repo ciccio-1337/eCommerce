@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace eCommerce.Backoffice.Server.Controllers
 {
@@ -15,10 +16,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     public class RolesController(RoleManager<IdentityRole> roleManager,
-        UserManager<IdentityUser> userManager) : ControllerBase
+        UserManager<IdentityUser> userManager,
+        ILogger<RolesController> logger) : ControllerBase
     {
         private readonly RoleManager<IdentityRole> _roleManager = roleManager;
         private readonly UserManager<IdentityUser> _userManager = userManager;
+        private readonly ILogger<RolesController> _logger = logger;
 
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
@@ -159,6 +162,17 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return NotFound();
             }
 
+            var currentUserId = _userManager.GetUserId(User);
+
+            // Never let an administrator escalate their own account (or a session
+            // that has been stolen). Granting Admin to somebody else stays allowed.
+            if (addRemoveRoleRequest.Add
+                && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(user.Id, currentUserId, StringComparison.Ordinal))
+            {
+                return BadRequest("The Admin role cannot be granted to your own account.");
+            }
+
             if (!addRemoveRoleRequest.Add
                 && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
             {
@@ -190,6 +204,13 @@ namespace eCommerce.Backoffice.Server.Controllers
                 {
                     return BadRequest(stampResult.Errors.Select(x => x.Description));
                 }
+
+                _logger.LogInformation(
+                    "Role change: {Action} role {Role} for user {UserId} by administrator {ActorId}.",
+                    addRemoveRoleRequest.Add ? "granted" : "revoked",
+                    role.Name,
+                    user.Id,
+                    currentUserId);
             }
             catch (DbUpdateConcurrencyException) when (!_roleManager.Roles.AsNoTracking().Any(r => r.Id == addRemoveRoleRequest.RoleId) || !_userManager.Users.AsNoTracking().Any(u => u.Id == addRemoveRoleRequest.UserId))
             {

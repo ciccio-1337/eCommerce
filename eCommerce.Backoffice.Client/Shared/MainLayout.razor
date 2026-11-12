@@ -1,14 +1,27 @@
 @inherits LayoutComponentBase
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    @* AuthorizeRouteView wraps the authorizing and not-authorized content in this
+       layout, so the chrome must decide on its own whether to appear. Rendering
+       NavMenu unconditionally makes the admin menu flash before the auth state
+       resolves and before Redirect navigates to the login page. @Body stays
+       outside the AuthorizeView so the Redirect component can still run. *@
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+        </Authorized>
+    </AuthorizeView>
 
     <div class="main">
-        <div class="top-row px-4 auth">
-            <LoginDisplay />
-        </div>
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="top-row px-4 auth">
+                    <LoginDisplay />
+                </div>
+            </Authorized>
+        </AuthorizeView>
 
         <div class="content px-4">
             @Body

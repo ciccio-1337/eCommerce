@@ -40,6 +40,11 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountsController> _logger = logger;
 
+        // Password verification does the same PBKDF2 work for unknown accounts so
+        // the login/forgot-password timings do not reveal which emails exist.
+        private static readonly string DummyPasswordHash =
+            new PasswordHasher<IdentityUser>().HashPassword(new IdentityUser(), Guid.NewGuid().ToString());
+
         [HttpGet]
         [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
@@ -158,6 +163,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPut("{id}/[action]")]
         [EnableRateLimiting("auth")]
+        [AllowAnonymous]
         public async Task<IActionResult> EmailConfirmation(string id, EmailConfirmationRequest confirmationRequest)
         {
             if (id != confirmationRequest.UserId)
@@ -190,6 +196,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPost("forgotpassword")]
         [EnableRateLimiting("auth")]
+        [AllowAnonymous]
         public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             // Always return the same response, whether the account exists, is
@@ -197,7 +204,17 @@ namespace eCommerce.Backoffice.Server.Controllers
             var response = new ForgotPasswordResponse { IsSuccess = true };
             var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
-            if (user != null && await _signInManager.UserManager.IsEmailConfirmedAsync(user))
+            if (user == null)
+            {
+                VerifyDummyPassword(forgotPasswordRequest.Email);
+            }
+
+            // This is the backoffice reset flow. A storefront customer must not be
+            // able to obtain an admin-branded reset link (and the admin reset token
+            // must not be minted for a non-admin account at all).
+            if (user != null
+                && await _signInManager.UserManager.IsEmailConfirmedAsync(user)
+                && await _signInManager.UserManager.IsInRoleAsync(user, "Admin"))
             {
                 var smtpUserName = _configuration["MailSettings:Smtp:Network:UserName"] ?? _configuration["MailSettingsSmtpNetworkUserName"];
                 var code = await _signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
@@ -219,13 +236,35 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPost("login")]
         [EnableRateLimiting("auth")]
+        // Without this the global fallback policy requires an authenticated user
+        // and the endpoint answers 401 before the credentials are even read.
+        [AllowAnonymous]
         public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
         {
             var response = new LoginResponse();
             var user = await _signInManager.UserManager.FindByEmailAsync(loginRequest.Email);
 
-            if (user == null || !(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, true)).Succeeded)
+            if (user == null)
             {
+                VerifyDummyPassword(loginRequest.Password);
+                response.Errors = ["Username and password are invalid."];
+
+                return Ok(response);
+            }
+
+            if (!(await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, true)).Succeeded)
+            {
+                response.Errors = ["Username and password are invalid."];
+
+                return Ok(response);
+            }
+
+            // Never issue a password-only admin session for an account that has a
+            // second factor enabled: CheckPasswordSignInAsync does not challenge it.
+            if (await _signInManager.UserManager.GetTwoFactorEnabledAsync(user))
+            {
+                _logger.LogWarning("Backoffice login refused for {UserId}: two-factor authentication is enabled but no challenge flow is configured.", user.Id);
+
                 response.Errors = ["Username and password are invalid."];
 
                 return Ok(response);
@@ -267,6 +306,8 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPut("[action]")]
         [EnableRateLimiting("auth")]
+        // Reached from the emailed reset link, before the user is signed in.
+        [AllowAnonymous]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest changePasswordRequest)
         {
             const string invalidLinkMessage = "The password reset link is invalid or has expired.";
@@ -398,6 +439,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
 
             return $"{configuredBaseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}";
+        }
+
+        private void VerifyDummyPassword(string password)
+        {
+            _signInManager.UserManager.PasswordHasher.VerifyHashedPassword(
+                new IdentityUser(),
+                DummyPasswordHash,
+                password ?? string.Empty);
         }
     }
 }

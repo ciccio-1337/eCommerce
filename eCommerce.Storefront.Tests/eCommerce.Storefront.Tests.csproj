@@ -21,6 +21,7 @@
     <ProjectReference Include="..\eCommerce.Storefront.Services.Cache\eCommerce.Storefront.Services.Cache.csproj" />
     <ProjectReference Include="..\eCommerce.Storefront.Repository.EntityFrameworkCore\eCommerce.Storefront.Repository.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\eCommerce.Storefront.Controllers\eCommerce.Storefront.Controllers.csproj" />
+    <ProjectReference Include="..\eCommerce.Storefront.UI.Web.MVC\eCommerce.Storefront.UI.Web.MVC.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.20.72" />

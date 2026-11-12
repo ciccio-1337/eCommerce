@@ -20,6 +20,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
             actionArguments)
     {
 
+        [AllowAnonymous]
         public IActionResult LogOn()
         {
             var accountView = InitializeAccountViewWithIssue(false, string.Empty);
@@ -29,6 +30,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [EnableRateLimiting("auth")]
+        [AllowAnonymous]
         public async Task<IActionResult> LogOn(string email, string password, string returnUrl)
         {
             try

@@ -31,6 +31,12 @@
         @Html.TextBox("Email", Model.Customer.Email)
     </p>
     <p>
+        <label for="currentPassword">Current password</label><br />
+        @Html.Password("currentPassword", null, new { @autocomplete = "current-password" })
+        <br />
+        <small>Required only when you change your email address.</small>
+    </p>
+    <p>
         <input type="submit" value="Save" />
     </p>
 }  

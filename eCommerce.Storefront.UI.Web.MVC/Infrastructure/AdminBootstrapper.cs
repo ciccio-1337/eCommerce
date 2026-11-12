@@ -99,10 +99,19 @@ namespace eCommerce.Storefront.UI.Web.MVC.Infrastructure
                         return;
                     }
                 }
-                else if (!user.EmailConfirmed)
+                else
                 {
-                    user.EmailConfirmed = true;
-                    await userManager.UpdateAsync(user);
+                    // Never promote a pre-existing account. Open registration means an
+                    // attacker can claim the configured Admin:Email before the first
+                    // deployment; promoting it would hand them the admin password of
+                    // their choice. Refuse instead of silently escalating.
+                    logger.LogError(
+                        "Admin bootstrap refused: an account with the configured Admin:Email already exists "
+                        + "({Email}) but is not an administrator. Set Admin:Email to an address that is not "
+                        + "already registered, or create the administrator explicitly.",
+                        email);
+
+                    return;
                 }
 
                 if (!await userManager.IsInRoleAsync(user, AdminRoleName))

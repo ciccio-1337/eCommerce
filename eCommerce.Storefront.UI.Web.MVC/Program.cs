@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.RateLimiting;
 using eCommerce.Storefront.UI.Web.MVC;
 using eCommerce.Storefront.UI.Web.MVC.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -50,9 +51,38 @@ var keysPath = builder.Configuration["DataProtection:KeysPath"] ?? "keys";
 var keysDirectory = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, keysPath));
 keysDirectory.Create();
 
-builder.Services.AddDataProtection()
+// The key ring is the most valuable persistence asset in the application: anyone
+// who can read it can forge authentication/antiforgery cookies. Restrict the
+// directory to the app user and encrypt the keys with the configured
+// certificate. Outside development the certificate is mandatory (fail closed).
+if (!OperatingSystem.IsWindows())
+{
+    try
+    {
+        File.SetUnixFileMode(
+            keysDirectory.FullName,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+    catch (Exception ex)
+    {
+        throw new InvalidOperationException(
+            $"Could not restrict permissions on the data-protection key directory '{keysDirectory.FullName}'.",
+            ex);
+    }
+}
+
+var dataProtection = builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(keysDirectory)
     .SetApplicationName("eCommerce");
+
+var certificateThumbprint = SecurityConfiguration.ValidateDataProtectionKeyProtection(
+    builder.Environment,
+    builder.Configuration["DataProtection:CertificateThumbprint"]);
+
+if (!string.IsNullOrEmpty(certificateThumbprint))
+{
+    dataProtection.ProtectKeysWithCertificate(certificateThumbprint);
+}
 
 // Trust forwarded headers only from configured proxies. When no proxy is
 // configured the framework defaults (loopback) remain in place.
@@ -122,6 +152,30 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    // Product search and basket mutations are anonymous/cheap to script and
+    // comparatively expensive on the server (expression-tree compilation plus
+    // several queries). Throttle them per client IP.
+    options.AddPolicy("catalog", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
+// Secure by default: every endpoint requires an authenticated user unless it
+// explicitly opts out with [AllowAnonymous]. New controllers can no longer
+// silently become anonymous.
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 builder.Services.AddHostedService<AdminBootstrapper>();
@@ -136,6 +190,10 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+// Security headers must also cover redirects and error responses, so emit them
+// before redirect/HSTS handling.
+app.UseSecurityHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -149,7 +207,6 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseSecurityHeaders();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
@@ -164,6 +221,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapFallbackToFile("index.html");
+// The Blazor WASM shell is public; the backoffice API behind it is authorized.
+app.MapFallbackToFile("index.html").AllowAnonymous();
 app.Logger.LogInformation("Application Started");
 app.Run();
