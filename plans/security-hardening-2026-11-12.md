@@ -23,7 +23,10 @@ rotation, history rewrite, push-protection enablement) are listed in
   to an explicitly documented gitleaks allow-list so the full-history scan can
   go green *after* rotation, with instructions to remove the entries once the
   history is rewritten.
-- **Tests:** CI step runs `gitleaks detect --log-opts="--all"`.
+- **Tests:** CI step runs `gitleaks detect --log-opts="--all"` with an explicit
+  `--config=/repo/.gitleaks.toml` (inside the container the working directory is
+  not the mounted repository, so automatic config lookup fails). Allow-list
+  entries are regexes, so `+` in the burned hashes is escaped.
 
 ## Medium
 

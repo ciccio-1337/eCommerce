@@ -28,10 +28,14 @@ jobs:
     # credentials that were committed and later deleted (deleting a file does not
     # un-leak it). Burned values are allow-listed in .gitleaks.toml only until the
     # history rewrite is completed.
+    #
+    # --config must be passed explicitly: inside the container the working
+    # directory is not the mounted repository, so gitleaks' automatic lookup of
+    # .gitleaks.toml does not find it and every burned value is reported again.
     - name: Scan the full git history for committed secrets
       run: |
         docker run --rm -v "$GITHUB_WORKSPACE:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 \
-          detect --source=/repo --log-opts="--all" --redact --verbose --exit-code=1
+          detect --source=/repo --config=/repo/.gitleaks.toml --log-opts="--all" --redact --verbose --exit-code=1
 
     - name: Setup .NET
       uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4

@@ -22,5 +22,12 @@ regexes = [
   '''Ciccio_110590''',
   '''YawZitNzuASTzARiZIJpFhHGAQ8MVq9gK2BHDYm9cvY=''',
   '''f260761961044d299a49b608b898e62e3ed0e5a0b96046ecbbc3a1598e32f3a3''',
-  '''AQAAAAIAAYagAAAAEIV3gNJplD9fTYjDhH/lOnFcVVF16+jxwjD6hHx3OPFjOsbJOZsZE9smVDPFxDbZbw=='''
+  # ASP.NET Identity password hashes (Admin-1234 and the 2021 SeedData account).
+  # The `+` characters are escaped because allow-list entries are regexes.
+  '''AQAAAAIAAYagAAAAEIV3gNJplD9fTYjDhH/lOnFcVVF16\+jxwjD6hHx3OPFjOsbJOZsZE9smVDPFxDbZbw==''',
+  '''AQAAAAEAACcQAAAAEMlv8lrB6gzwN\+Icpe4qmD0BQqw72MxJM9VwCUwzrdBcuBJtF8tiIGaim10UtNy51g==''',
+  # Stable primary key of the admin user seeded by the 2021 migrations and
+  # removed by 20261030110352_RemoveSeededAdminUser. It is an identifier, not a
+  # credential, but generic-api-key flags the keyValue call.
+  '''3d5bc7f9-e445-46fe-b284-894c3f0a1873'''
 ]
