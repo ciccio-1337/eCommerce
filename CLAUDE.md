@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Stack
-- .NET 10 solution (`eCommerce.sln`). Two products:
+- .NET 11 solution (`eCommerce.sln`). Two products:
   - Storefront: layered (`eCommerce.Storefront.Model`, `Repository.EntityFrameworkCore`, `Services`, `Services.Cache`, `Controllers`, `UI.Web.MVC`), tests in `eCommerce.Storefront.Tests`.
   - Backoffice: Blazor (WASM client `eCommerce.Backoffice.Client`, server `eCommerce.Backoffice.Server`, shared `eCommerce.Backoffice.Shared`).
 - `global.json` uses `Microsoft.Testing.Platform` test runner.
@@ -14,12 +14,12 @@
 - Build+run: `./build_and_run.command`
 - Migrations (EF Core): `./add_migration.command`, `./update_database.command`, `./remove_latest_migration.command` (run from repo root as written)
 - Package updates: `./update_outdated_packages.command`
-- Docker: `./docker.command`; `Dockerfile` copies `eCommerce.Storefront.UI.Web.MVC/bin/Release/net10.0/publish/` and runs `dotnet eCommerce.Storefront.UI.Web.MVC.dll`
+- Docker: `./docker.command`; `Dockerfile` copies `eCommerce.Storefront.UI.Web.MVC/bin/Release/net11.0/publish/` and runs `dotnet eCommerce.Storefront.UI.Web.MVC.dll`
 
 ## Build/Test
 - CI (.github/workflows/dotnet-core.yml): `dotnet restore` → `dotnet build --configuration Release --no-restore` → `dotnet test --no-restore --verbosity normal`
 - Tests: `eCommerce.Storefront.Tests` uses MSTest 4.5.1 with `EnableMSTestRunner` and `OutputType Exe`. Run all tests: `dotnet test` (uses Microsoft.Testing.Platform per `global.json`). To run a single test/project: `dotnet test eCommerce.Storefront.Tests/eCommerce.Storefront.Tests.csproj` or filter as MSTest supports.
-- If building/publishing for Docker, produce publish output in `bin/Release/net10.0/publish/` for the MVC project (Dockerfile expects that path).
+- If building/publishing for Docker, produce publish output in `bin/Release/net11.0/publish/` for the MVC project (Dockerfile expects that path).
 
 ## Architecture notes
 - Storefront startup (`eCommerce.Storefront.UI.Web.MVC/Program.cs`): calls `AddInfrastructure`, `AddRepositories`, `AddApplicationServices`, adds MVC with Newtonsoft.Json and custom model binder/filter setup, uses localization (en-GB/en-US/it-IT), Blazor framework files/static files, routing/auth, `UseSecurityHeaders()`, maps default route and fallback to `index.html`. Exception handling differs dev vs prod.

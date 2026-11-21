@@ -97,8 +97,6 @@
         {
             roleResponses = new List<RoleDto>();
         }
-
-        StateHasChanged();
     }
 
     async Task SelectedAsync(object value)
@@ -180,8 +178,6 @@
                 // and close the editor.
                 value = null;
                 model = null;
-
-                StateHasChanged();
             }
         }
         catch (Exception)
@@ -218,8 +214,6 @@
                 roleUserResponse = new List<RoleUserResponse>();
                 editRoleResponse = new EditRoleResponse { Errors = ["The role was updated but the user list could not be refreshed."] };
             }
-
-            StateHasChanged();
         }
         catch (Exception)
         {
@@ -280,8 +274,6 @@
                     value = null;
                     model = null;
                     editRoleResponse = null;
-
-                    StateHasChanged();
                 }
                 else
                 {

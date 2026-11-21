@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:11.0
 
 WORKDIR /eCommerce
 
-COPY --chown=app:app eCommerce.Storefront.UI.Web.MVC/bin/Release/net10.0/publish/ ./
+COPY --chown=app:app eCommerce.Storefront.UI.Web.MVC/bin/Release/net11.0/publish/ ./
 
 # The application persists data-protection keys (and, in development, the
 # SQLite database) under the content root, so the non-root user must own it.

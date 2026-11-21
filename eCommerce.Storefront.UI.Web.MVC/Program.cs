@@ -211,7 +211,8 @@ app.UseSecurityHeaders();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseWebAssemblyDebugging();
+    // Blazor WebAssembly debugging is launched directly by the IDE since .NET 11;
+    // the old ws-proxy middleware and its inspectUri configuration are obsolete.
 }
 else
 {

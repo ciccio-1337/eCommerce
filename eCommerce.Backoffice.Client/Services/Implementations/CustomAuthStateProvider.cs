@@ -22,6 +22,16 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
 
         public async override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+            return await FetchAuthenticationStateAsync();
+        }
+
+        /// <summary>
+        /// Fetches the authoritative state from the server. <see cref="LoginAsync"/>
+        /// reuses it so refreshing after sign-in does not call the virtual
+        /// <see cref="GetAuthenticationStateAsync"/> without notifying subscribers.
+        /// </summary>
+        private async Task<AuthenticationState> FetchAuthenticationStateAsync()
+        {
             try
             {
                 var currentUser = await httpClient.GetFromJsonAsync<CurrentUserResponse>("api/accounts/me");
@@ -44,7 +54,7 @@ namespace eCommerce.Backoffice.Client.Services.Implementations
         {
             antiforgeryTokenProvider.Invalidate();
 
-            var authenticationState = await GetAuthenticationStateAsync();
+            var authenticationState = await FetchAuthenticationStateAsync();
 
             NotifyAuthenticationStateChanged(Task.FromResult(authenticationState));
         }

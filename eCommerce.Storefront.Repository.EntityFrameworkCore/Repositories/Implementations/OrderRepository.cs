@@ -15,7 +15,7 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Imple
             // and affects zero rows. The Payment owned type is stored as plain columns
             // on the Orders table (see OrderConfiguration), so a parameterized UPDATE
             // is safe on both SQLite and PostgreSQL.
-            var affected = await _dataContext.Database.ExecuteSqlInterpolatedAsync(
+            var affected = await _dataContext.Database.ExecuteSqlAsync(
                 $"""
                 UPDATE "Orders"
                 SET "PaymentDate" = {payment.DatePaid},
