@@ -7,6 +7,7 @@ using eCommerce.Storefront.Services.Messaging.CustomerService;
 using eCommerce.Storefront.Services.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
@@ -59,6 +60,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Detail(CustomerView customerView, string currentPassword)
         {
             var currentEmail = _cookieAuthentication.GetAuthenticationToken();

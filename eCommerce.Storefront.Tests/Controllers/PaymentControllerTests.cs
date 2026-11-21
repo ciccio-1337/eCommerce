@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Controllers;
@@ -9,6 +10,7 @@ using eCommerce.Storefront.Services.ViewModels;
 using MapsterMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -80,6 +82,33 @@ namespace eCommerce.Storefront.Tests.Controllers
         }
 
         [TestMethod]
+        public async Task PaymentCallBack_WhenTransientFailureOccurs_ReturnsServiceUnavailable()
+        {
+            _paymentServiceMock.Setup(x => x.GetOrderIdFor(It.IsAny<IFormCollection>())).Returns(123);
+            _orderServiceMock
+                .Setup(x => x.GetOrderAsync(It.IsAny<GetOrderRequest>()))
+                .ThrowsAsync(new TimeoutException("database unavailable"));
+            var collection = new FormCollection(new System.Collections.Generic.Dictionary<string, Microsoft.Extensions.Primitives.StringValues>());
+
+            var result = await _controller.PaymentCallBack(collection);
+
+            var status = result as StatusCodeResult;
+
+            Assert.IsNotNull(status);
+            Assert.AreEqual(503, status.StatusCode);
+        }
+
+        [TestMethod]
+        public void PaymentCallBack_UsesDedicatedRateLimitPolicy()
+        {
+            var method = typeof(PaymentController).GetMethod(nameof(PaymentController.PaymentCallBack));
+            var attribute = method!.GetCustomAttribute<EnableRateLimitingAttribute>();
+
+            Assert.IsNotNull(attribute);
+            Assert.AreEqual("ipn", attribute.PolicyName);
+        }
+
+        [TestMethod]
         public async Task CreatePaymentFor_WhenOrderHasAlreadyBeenPaid_RedirectsToOrderDetail()
         {
             _cookieAuthMock.Setup(x => x.GetAuthenticationToken()).Returns("customer@test.com");
@@ -102,12 +131,13 @@ namespace eCommerce.Storefront.Tests.Controllers
         }
 
         [TestMethod]
-        public void CreatePaymentFor_IsPostOnly()
+        public void CreatePaymentFor_AcceptsGetAndPost()
         {
             var method = typeof(PaymentController).GetMethod(nameof(PaymentController.CreatePaymentFor));
+            var attribute = method!.GetCustomAttribute<AcceptVerbsAttribute>();
 
-            Assert.IsNotNull(method);
-            Assert.IsNotNull(method.GetCustomAttribute<HttpPostAttribute>());
+            Assert.IsNotNull(attribute);
+            CollectionAssert.AreEquivalent(new[] { "GET", "POST" }, attribute.HttpMethods.ToArray());
         }
 
         [TestMethod]

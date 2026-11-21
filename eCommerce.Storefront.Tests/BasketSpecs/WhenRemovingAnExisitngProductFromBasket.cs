@@ -42,7 +42,7 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
 
             Assert.IsNull(_basket.Items.FirstOrDefault(i => i.Product == _product));
 
-            Assert.AreEqual(0, _basket.NumberOfItemsInBasket());
+            Assert.AreEqual(0, _basket.NumberOfItems);
         }
     }
 }

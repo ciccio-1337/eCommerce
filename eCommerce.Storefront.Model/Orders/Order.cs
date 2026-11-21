@@ -155,11 +155,6 @@ namespace eCommerce.Storefront.Model.Orders
             }
         }
 
-        private bool OrderContains(Product product)
-        {
-            return _items.Any(i => i.Contains(product));
-        }
-
         protected override void Validate()
         {
             if (Created == DateTime.MinValue)

@@ -186,7 +186,9 @@
         }
         catch (Exception)
         {
-            // Error already surfaced via editRoleResponse.Errors in the Alert component
+            // A transport/500 failure never sets editRoleResponse, so the Alert
+            // would stay hidden and the user would see nothing happen.
+            editRoleResponse = new EditRoleResponse { Errors = ["Unable to save the role. Please try again."] };
         }
     }
 
@@ -281,10 +283,15 @@
 
                     StateHasChanged();
                 }
+                else
+                {
+                    editRoleResponse = new EditRoleResponse { Errors = ["The role could not be deleted. Please try again."] };
+                }
             }
             catch (Exception)
             {
-                // Error during role deletion — the role stays in the list.
+                // The role stays in the list; tell the user instead of failing silently.
+                editRoleResponse = new EditRoleResponse { Errors = ["Unable to delete the role. Please try again."] };
             }
         }
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using MapsterMapper;
 using eCommerce.Storefront.Services.Interfaces;
@@ -9,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using eCommerce.Storefront.Model.Orders;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -28,21 +31,39 @@ namespace eCommerce.Storefront.Controllers.Controllers
         [HttpPost]
         [IgnoreAntiforgeryToken]
         [AllowAnonymous]
+        [EnableRateLimiting("ipn")]
         public async Task<IActionResult> PaymentCallBack(IFormCollection collection)
         {
             try
             {
                 return await ProcessPaymentCallBackAsync(collection);
             }
+            catch (Exception ex) when (IsTransientFailure(ex))
+            {
+                // A transient database/network failure means we could not record a
+                // payment the buyer may already have made. Acknowledge nothing: let
+                // PayPal retry so the order is eventually marked as paid.
+                _logger.LogError(ex, "PaymentCallBack: transient error while processing an IPN; asking PayPal to retry.");
+
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
             catch (Exception ex)
             {
-                // Never return 5xx to PayPal: it retries on server errors, which can
-                // loop forever on a malformed or otherwise unexpected IPN. Log the
-                // failure and acknowledge the notification instead.
+                // Permanent failures (malformed payload, unexpected mapping error)
+                // must not put PayPal into an endless retry loop. Log and acknowledge.
                 _logger.LogError(ex, "PaymentCallBack: unexpected error while processing an IPN.");
 
                 return Ok();
             }
+        }
+
+        private static bool IsTransientFailure(Exception exception)
+        {
+            return exception is DbUpdateException
+                or DbUpdateConcurrencyException
+                or TimeoutException
+                or HttpRequestException
+                or OperationCanceledException;
         }
 
         private async Task<IActionResult> ProcessPaymentCallBackAsync(IFormCollection collection)
@@ -118,7 +139,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        [HttpPost]
+        // The action only reads the order and renders the PayPal form, so both a
+        // direct GET (order-history "Pay" link) and the POST form on the order page
+        // are valid. It must accept GET because RedirectToAction after PlaceOrder is
+        // replayed by the browser as GET; a POST-only action produced a 405.
+        [AcceptVerbs("GET", "POST")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreatePaymentFor(long orderId)
         {

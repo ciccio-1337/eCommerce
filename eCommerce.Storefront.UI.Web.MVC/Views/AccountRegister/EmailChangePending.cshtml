@@ -24,7 +24,7 @@
     @Html.ActionLink("log on", "LogOn", "AccountLogOn") again.
 </p>
 
-<form method="post" action="/AccountRegister/ResendConfirmation">
+<form method="post" action="@Url.Action("ResendConfirmation", "AccountRegister")">
     @Html.AntiForgeryToken()
     <input type="hidden" name="email" value="@ViewData["Email"]" />
     <p>

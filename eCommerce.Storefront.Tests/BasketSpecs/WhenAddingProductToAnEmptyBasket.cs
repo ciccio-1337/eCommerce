@@ -44,7 +44,7 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
         [TestMethod]
         public void ThenTheBasketShouldContainTotalOfOneItem()
         {
-            Assert.AreEqual(1, _basket.NumberOfItemsInBasket());
+            Assert.AreEqual(1, _basket.NumberOfItems);
         }
 
         [TestMethod]

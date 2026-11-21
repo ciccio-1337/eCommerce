@@ -24,7 +24,7 @@
     <p>@ViewData["ResendMessage"]</p>
 }
 
-<form method="post" action="/AccountRegister/ResendConfirmation">
+<form method="post" action="@Url.Action("ResendConfirmation", "AccountRegister")">
     @Html.AntiForgeryToken()
     <p>
         <label for="email">Email</label><br />

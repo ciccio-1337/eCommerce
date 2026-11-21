@@ -81,11 +81,6 @@ namespace eCommerce.Storefront.Model.Basket
             }
         }
 
-        public int NumberOfItemsInBasket()
-        {
-            return _items.Sum(i => i.Qty);
-        }
-
         public IReadOnlyList<BasketItem> Items
         {
             get { return _items.AsReadOnly(); }

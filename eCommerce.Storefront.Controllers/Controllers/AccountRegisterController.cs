@@ -12,6 +12,7 @@ using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -28,7 +29,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
         IConfiguration configuration,
         IWebHostEnvironment environment,
         ILogger<AccountRegisterController> logger,
-        ShopDataContext shopDataContext) : BaseAccountController(authenticationService,
+        ShopDataContext shopDataContext,
+        ILookupNormalizer lookupNormalizer) : BaseAccountController(authenticationService,
             customerService,
             cookieAuthentication,
             actionArguments)
@@ -38,6 +40,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountRegisterController> _logger = logger;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
+        private readonly ILookupNormalizer _lookupNormalizer = lookupNormalizer;
 
         public IActionResult Register()
         {
@@ -164,7 +167,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return View("RegistrationPending");
             }
 
-            var normalizedEmail = email.ToUpperInvariant();
+            // Reuse the same normaliser Identity applied when the user was created;
+            // ToUpperInvariant only matches the default implementation and silently
+            // stops resolving addresses if a custom normaliser is configured.
+            var normalizedEmail = _lookupNormalizer.NormalizeEmail(email) ?? string.Empty;
             var user = await _shopDataContext.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
 

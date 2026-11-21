@@ -112,6 +112,15 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             {
                 response = await ValidatePaymentNotificationAsync(collection);
             }
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+            {
+                // The verification call itself failed (network timeout / PayPal 5xx).
+                // This is transient: let it bubble up so the IPN endpoint can ask
+                // PayPal to retry instead of silently leaving the order unpaid.
+                _logger.LogError(ex, "PayPal IPN validation failed transiently for order {OrderId}.", orderRequest.Id);
+
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PayPal IPN validation failed with an exception for order {OrderId}.", orderRequest.Id);
@@ -218,6 +227,15 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadAsStringAsync();
+            }
+
+            // A 5xx means PayPal could not validate the notification right now;
+            // surface it as transient so the caller can ask PayPal to retry instead
+            // of acknowledging a payment that was never verified.
+            if ((int)response.StatusCode >= 500)
+            {
+                throw new HttpRequestException(
+                    $"PayPal IPN verification failed with status code {(int)response.StatusCode}.");
             }
 
             return string.Empty;

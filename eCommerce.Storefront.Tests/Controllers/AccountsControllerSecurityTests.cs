@@ -2,8 +2,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Server.Controllers;
 using eCommerce.Backoffice.Shared.Model.Accounts;
-using eCommerce.Backoffice.Shared.Services.Interfaces;
-using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -53,7 +51,6 @@ namespace eCommerce.Storefront.Tests.Controllers
                 _emailServiceMock.Object,
                 _signInManagerMock.Object,
                 Mock.Of<IConfiguration>(),
-                Mock.Of<IEntityService<Customer, long>>(),
                 null,
                 null,
                 Mock.Of<ILogger<AccountsController>>());
@@ -80,7 +77,39 @@ namespace eCommerce.Storefront.Tests.Controllers
             _signInManagerMock
                 .Setup(x => x.CheckPasswordSignInAsync(user, "password", true))
                 .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
+            _userManagerMock.Setup(x => x.IsEmailConfirmedAsync(user)).ReturnsAsync(true);
             _userManagerMock.Setup(x => x.GetTwoFactorEnabledAsync(user)).ReturnsAsync(true);
+
+            var result = await _controller.Login(new LoginRequest
+            {
+                Email = "admin@test.com",
+                Password = "password"
+            });
+
+            var ok = result.Result as OkObjectResult;
+
+            Assert.IsNotNull(ok);
+
+            var response = ok.Value as LoginResponse;
+
+            Assert.IsNotNull(response);
+            Assert.IsFalse(response.IsSuccess);
+            CollectionAssert.Contains(new System.Collections.Generic.List<string>(response.Errors), "Username and password are invalid.");
+            _signInManagerMock.Verify(
+                x => x.CreateUserPrincipalAsync(It.IsAny<IdentityUser>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task Login_WhenEmailIsNotConfirmed_ReturnsGenericErrorAndNoSession()
+        {
+            var user = new IdentityUser { Id = "admin-1", Email = "admin@test.com", EmailConfirmed = false };
+
+            _userManagerMock.Setup(x => x.FindByEmailAsync("admin@test.com")).ReturnsAsync(user);
+            _signInManagerMock
+                .Setup(x => x.CheckPasswordSignInAsync(user, "password", true))
+                .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
+            _userManagerMock.Setup(x => x.IsEmailConfirmedAsync(user)).ReturnsAsync(false);
 
             var result = await _controller.Login(new LoginRequest
             {

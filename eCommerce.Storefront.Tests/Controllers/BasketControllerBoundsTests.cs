@@ -4,6 +4,7 @@ using eCommerce.Storefront.Controllers.Controllers;
 using eCommerce.Storefront.Controllers.DTOs;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Services.Cache;
+using eCommerce.Storefront.Services.Implementations;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Services.Messaging.ProductCatalogService;
 using eCommerce.Storefront.Services.ViewModels;
@@ -31,6 +32,18 @@ namespace eCommerce.Storefront.Tests.Controllers
                 _basketServiceMock.Object,
                 Mock.Of<ICookieAuthentication>(),
                 Mock.Of<ICustomerService>());
+        }
+
+        [TestMethod]
+        public async Task AddToBasket_WhenProductNoLongerExists_ReturnsNotFound()
+        {
+            _basketServiceMock
+                .Setup(x => x.CreateBasketAsync(It.IsAny<CreateBasketRequest>()))
+                .ThrowsAsync(new ProductNotFoundException());
+
+            var result = await _controller.AddToBasket(999);
+
+            Assert.IsInstanceOfType(result, typeof(NotFoundObjectResult));
         }
 
         [TestMethod]

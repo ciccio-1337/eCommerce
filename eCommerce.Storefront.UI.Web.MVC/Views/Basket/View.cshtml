@@ -20,7 +20,7 @@
 
         showOverlay("overlay", "main");
         showOverlay("smoverlay", "basketSummary");
-        $.post('/Basket/RemoveItem', postData, updateBasket, "json").fail(onBasketUpdateFailed);
+        $.post('@Url.Action("RemoveItem", "Basket")', postData, updateBasket, "json").fail(onBasketUpdateFailed);
     }
 
     function updateItemQtys() {
@@ -58,7 +58,7 @@
 
         showOverlay("overlay", "main");
         showOverlay("smoverlay", "basketSummary");
-        $.post('/Basket/UpdateShipping', postData, updateBasket, "json").fail(onBasketUpdateFailed);
+        $.post('@Url.Action("UpdateShipping", "Basket")', postData, updateBasket, "json").fail(onBasketUpdateFailed);
     }
 
     // The basket is rebuilt with DOM APIs and .text() rather than a client-side

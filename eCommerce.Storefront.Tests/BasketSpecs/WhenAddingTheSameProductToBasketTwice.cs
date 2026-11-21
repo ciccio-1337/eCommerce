@@ -45,7 +45,7 @@ namespace eCommerce.Storefront.Tests.BasketSpecs
         [TestMethod]
         public void ThenTheTotalNumberOfItemsInBasketShouldBeEqualToTwo()
         {
-            Assert.AreEqual(2, _basket.NumberOfItemsInBasket());
+            Assert.AreEqual(2, _basket.NumberOfItems);
         }
 
         [TestMethod]

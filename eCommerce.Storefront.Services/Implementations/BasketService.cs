@@ -78,9 +78,20 @@ namespace eCommerce.Storefront.Services.Implementations
                 basket.SetCustomer(customer);
             }
 
-            await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
+            var productsAdded = await AddProductsToBasketAsync(basketRequest.ProductsToAdd, basket);
 
-            // Never persist an empty basket that has no products in it.
+            // The controller only calls this from the add-to-basket path, so a
+            // request that names products but resolves none is a stale or tampered
+            // product id, not an empty visit. Fail instead of persisting an empty
+            // basket and reporting success to the client.
+            if (basketRequest.ProductsToAdd?.Any() == true && productsAdded == 0)
+            {
+                throw new ProductNotFoundException();
+            }
+
+            // Never persist an empty basket that has no products in it. This only
+            // applies to a brand-new basket; an existing basket is always persisted
+            // by ModifyBasketAsync, including when the last line is removed.
             if (!basket.Items.Any())
             {
                 response.Basket = _mapper.Map<Basket, BasketView>(basket);
@@ -107,6 +118,11 @@ namespace eCommerce.Storefront.Services.Implementations
                 // insert a basket; the unique one-to-one CustomerId FK makes exactly one
                 // win and the loser hits a DbUpdateException here. Recover by reloading
                 // the winner's basket and adding the products to it instead of 500ing.
+                // The failed basket is still tracked as Added, so it must be detached
+                // first: otherwise the retry would re-submit the same insert and throw
+                // again (this time uncaught).
+                _uow.ClearChangeTracker();
+
                 var latest = await _customerRepository.FindByAsync(basketRequest.CustomerEmail);
 
                 if (latest?.Basket == null)
@@ -138,9 +154,15 @@ namespace eCommerce.Storefront.Services.Implementations
             var basket = await _basketRepository.FindByAsync(request.BasketId) ??
                 throw new BasketDoesNotExistException();
 
-            await AddProductsToBasketAsync(request.ProductsToAdd, basket);
+            var productsAdded = await AddProductsToBasketAsync(request.ProductsToAdd, basket);
             await UpdateLineQtysAsync(request.ItemsToUpdate, basket);
             await RemoveItemsFromBasketAsync(request.ItemsToRemove, basket);
+
+            if (request.ProductsToAdd?.Any() == true && productsAdded == 0)
+            {
+                // A stale or tampered product id must not look like a successful add.
+                throw new ProductNotFoundException();
+            }
 
             if (request.SetShippingServiceIdTo != 0)
             {
@@ -150,14 +172,10 @@ namespace eCommerce.Storefront.Services.Implementations
                 basket.SetDeliveryOption(deliveryOption);
             }
 
-            // Never persist an empty basket that has no products in it.
-            if (!basket.Items.Any())
-            {
-                response.Basket = _mapper.Map<Basket, BasketView>(basket);
-
-                return response;
-            }
-
+            // Persist even when the basket is now empty: removing the last line is a
+            // legitimate modification and must delete the BasketItem row. (The
+            // "never persist an empty basket" guard belongs to CreateBasketAsync,
+            // where an empty basket means "nothing was ever added".)
             basket.ThrowExceptionIfInvalid();
             _basketRepository.Save(basket);
             await _uow.CommitAsync();
@@ -216,23 +234,27 @@ namespace eCommerce.Storefront.Services.Implementations
             }
         }
 
-        private async Task AddProductsToBasketAsync(IList<long> productsToAdd, Basket basket)
+        private async Task<int> AddProductsToBasketAsync(IList<long> productsToAdd, Basket basket)
         {
             if (productsToAdd == null || !productsToAdd.Any())
             {
-                return;
+                return 0;
             }
 
             var products = await _productRepository.FindBy(c => productsToAdd.Contains(c.Id)).ToListAsync();
             var productById = products.ToDictionary(p => p.Id);
+            var productsAdded = 0;
 
             foreach (long productId in productsToAdd)
             {
                 if (productById.TryGetValue(productId, out var product))
                 {
                     basket.Add(product);
+                    productsAdded++;
                 }
             }
+
+            return productsAdded;
         }
 
         public GetAllDispatchOptionsResponse GetAllDispatchOptions()

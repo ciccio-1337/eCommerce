@@ -124,7 +124,10 @@ namespace eCommerce.Storefront.Services.Implementations
         {
             if (numberOfTitlesFound <= 0 || numberOfResultsPerPage <= 0)
             {
-                return 1;
+                // No results means zero pages, not one. JSON clients consume this
+                // value directly, so returning 1 would make an empty search look
+                // like a single empty page.
+                return 0;
             }
 
             return (int)Math.Ceiling((double)numberOfTitlesFound / numberOfResultsPerPage);

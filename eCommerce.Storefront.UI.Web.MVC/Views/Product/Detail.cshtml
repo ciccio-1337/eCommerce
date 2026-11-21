@@ -11,7 +11,7 @@
 
         var postData = { productId: $("#productsizes").val() };
 
-        $.post('/Basket/AddToBasket', postData, updateBasket, "json")
+        $.post('@Url.Action("AddToBasket", "Basket")', postData, updateBasket, "json")
             .fail(function () {
                 // Without this the overlay stays visible forever after a failed POST.
                 hideOverlay("smoverlay");
@@ -25,7 +25,7 @@
     }
 
     function navigateToLogOn() {
-        location.href = '/AccountLogOn/LogOn';
+        location.href = '@Url.Action("LogOn", "AccountLogOn")';
     }
 
     // Bind from script instead of inline onclick attributes so the CSP can keep
@@ -39,7 +39,7 @@
 <h2>@Model.Product.BrandName @Model.Product.Name</h2>
 <div>
     <span style="float: left">
-        <img src=@("/content/images/products/" + Model.Product.Id.ToString() + ".jpg") alt="Product @Model.Product.Id.ToString()" />
+        <img src="@Url.Content("~/content/images/products/" + Model.Product.Id.ToString() + ".jpg")" alt="Product @Model.Product.Id.ToString()" />
     </span>
     <div>
         @Model.Product.Price<br />

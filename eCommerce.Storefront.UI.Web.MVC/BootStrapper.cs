@@ -256,25 +256,81 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     context.Response.Headers.Append("Cross-Origin-Resource-Policy", "same-origin");
                 }
 
-                if (!context.Response.Headers.ContainsKey(HeaderNames.CacheControl))
+                if (IsStaticAssetRequest(context.Request.Path))
                 {
-                    context.Response.Headers.Append(HeaderNames.CacheControl, "no-cache, no-store, must-revalidate");
+                    ApplyStaticAssetCacheHeaders(context.Response, context.Request.Path);
                 }
-
-                if (!context.Response.Headers.ContainsKey(HeaderNames.Pragma))
+                else
                 {
-                    context.Response.Headers.Append(HeaderNames.Pragma, "no-cache");
-                }
+                    if (!context.Response.Headers.ContainsKey(HeaderNames.CacheControl))
+                    {
+                        context.Response.Headers.Append(HeaderNames.CacheControl, "no-cache, no-store, must-revalidate");
+                    }
 
-                if (!context.Response.Headers.ContainsKey(HeaderNames.Expires))
-                {
-                    context.Response.Headers.Append(HeaderNames.Expires, "0");
+                    if (!context.Response.Headers.ContainsKey(HeaderNames.Pragma))
+                    {
+                        context.Response.Headers.Append(HeaderNames.Pragma, "no-cache");
+                    }
+
+                    if (!context.Response.Headers.ContainsKey(HeaderNames.Expires))
+                    {
+                        context.Response.Headers.Append(HeaderNames.Expires, "0");
+                    }
                 }
 
                 await next();
             });
 
             return webApplication;
+        }
+
+        /// <summary>
+        /// True for requests that static-file middleware will answer (wwwroot files
+        /// and the Blazor WASM framework payload). Dynamic responses keep the
+        /// no-store policy; static assets must be cacheable.
+        /// </summary>
+        public static bool IsStaticAssetRequest(PathString path)
+        {
+            if (!path.HasValue)
+            {
+                return false;
+            }
+
+            if (path.StartsWithSegments("/_framework"))
+            {
+                return true;
+            }
+
+            var value = path.Value!;
+
+            return value.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".woff", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".map", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Replaces the dynamic no-store policy with an explicit cache policy for
+        /// static assets. The Blazor framework files are revalidated hourly because
+        /// their names are not content-addressed across deployments.
+        /// </summary>
+        public static void ApplyStaticAssetCacheHeaders(HttpResponse response, PathString path)
+        {
+            ArgumentNullException.ThrowIfNull(response);
+
+            response.Headers[HeaderNames.CacheControl] = path.StartsWithSegments("/_framework")
+                ? "public, max-age=3600, must-revalidate"
+                : "public, max-age=604800";
+
+            response.Headers.Remove(HeaderNames.Pragma);
+            response.Headers.Remove(HeaderNames.Expires);
         }
 
         internal static string BuildContentSecurityPolicy(string nonce)

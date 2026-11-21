@@ -100,6 +100,36 @@ namespace eCommerce.Storefront.Tests.Cache
             _productTitleRepositoryMock.Verify(x => x.FindAll(), Times.Once);
         }
 
+        [TestMethod]
+        public async Task GetProductAsync_WhenProductDoesNotExist_ReturnsNullProduct()
+        {
+            _productTitleRepositoryMock
+                .Setup(x => x.FindAll())
+                .Returns(new List<ProductTitle>().AsQueryable());
+
+            var response = await _service.GetProductAsync(new GetProductRequest { ProductId = 42 });
+
+            Assert.IsNull(response.Product);
+        }
+
+        [TestMethod]
+        public async Task GetProductAsync_ReturnsACopySoCallersCannotMutateTheCache()
+        {
+            var title = new ProductTitle { Id = 1, Name = "Product" };
+
+            _productTitleRepositoryMock.Setup(x => x.FindAll()).Returns(new List<ProductTitle> { title }.AsQueryable());
+            _mapperMock
+                .Setup(x => x.Map<ProductTitle, ProductView>(title))
+                .Returns(new ProductView { Id = 1, Name = "Product" });
+
+            var first = await _service.GetProductAsync(new GetProductRequest { ProductId = 1 });
+            first.Product.Name = "Mutated by caller";
+
+            var second = await _service.GetProductAsync(new GetProductRequest { ProductId = 1 });
+
+            Assert.AreEqual("Product", second.Product.Name);
+        }
+
         private sealed class FakeCacheStorage : ICacheStorage
         {
             private readonly Dictionary<string, object> _items = [];

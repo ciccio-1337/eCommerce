@@ -6,8 +6,9 @@ namespace eCommerce.Storefront.Services.Cache
     public class MemoryCacheAdapter(IMemoryCache memoryCache) : ICacheStorage
     {
         private readonly IMemoryCache _memoryCache = memoryCache;
-        // Default TTL can be overridden via appsettings.json in production.
-        // 10 minutes is the fallback for development / unconfigured keys.
+        // Fixed lifetime for every cached entry. There is deliberately no
+        // appsettings override: backoffice mutations invalidate the product caches
+        // explicitly, and this TTL only bounds the remaining staleness window.
         private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(10);
 
         public void Remove(string key)

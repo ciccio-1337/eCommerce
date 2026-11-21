@@ -222,6 +222,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 {
                     createNewBasket = true;
                 }
+                catch (ProductNotFoundException)
+                {
+                    return NotFound(new { error = "The selected product is no longer available." });
+                }
             }
 
             if (createNewBasket)
@@ -247,6 +251,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 {
                     // No shipping option exists yet (none seeded or all deleted).
                     return BadRequest(new { error = "No delivery option is currently available. Please try again later." });
+                }
+                catch (ProductNotFoundException)
+                {
+                    return NotFound(new { error = "The selected product is no longer available." });
                 }
             }
 

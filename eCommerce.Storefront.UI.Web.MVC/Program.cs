@@ -166,6 +166,20 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    // PayPal IPNs are anonymous and trigger an outbound verification request.
+    // Throttle them per source address so the endpoint cannot be used to amplify
+    // traffic against PayPal or to exhaust the server's connections.
+    options.AddPolicy("ipn", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 // Secure by default: every endpoint requires an authenticated user unless it

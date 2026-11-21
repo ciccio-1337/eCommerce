@@ -16,5 +16,10 @@ namespace eCommerce.Storefront.Repository.EntityFrameworkCore
         {
             return await _dataContext.Database.BeginTransactionAsync();
         }
+
+        public void ClearChangeTracker()
+        {
+            _dataContext.ChangeTracker.Clear();
+        }
     }
 }

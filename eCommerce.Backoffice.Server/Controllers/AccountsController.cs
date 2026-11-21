@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Services.Interfaces;
-using eCommerce.Backoffice.Shared.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -27,7 +26,6 @@ namespace eCommerce.Backoffice.Server.Controllers
     public class AccountsController(IEmailService emailService,
         SignInManager<IdentityUser> signInManager,
         IConfiguration configuration,
-        IEntityService<Customer, long> customerService,
         ShopDataContext shopDataContext,
         IWebHostEnvironment environment,
         ILogger<AccountsController> logger) : ControllerBase
@@ -35,7 +33,6 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly IEmailService _emailService = emailService;
         private readonly SignInManager<IdentityUser> _signInManager = signInManager;
         private readonly IConfiguration _configuration = configuration;
-        private readonly IEntityService<Customer, long> _customerService = customerService;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
         private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountsController> _logger = logger;
@@ -259,6 +256,18 @@ namespace eCommerce.Backoffice.Server.Controllers
                 return Ok(response);
             }
 
+            // SignInManager cookie issuance does not enforce RequireConfirmedEmail
+            // on this custom scheme, so an administrator-created account that has
+            // not followed its confirmation link would otherwise get a session.
+            if (!await _signInManager.UserManager.IsEmailConfirmedAsync(user))
+            {
+                _logger.LogWarning("Backoffice login refused for {UserId}: email address is not confirmed.", user.Id);
+
+                response.Errors = ["Username and password are invalid."];
+
+                return Ok(response);
+            }
+
             // Never issue a password-only admin session for an account that has a
             // second factor enabled: CheckPasswordSignInAsync does not challenge it.
             if (await _signInManager.UserManager.GetTwoFactorEnabledAsync(user))
@@ -397,15 +406,38 @@ namespace eCommerce.Backoffice.Server.Controllers
                     return BadRequest(deleteResult.Errors.Select(x => x.Description));
                 }
 
-                var customers = _customerService.Get(c => c.UserId.Equals(id));
+                // Load the related rows explicitly: the generic entity service used
+                // elsewhere does not include them, and the delete/anonymise decision
+                // depends on the order collection and the address/basket data.
+                var customers = await _shopDataContext.Set<Customer>()
+                    .Include(c => c.Orders)
+                    .Include(c => c.DeliveryAddressBook)
+                    .Include(c => c.Basket)
+                    .Where(c => c.UserId.Equals(id))
+                    .ToListAsync();
 
-                if (customers?.Count() > 0)
+                foreach (var customer in customers)
                 {
-                    foreach (var customer in customers)
+                    if (AccountAnonymizer.HasOrders(customer))
                     {
-                        await _customerService.DeleteAsync(customer.Id);
+                        // Orders are financial/audit records: delete the personal
+                        // data around them instead of cascading the orders away.
+                        _shopDataContext.RemoveRange(customer.DeliveryAddressBook);
+
+                        if (customer.Basket != null)
+                        {
+                            _shopDataContext.Remove(customer.Basket);
+                        }
+
+                        AccountAnonymizer.Anonymize(customer);
+                    }
+                    else
+                    {
+                        _shopDataContext.Remove(customer);
                     }
                 }
+
+                await _shopDataContext.SaveChangesAsync();
 
                 await transaction.CommitAsync();
 

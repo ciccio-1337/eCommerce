@@ -52,7 +52,10 @@ namespace eCommerce.Storefront.Services.Implementations
             {
                 response.CustomerFound = true;
                 response.Customer = _mapper.Map<Customer, CustomerView>(customer);
-                response.Customer.Email = request.CustomerEmail;
+                // Do not overwrite the address returned above with the caller's raw
+                // input: CustomerRepository resolves the canonical Identity email
+                // (and the auth cookie is built from it), so echoing a case variant
+                // or alias here would defeat that normalisation.
 
                 if (request.LoadOrderSummary)
                 {

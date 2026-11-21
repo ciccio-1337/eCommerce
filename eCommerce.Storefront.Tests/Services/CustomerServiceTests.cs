@@ -33,6 +33,27 @@ namespace eCommerce.Storefront.Tests.Services
         }
 
         [TestMethod]
+        public async Task GetCustomerAsync_ReturnsTheCanonicalEmailNotTheRequestVariant()
+        {
+            var customer = CreateCustomer("canonical@test.com");
+
+            _customerRepositoryMock
+                .Setup(x => x.FindByAsync("CUSTOMER@test.com"))
+                .ReturnsAsync(customer);
+            _mapperMock
+                .Setup(x => x.Map<Customer, CustomerView>(customer))
+                .Returns(new CustomerView { Email = customer.Email });
+
+            var response = await _customerService.GetCustomerAsync(new GetCustomerRequest
+            {
+                CustomerEmail = "CUSTOMER@test.com"
+            });
+
+            Assert.IsTrue(response.CustomerFound);
+            Assert.AreEqual("canonical@test.com", response.Customer.Email);
+        }
+
+        [TestMethod]
         public async Task ModifyCustomerAsync_WhenEmailChanges_SavesEmailAndFlagsChange()
         {
             var customer = CreateCustomer("old@test.com");

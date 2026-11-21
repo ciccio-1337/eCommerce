@@ -38,22 +38,30 @@ namespace eCommerce.Storefront.Services.Cache
             _cacheStorage.Remove(CacheKeys.AllCategories.ToString());
         }
 
-        private IReadOnlyList<ProductTitle> FindAllProductTitles()
+        private IReadOnlyDictionary<long, ProductView> FindAllProductViews()
         {
             lock (GetAllProductTitlesLock)
             {
-                if (!_cacheStorage.TryRetrieve(CacheKeys.AllProductTitles.ToString(), out IReadOnlyList<ProductTitle>? allProductTitles))
+                if (!_cacheStorage.TryRetrieve(CacheKeys.AllProductTitles.ToString(), out IReadOnlyDictionary<long, ProductView>? productViews))
                 {
-                    // Materialize and cache an IMMUTABLE snapshot so callers cannot
-                    // mutate the cached entities (ProductTitle has mutable navigations).
-                    allProductTitles = _productTitleRepository.FindAll().ToList().AsReadOnly();
+                    // Map while filling the cache: only detached DTOs are retained.
+                    // Caching the EF entities would keep their navigation graphs alive
+                    // and let a later request see entities tracked by this request's
+                    // scoped DbContext.
+                    productViews = _productTitleRepository.FindAll()
+                        .AsEnumerable()
+                        .Select(title => _mapper.Map<ProductTitle, ProductView>(title))
+                        .ToDictionary(view => view.Id);
 
-                    _cacheStorage.Store(CacheKeys.AllProductTitles.ToString(), allProductTitles);
+                    _cacheStorage.Store(CacheKeys.AllProductTitles.ToString(), productViews);
                 }
 
-                return allProductTitles ?? new List<ProductTitle>().AsReadOnly();
+                return productViews ?? EmptyProductViews;
             }
         }
+
+        private static readonly IReadOnlyDictionary<long, ProductView> EmptyProductViews =
+            new Dictionary<long, ProductView>();
 
         public GetFeaturedProductsResponse GetFeaturedProducts()
         {
@@ -91,13 +99,14 @@ namespace eCommerce.Storefront.Services.Cache
 
         public Task<GetProductResponse> GetProductAsync(GetProductRequest request)
         {
-            var allTitles = FindAllProductTitles();
-            // Mapster yields a null ProductView for an unknown/missing title, which is
-            // the same shape the uncached service produces for a non-existent product.
-            var title = allTitles.FirstOrDefault(p => p.Id == request.ProductId);
+            var productViews = FindAllProductViews();
+            // Explicit lookup: an unknown id yields null, exactly like the uncached
+            // SQL path. Returning a deep copy keeps callers from mutating the cache.
             var response = new GetProductResponse
             {
-                Product = _mapper.Map<ProductTitle, ProductView>(title!)
+                Product = productViews.TryGetValue(request.ProductId, out var product)
+                    ? CloneProduct(product)
+                    : null
             };
 
             return Task.FromResult(response);
@@ -137,6 +146,19 @@ namespace eCommerce.Storefront.Services.Cache
             BrandName = product.BrandName,
             Name = product.Name,
             Price = product.Price
+        };
+
+        private static ProductView CloneProduct(ProductView product) => new()
+        {
+            Id = product.Id,
+            BrandName = product.BrandName,
+            Name = product.Name,
+            Price = product.Price,
+            Products = product.Products?.Select(size => new ProductSizeOption
+            {
+                Id = size.Id,
+                SizeName = size.SizeName
+            }).ToList() ?? []
         };
 
         private static CategoryView CloneCategory(CategoryView category) => new()

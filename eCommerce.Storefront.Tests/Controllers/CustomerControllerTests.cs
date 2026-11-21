@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Controllers;
@@ -10,6 +11,7 @@ using eCommerce.Storefront.Services.ViewModels;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -102,6 +104,18 @@ namespace eCommerce.Storefront.Tests.Controllers
 
             Assert.IsNotNull(model);
             Assert.AreSame(address, model.Address);
+        }
+
+        [TestMethod]
+        public void DetailPost_IsRateLimitedLikeOtherCredentialEndpoints()
+        {
+            var method = typeof(CustomerController).GetMethod(
+                nameof(CustomerController.Detail),
+                [typeof(CustomerView), typeof(string)]);
+            var attribute = method!.GetCustomAttribute<EnableRateLimitingAttribute>();
+
+            Assert.IsNotNull(attribute);
+            Assert.AreEqual("auth", attribute.PolicyName);
         }
 
         [TestMethod]

@@ -79,6 +79,21 @@ namespace eCommerce.Storefront.Tests.Controllers
             Assert.IsFalse(result.PaymentOk);
         }
 
+        [TestMethod]
+        public async Task HandleCallBackAsync_WhenPayPalReturnsServerError_ThrowsTransientFailure()
+        {
+            var service = new PayPalPaymentService(
+                new Mock<IHttpContextAccessor>().Object,
+                _configurationMock.Object,
+                new HttpClient(new StubHttpMessageHandler(string.Empty, HttpStatusCode.InternalServerError)),
+                new Mock<ILogger<PayPalPaymentService>>().Object);
+
+            await Assert.ThrowsExactlyAsync<HttpRequestException>(() =>
+                service.HandleCallBackAsync(
+                    new OrderPaymentRequest { Id = 1, Total = 10m },
+                    CreateCollection(transactionId: "TXN-1")));
+        }
+
         private static IFormCollection CreateCollection(
             string transactionId,
             string amount = "10.00",
@@ -95,13 +110,13 @@ namespace eCommerce.Storefront.Tests.Controllers
             });
         }
 
-        private sealed class StubHttpMessageHandler(string response) : HttpMessageHandler
+        private sealed class StubHttpMessageHandler(string response, HttpStatusCode statusCode = HttpStatusCode.OK) : HttpMessageHandler
         {
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                return Task.FromResult(new HttpResponseMessage(statusCode)
                 {
                     Content = new StringContent(response)
                 });

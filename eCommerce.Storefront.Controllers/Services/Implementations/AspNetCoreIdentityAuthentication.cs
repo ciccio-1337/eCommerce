@@ -96,10 +96,11 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 return false;
             }
 
-            // CheckPasswordAsync does not enforce lockout or confirmed-email here;
-            // callers use it only as a re-authentication step for the already
-            // authenticated session.
-            return await _signInManager.UserManager.CheckPasswordAsync(identityUser, password);
+            // Validate through the sign-in manager with lockout enabled: this is a
+            // password-guessing surface (a stolen session can call it repeatedly),
+            // so failures must count towards Identity's lockout. CheckPasswordAsync
+            // would verify the password without ever incrementing the counter.
+            return (await _signInManager.CheckPasswordSignInAsync(identityUser, password, lockoutOnFailure: true)).Succeeded;
         }
 
         public async Task<User> RegisterUserAsync(string email, string password, bool confirmEmail, IEnumerable<string> roles)
@@ -121,35 +122,32 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 // issued an authentication cookie yet.
                 user.IsAuthenticated = confirmEmail;
 
-                if (roles?.Count() > 0)
-                {
-                    var rolesAssigned = true;
+                // Materialise once: 'roles' may be a lazy sequence and it is
+                // enumerated for the assignment and then stored on the result.
+                var roleList = roles?.ToList();
 
-                    foreach (var role in roles)
+                if (roleList is { Count: > 0 })
+                {
+                    foreach (var role in roleList)
                     {
                         result = await _signInManager.UserManager.AddToRoleAsync(identityUser, role);
 
                         if (!result.Succeeded)
                         {
-                            rolesAssigned = false;
+                            // The Identity user has already been created. Delete it
+                            // before throwing: callers never receive the user object
+                            // on this path, so they cannot clean it up themselves.
+                            await _signInManager.UserManager.DeleteAsync(identityUser);
                             user.IsAuthenticated = false;
-                            user.Id = user.Email = null;
 
-                            if (result.Errors?.Count() > 0)
-                            {
-                                throw new InvalidOperationException(result.Errors?.FirstOrDefault()?.Description);
-                            }
-                            else
-                            {
-                                break;
-                            }
+                            var description = result.Errors?.FirstOrDefault()?.Description
+                                ?? "There was a problem assigning the requested role.";
+
+                            throw new InvalidOperationException(description);
                         }
                     }
 
-                    if (rolesAssigned)
-                    {
-                        user.Roles = roles;
-                    }
+                    user.Roles = roleList;
                 }
             }
             else
