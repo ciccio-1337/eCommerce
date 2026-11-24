@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.ActionArguments;
 using eCommerce.Storefront.Controllers.ViewModels.Account;
@@ -30,7 +31,8 @@ namespace eCommerce.Storefront.Controllers.Controllers
         IWebHostEnvironment environment,
         ILogger<AccountRegisterController> logger,
         ShopDataContext shopDataContext,
-        ILookupNormalizer lookupNormalizer) : BaseAccountController(authenticationService,
+        ILookupNormalizer lookupNormalizer,
+        IAccountActionThrottle accountActionThrottle) : BaseAccountController(authenticationService,
             customerService,
             cookieAuthentication,
             actionArguments)
@@ -41,6 +43,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
         private readonly ILogger<AccountRegisterController> _logger = logger;
         private readonly ShopDataContext _shopDataContext = shopDataContext;
         private readonly ILookupNormalizer _lookupNormalizer = lookupNormalizer;
+        private readonly IAccountActionThrottle _accountActionThrottle = accountActionThrottle;
+
+        // A resend is expensive (mail transport + token generation) and is a
+        // mail-bombing primitive when the same address is targeted repeatedly.
+        private static readonly TimeSpan ResendCooldown = TimeSpan.FromMinutes(1);
 
         public IActionResult Register()
         {
@@ -51,8 +58,16 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [EnableRateLimiting("registration")]
+        [RequestSizeLimit(32 * 1024)]
         public async Task<IActionResult> Register(string password, string email, string firstName, string secondName, string returnUrl)
         {
+            var validationMessage = CredentialInputValidator.ValidateRegistration(email, password, firstName, secondName);
+
+            if (validationMessage != null)
+            {
+                return RegistrationFailed(email, firstName, secondName, returnUrl, validationMessage);
+            }
+
             await using var transaction = await _shopDataContext.Database.BeginTransactionAsync();
 
             User user = null;
@@ -62,6 +77,20 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 // The account stays unconfirmed until the customer proves ownership
                 // of the address by following the emailed link.
                 user = await _authenticationService.RegisterUserAsync(email, password, false, ["Customer"]);
+            }
+            catch (AccountAlreadyExistsException)
+            {
+                await SafeRollbackAsync();
+
+                // Respond exactly like a successful registration. The existing
+                // address owner gets a best-effort notice; the caller learns
+                // nothing about whether the account exists.
+                await TryNotifyExistingAccountAsync(email);
+
+                ViewData["Title"] = "Check your email";
+                ViewData["Email"] = email;
+
+                return View("RegistrationPending");
             }
             catch (InvalidOperationException ex)
             {
@@ -144,14 +173,107 @@ namespace eCommerce.Storefront.Controllers.Controllers
         {
             var confirmed = await _authenticationService.ConfirmEmailAsync(userId, code);
 
-            ViewData["Title"] = confirmed ? "Email confirmed" : "Confirmation failed";
-            ViewData["Confirmed"] = confirmed;
+            if (!confirmed)
+            {
+                ViewData["Title"] = "Confirmation failed";
+                ViewData["Confirmed"] = false;
 
-            return View();
+                return View();
+            }
+
+            // Double opt-in: the password chosen at registration is discarded. An
+            // attacker could otherwise register a victim's address with a password
+            // they know and wait for the victim to click the confirmation link.
+            // Only the mailbox owner can reach this point, so they set the password.
+            var user = await _shopDataContext.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+            {
+                ViewData["Title"] = "Confirmation failed";
+                ViewData["Confirmed"] = false;
+
+                return View();
+            }
+
+            var rotationCode = await _authenticationService.GeneratePasswordResetTokenAsync(userId);
+
+            if (string.IsNullOrWhiteSpace(rotationCode))
+            {
+                ViewData["Title"] = "Confirmation failed";
+                ViewData["Confirmed"] = false;
+
+                return View();
+            }
+
+            // Guarantee the Identity password policy (upper, lower, digit, symbol)
+            // so the rotation cannot fail validation and leave the attacker-chosen
+            // registration password in place.
+            var randomPassword = "A1a!" + Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            if (!await _authenticationService.ResetPasswordAsync(userId, rotationCode, randomPassword))
+            {
+                ViewData["Title"] = "Confirmation failed";
+                ViewData["Confirmed"] = false;
+
+                return View();
+            }
+
+            var setPasswordCode = await _authenticationService.GeneratePasswordResetTokenAsync(userId);
+
+            if (string.IsNullOrWhiteSpace(setPasswordCode))
+            {
+                ViewData["Title"] = "Confirmation failed";
+                ViewData["Confirmed"] = false;
+
+                return View();
+            }
+
+            ViewData["Title"] = "Set your password";
+            ViewData["Email"] = user.Email;
+            ViewData["UserId"] = userId;
+            ViewData["ResetToken"] = setPasswordCode;
+
+            return View("SetPassword");
+        }
+
+        [HttpPost]
+        [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
+        public async Task<IActionResult> SetPassword(string userId, string code, string password, string confirmPassword)
+        {
+            if (!CredentialInputValidator.IsAcceptablePassword(password)
+                || !string.Equals(password, confirmPassword, StringComparison.Ordinal))
+            {
+                ViewData["Title"] = "Set your password";
+                ViewData["IssueMessage"] = "Choose a password of at most 128 characters and confirm it.";
+                ViewData["ResetToken"] = code;
+                ViewData["UserId"] = userId;
+
+                return View("SetPassword");
+            }
+
+            var reset = await _authenticationService.ResetPasswordAsync(userId, code, password);
+
+            if (!reset)
+            {
+                ViewData["Title"] = "Set your password";
+                ViewData["IssueMessage"] = "The password could not be set. The link may have expired; request a new confirmation email.";
+                ViewData["ResetToken"] = code;
+                ViewData["UserId"] = userId;
+
+                return View("SetPassword");
+            }
+
+            ViewData["Title"] = "Password set";
+            ViewData["Confirmed"] = true;
+
+            return View("ConfirmEmail");
         }
 
         [HttpPost]
         [EnableRateLimiting("registration")]
+        [RequestSizeLimit(16 * 1024)]
         public async Task<IActionResult> ResendConfirmation(string email)
         {
             // The response is deliberately identical whether the address exists, is
@@ -179,6 +301,13 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return View("RegistrationPending");
             }
 
+            // Per-address cooldown: the IP rate limiter cannot stop a distributed
+            // attacker from mail-bombing one inbox. The response stays neutral.
+            if (!_accountActionThrottle.TryAcquire(normalizedEmail, ResendCooldown))
+            {
+                return View("RegistrationPending");
+            }
+
             try
             {
                 await SendConfirmationEmailAsync(user.Id, user.Email ?? email);
@@ -190,6 +319,41 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
 
             return View("RegistrationPending");
+        }
+
+        /// <summary>
+        /// Warns the owner of an already-registered address that somebody tried to
+        /// register it. Best effort: a mail failure must not change the neutral
+        /// response returned to the caller.
+        /// </summary>
+        private async Task TryNotifyExistingAccountAsync(string email)
+        {
+            try
+            {
+                var normalizedEmail = _lookupNormalizer.NormalizeEmail(email) ?? string.Empty;
+                var user = await _shopDataContext.Users.AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+                if (user == null || string.IsNullOrWhiteSpace(user.Email))
+                {
+                    return;
+                }
+
+                var from = _configuration["MailSettings:Smtp:Network:UserName"]
+                    ?? _configuration["MailSettingsSmtpNetworkUserName"]
+                    ?? string.Empty;
+
+                await _emailService.SendMailAsync(
+                    from,
+                    user.Email,
+                    "Registration attempt for your address",
+                    "Somebody tried to create an account with this email address. "
+                    + "If it was you, sign in or reset your password. If it was not, no action is required.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send the existing-account notice.");
+            }
         }
 
         private async Task SendConfirmationEmailAsync(string userId, string email)

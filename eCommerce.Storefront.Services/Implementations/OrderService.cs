@@ -49,6 +49,14 @@ namespace eCommerce.Storefront.Services.Implementations
                 throw new BasketDoesNotExistException();
             }
 
+            // Never turn another customer's basket into an order, even if a future
+            // caller starts accepting a basket id from the request. The controller
+            // currently derives it from the session, so this is defence in depth.
+            if (basket.Customer == null || basket.Customer.Id != customer.Id)
+            {
+                throw new BasketDoesNotExistException();
+            }
+
             var deliveryAddress = customer.DeliveryAddressBook.FirstOrDefault(d => d.Id == request.DeliveryId);
 
             if (deliveryAddress == null)
@@ -86,6 +94,21 @@ namespace eCommerce.Storefront.Services.Implementations
             var paymentResponse = new SetOrderPaymentResponse();
             var order = await _orderRepository.FindByAsync(paymentRequest.OrderId) ??
                 throw new OrderNotFoundException(paymentRequest.OrderId);
+
+            // The IPN path supplies the order's own email; a future customer-facing
+            // caller must not be able to pay for (or read the state of) someone
+            // else's order by guessing its id.
+            if (!string.IsNullOrWhiteSpace(paymentRequest.CustomerEmail))
+            {
+                var payingCustomer = await _customerRepository.FindByAsync(paymentRequest.CustomerEmail);
+
+                if (payingCustomer == null
+                    || order.Customer == null
+                    || order.Customer.Id != payingCustomer.Id)
+                {
+                    throw new OrderNotFoundException(paymentRequest.OrderId);
+                }
+            }
 
             try
             {

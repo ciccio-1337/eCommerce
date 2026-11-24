@@ -8,7 +8,7 @@ namespace eCommerce.Backoffice.Shared.Model.Accounts
         public string Id { get; set; }
 
         [Required]
-        [StringLength(50)]
+        [StringLength(256)]
         [EmailAddress]
         [Display(ShortName = "E-Mail")]
         public string Email { get; set; }
@@ -22,5 +22,9 @@ namespace eCommerce.Backoffice.Shared.Model.Accounts
         [Compare(nameof(Password), ErrorMessage = "Password mismatch")]
         [Display(ShortName = "Confirmed Hashed Password", Name="Confirm Password")]
         public string ConfirmPassword { get; set; }
+
+        // Step-up re-authentication for the acting administrator. Creating an
+        // administrator is a privilege-escalation primitive for a stolen session.
+        public string CurrentPassword { get; set; }
     }
 }

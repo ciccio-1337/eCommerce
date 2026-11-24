@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Server.Controllers;
 using eCommerce.Backoffice.Shared.Model.Accounts;
@@ -53,7 +54,93 @@ namespace eCommerce.Storefront.Tests.Controllers
                 Mock.Of<IConfiguration>(),
                 null,
                 null,
-                Mock.Of<ILogger<AccountsController>>());
+                Mock.Of<ILogger<AccountsController>>(),
+                Mock.Of<IAccountActionThrottle>());
+        }
+
+        [TestMethod]
+        public async Task CreateAccount_WithoutCurrentPassword_IsRejectedWithoutMutation()
+        {
+            var result = await _controller.CreateAccount(new RegisterRequest
+            {
+                Email = "new-admin@test.com",
+                Password = "StrongPassword123!",
+                ConfirmPassword = "StrongPassword123!"
+            });
+
+            var ok = result.Result as OkObjectResult;
+
+            Assert.IsNotNull(ok);
+
+            var response = ok.Value as RegisterResponse;
+
+            Assert.IsNotNull(response);
+            Assert.IsFalse(response.IsSuccess);
+            _userManagerMock.Verify(
+                x => x.CreateAsync(It.IsAny<IdentityUser>(), It.IsAny<string>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task CreateAccount_WithWrongCurrentPassword_IsRejectedWithoutMutation()
+        {
+            _userManagerMock
+                .Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
+                .ReturnsAsync(new IdentityUser { Id = "admin-1" });
+            _signInManagerMock
+                .Setup(x => x.CheckPasswordSignInAsync(It.IsAny<IdentityUser>(), "wrong", true))
+                .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Failed);
+
+            var result = await _controller.CreateAccount(new RegisterRequest
+            {
+                Email = "new-admin@test.com",
+                Password = "StrongPassword123!",
+                ConfirmPassword = "StrongPassword123!",
+                CurrentPassword = "wrong"
+            });
+
+            var ok = result.Result as OkObjectResult;
+
+            Assert.IsNotNull(ok);
+            Assert.IsFalse(((RegisterResponse)ok.Value).IsSuccess);
+            _userManagerMock.Verify(
+                x => x.CreateAsync(It.IsAny<IdentityUser>(), It.IsAny<string>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task DeleteAccount_WithoutCurrentPassword_IsRejectedWithoutMutation()
+        {
+            var result = await _controller.DeleteAccount("user-2", new DeleteAccountRequest());
+
+            Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));
+            _userManagerMock.Verify(
+                x => x.DeleteAsync(It.IsAny<IdentityUser>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task ChangePassword_ForNonAdminCustomer_IsRejectedWithoutReset()
+        {
+            var customer = new IdentityUser { Id = "customer-1", Email = "customer@test.com" };
+
+            _userManagerMock.Setup(x => x.FindByEmailAsync("customer@test.com")).ReturnsAsync(customer);
+            _userManagerMock.Setup(x => x.IsInRoleAsync(customer, "Admin")).ReturnsAsync(false);
+
+            var result = await _controller.ChangePassword(new ChangePasswordRequest
+            {
+                Email = "customer@test.com",
+                Code = "token",
+                Password = "NewStrongPassword123!"
+            });
+
+            var ok = result as OkObjectResult;
+
+            Assert.IsNotNull(ok);
+            Assert.IsFalse(((ChangePasswordResponse)ok.Value).IsSuccess);
+            _userManagerMock.Verify(
+                x => x.ResetPasswordAsync(It.IsAny<IdentityUser>(), It.IsAny<string>(), It.IsAny<string>()),
+                Times.Never);
         }
 
         [TestMethod]

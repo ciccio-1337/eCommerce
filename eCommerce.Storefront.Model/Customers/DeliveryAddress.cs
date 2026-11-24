@@ -3,7 +3,7 @@ namespace eCommerce.Storefront.Model.Customers
     public class DeliveryAddress : EntityBase<long>
     {
         // Keep in sync with DeliveryAddressConfiguration (all columns max 50).
-        public const int MaxFieldLength = 50;
+        public const int MaxFieldLength = InputLimits.MaxAddressFieldLength;
 
         public string AddressLine { get; set; }
         public string City { get; set; }

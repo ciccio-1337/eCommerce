@@ -105,11 +105,13 @@ namespace eCommerce.Storefront.UI.Web.MVC.Infrastructure
                     // attacker can claim the configured Admin:Email before the first
                     // deployment; promoting it would hand them the admin password of
                     // their choice. Refuse instead of silently escalating.
+                    // Log the opaque user id, never the address: logs are copied to
+                    // ticketing/observability systems and must not carry PII.
                     logger.LogError(
                         "Admin bootstrap refused: an account with the configured Admin:Email already exists "
-                        + "({Email}) but is not an administrator. Set Admin:Email to an address that is not "
+                        + "(user {UserId}) but is not an administrator. Set Admin:Email to an address that is not "
                         + "already registered, or create the administrator explicitly.",
-                        email);
+                        user.Id);
 
                     return;
                 }

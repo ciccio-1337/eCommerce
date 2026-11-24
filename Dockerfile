@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/dotnet/aspnet:11.0
+# Pin the runtime image by digest so a moved tag cannot silently change the
+# image that runs in production. Refresh with `docker buildx imagetools inspect`.
+FROM mcr.microsoft.com/dotnet/aspnet:11.0@sha256:bc0d6653979efba491ab3d6f589d691f96c309c3c3ef81325efa6978e7b7f242
 
 WORKDIR /eCommerce
 

@@ -28,6 +28,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
         // trees, turning a cheap request into CPU/memory exhaustion.
         internal const int MaxPageIndex = 10_000;
         internal const int MaxRefinementsPerGroup = 50;
+        internal const int MaxRefinementGroups = 10;
 
         private readonly IConfiguration _configuration = configuration;
 
@@ -75,6 +76,7 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [EnableRateLimiting("catalog")]
+        [RequestSizeLimit(64 * 1024)]
         public async Task<IActionResult> GetProducts([FromBody] ProductSearchRequest jsonProductSearchRequest)
         {
             if (jsonProductSearchRequest != null
@@ -83,6 +85,23 @@ namespace eCommerce.Storefront.Controllers.Controllers
                     || ExceedsRefinementLimit(jsonProductSearchRequest.BrandIds)))
             {
                 return BadRequest(new { error = $"Select at most {MaxRefinementsPerGroup} refinements per group." });
+            }
+
+            var refinementGroups = jsonProductSearchRequest?.RefinementGroups?.ToArray();
+
+            if (refinementGroups != null)
+            {
+                if (refinementGroups.Length > MaxRefinementGroups)
+                {
+                    return BadRequest(new { error = $"Send at most {MaxRefinementGroups} refinement groups." });
+                }
+
+                if (refinementGroups.Any(group => !Enum.IsDefined(typeof(RefinementGroupings), group.GroupId)))
+                {
+                    return BadRequest(new { error = "One or more refinement groups are not recognised." });
+                }
+
+                jsonProductSearchRequest.RefinementGroups = refinementGroups;
             }
 
             var productSearchRequest = GenerateProductSearchRequestFrom(jsonProductSearchRequest);

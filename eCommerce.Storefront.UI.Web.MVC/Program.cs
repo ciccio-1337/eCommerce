@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,13 +23,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Fail closed if the host allow-list was left wide open outside development.
 if (!builder.Environment.IsDevelopment())
 {
-    var allowedHosts = builder.Configuration["AllowedHosts"];
-
-    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Trim() == "*")
-    {
-        throw new InvalidOperationException(
-            "AllowedHosts must be configured to an explicit host list in non-development environments.");
-    }
+    SecurityConfiguration.ValidateAllowedHosts(builder.Environment, builder.Configuration["AllowedHosts"]);
+    SecurityConfiguration.ValidateDatabaseConnectionString(
+        builder.Environment,
+        builder.Configuration.GetConnectionString("DefaultConnection"));
 
     var publicBaseUrl = builder.Configuration["App:PublicBaseUrl"];
 
@@ -44,6 +42,7 @@ if (!builder.Environment.IsDevelopment())
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();
+builder.Services.AddHsts(SecurityConfiguration.ConfigureHsts);
 
 // Persist data-protection keys so cookies and antiforgery tokens survive restarts
 // and are shared by every instance behind the load balancer.
@@ -85,22 +84,30 @@ if (!string.IsNullOrEmpty(certificateThumbprint))
 }
 
 // Trust forwarded headers only from configured proxies. When no proxy is
-// configured the framework defaults (loopback) remain in place.
+// configured the framework defaults (loopback) remain in place. If the
+// deployment declares a proxy, require at least one trusted proxy/network so
+// rate limiting cannot silently collapse into a single shared bucket.
+var proxies = builder.Configuration.GetSection("ReverseProxy:KnownProxies")
+    .GetChildren()
+    .Select(section => section.Value)
+    .Where(value => !string.IsNullOrWhiteSpace(value))
+    .ToArray();
+
+var networks = builder.Configuration.GetSection("ReverseProxy:KnownNetworks")
+    .GetChildren()
+    .Select(section => section.Value)
+    .Where(value => !string.IsNullOrWhiteSpace(value))
+    .ToArray();
+
+SecurityConfiguration.ValidateForwardedHeadersConfiguration(
+    builder.Environment,
+    builder.Configuration.GetValue<bool>("ReverseProxy:Enabled"),
+    proxies.Length,
+    networks.Length);
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-
-    var proxies = builder.Configuration.GetSection("ReverseProxy:KnownProxies")
-        .GetChildren()
-        .Select(section => section.Value)
-        .Where(value => !string.IsNullOrWhiteSpace(value))
-        .ToArray();
-
-    var networks = builder.Configuration.GetSection("ReverseProxy:KnownNetworks")
-        .GetChildren()
-        .Select(section => section.Value)
-        .Where(value => !string.IsNullOrWhiteSpace(value))
-        .ToArray();
 
     if (proxies.Length > 0 || networks.Length > 0)
     {

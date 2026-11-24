@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using eCommerce.Storefront.Model;
 using eCommerce.Storefront.Model.Customers;
 using eCommerce.Storefront.Services.Interfaces;
 using eCommerce.Storefront.Repository.EntityFrameworkCore;
@@ -28,7 +29,8 @@ namespace eCommerce.Backoffice.Server.Controllers
         IConfiguration configuration,
         ShopDataContext shopDataContext,
         IWebHostEnvironment environment,
-        ILogger<AccountsController> logger) : ControllerBase
+        ILogger<AccountsController> logger,
+        IAccountActionThrottle accountActionThrottle) : ControllerBase
     {
         private readonly IEmailService _emailService = emailService;
         private readonly SignInManager<IdentityUser> _signInManager = signInManager;
@@ -36,6 +38,12 @@ namespace eCommerce.Backoffice.Server.Controllers
         private readonly ShopDataContext _shopDataContext = shopDataContext;
         private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AccountsController> _logger = logger;
+        private readonly IAccountActionThrottle _accountActionThrottle = accountActionThrottle;
+
+        // A password-reset mail is expensive and is a mail-bombing primitive when
+        // the same address is targeted repeatedly. The IP limiter does not help a
+        // distributed attacker, so the address is throttled as well.
+        private static readonly TimeSpan ResetCooldown = TimeSpan.FromMinutes(1);
 
         // Password verification does the same PBKDF2 work for unknown accounts so
         // the login/forgot-password timings do not reveal which emails exist.
@@ -76,9 +84,22 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPost]
+        [RequestSizeLimit(32 * 1024)]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<ActionResult<RegisterResponse>> CreateAccount(RegisterRequest registerRequest)
         {
+            // Creating an administrator is a privilege escalation primitive for a
+            // stolen session. Require the acting administrator to re-enter their
+            // password (step-up) before the account is created.
+            if (!await IsStepUpValidAsync(registerRequest.CurrentPassword))
+            {
+                return Ok(new RegisterResponse
+                {
+                    IsSuccess = false,
+                    Errors = ["Enter your current password to create an administrator account."]
+                });
+            }
+
             var user = new IdentityUser
             {
                 UserName = registerRequest.Email,
@@ -113,6 +134,11 @@ namespace eCommerce.Backoffice.Server.Controllers
                     Errors = roleResult.Errors.Select(x => x.Description)
                 });
             }
+
+            _logger.LogInformation(
+                "Administrator {ActorId} created administrator account {UserId}.",
+                _signInManager.UserManager.GetUserId(User),
+                user.Id);
 
             var code = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
             var smtpPassword = _configuration["MailSettings:Smtp:Network:Password"] ?? _configuration["MailSettingsSmtpNetworkPassword"];
@@ -160,6 +186,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPut("{id}/[action]")]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         [AllowAnonymous]
         public async Task<IActionResult> EmailConfirmation(string id, EmailConfirmationRequest confirmationRequest)
         {
@@ -193,12 +220,21 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPost("forgotpassword")]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         [AllowAnonymous]
         public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             // Always return the same response, whether the account exists, is
             // confirmed, or the mail transport fails. This prevents enumeration.
             var response = new ForgotPasswordResponse { IsSuccess = true };
+
+            // Per-address cooldown: the response stays identical, but a repeated
+            // request does not send another mail.
+            if (!_accountActionThrottle.TryAcquire(forgotPasswordRequest.Email?.Trim() ?? string.Empty, ResetCooldown))
+            {
+                return Ok(response);
+            }
+
             var user = await _signInManager.UserManager.FindByEmailAsync(forgotPasswordRequest.Email);
 
             if (user == null)
@@ -233,6 +269,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPost("login")]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         // Without this the global fallback policy requires an authenticated user
         // and the endpoint answers 401 before the credentials are even read.
         [AllowAnonymous]
@@ -315,6 +352,7 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpPut("[action]")]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         // Reached from the emailed reset link, before the user is signed in.
         [AllowAnonymous]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest changePasswordRequest)
@@ -323,10 +361,12 @@ namespace eCommerce.Backoffice.Server.Controllers
 
             var user = await _signInManager.UserManager.FindByEmailAsync(changePasswordRequest.Email);
 
-            if (user == null)
+            if (user == null || !await _signInManager.UserManager.IsInRoleAsync(user, "Admin"))
             {
                 // Generic failure instead of 404 so the response never reveals which
-                // emails are registered (email enumeration).
+                // emails are registered (email enumeration). This is also the admin
+                // reset flow: a storefront customer's token must not be redeemable
+                // here even if one is ever minted by a future storefront flow.
                 return Ok(new ChangePasswordResponse
                 {
                     IsSuccess = false,
@@ -372,8 +412,16 @@ namespace eCommerce.Backoffice.Server.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-        public async Task<IActionResult> DeleteAccount(string id)
+        public async Task<IActionResult> DeleteAccount(string id, [FromBody] DeleteAccountRequest deleteAccountRequest)
         {
+            // Deleting an account (and anonymising its customer data) is destructive
+            // and irreversible; require a step-up password check. The password is
+            // sent in the body so it never appears in the request URL.
+            if (!await IsStepUpValidAsync(deleteAccountRequest?.CurrentPassword))
+            {
+                return BadRequest("Enter your current password to delete an account.");
+            }
+
             var user = await _signInManager.UserManager.Users.FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
@@ -441,6 +489,11 @@ namespace eCommerce.Backoffice.Server.Controllers
 
                 await transaction.CommitAsync();
 
+                _logger.LogInformation(
+                    "Administrator {ActorId} deleted account {UserId}.",
+                    _signInManager.UserManager.GetUserId(User),
+                    id);
+
                 return NoContent();
             }
             catch
@@ -471,6 +524,29 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
 
             return $"{configuredBaseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}";
+        }
+
+        /// <summary>
+        /// Verifies the acting administrator's password before a destructive
+        /// action. Failures count towards Identity lockout, so a stolen cookie
+        /// cannot be used to brute-force the password through this path.
+        /// </summary>
+        private async Task<bool> IsStepUpValidAsync(string currentPassword)
+        {
+            if (string.IsNullOrEmpty(currentPassword)
+                || currentPassword.Length > InputLimits.MaxPasswordLength)
+            {
+                return false;
+            }
+
+            var currentUser = await _signInManager.UserManager.GetUserAsync(User);
+
+            if (currentUser is null)
+            {
+                return false;
+            }
+
+            return (await _signInManager.CheckPasswordSignInAsync(currentUser, currentPassword, lockoutOnFailure: true)).Succeeded;
         }
 
         private void VerifyDummyPassword(string password)

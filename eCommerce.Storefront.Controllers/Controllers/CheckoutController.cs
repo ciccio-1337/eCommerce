@@ -172,7 +172,10 @@ namespace eCommerce.Storefront.Controllers.Controllers
                 return BadRequest("Order could not be created.");
             }
 
-            return RedirectToAction("CreatePaymentFor", "Payment", new { orderId = response.Order.Id });
+            // Land on the order page, whose "Pay" button is an antiforgery-protected
+            // POST. A 302 after PlaceOrder is replayed as GET, so redirecting to the
+            // POST-only CreatePaymentFor action would produce a 405.
+            return RedirectToAction("Detail", "Order", new { orderId = response.Order.Id });
         }
     }
 }

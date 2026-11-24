@@ -9,6 +9,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Development-only configuration must never be baked into a published image. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="11.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="11.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />

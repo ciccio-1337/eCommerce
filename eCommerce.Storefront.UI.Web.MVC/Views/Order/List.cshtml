@@ -14,7 +14,10 @@
 
             @if (order.IsSubmitted == false)
             {
-                @Html.ActionLink("Pay", "CreatePaymentFor", "Payment", new { orderId = order.Id}, null)
+                <form method="post" action="@Url.Action("CreatePaymentFor", "Payment", new { orderId = order.Id })" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit">Pay</button>
+                </form>
             }
             
             @Html.ActionLink("View Detail", "Detail", "Order", new { orderId = order .Id}, null)

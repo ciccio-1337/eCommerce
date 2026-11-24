@@ -5,12 +5,20 @@
 
 <Alert Title="@error" ErrorList="new List<string>()" CSSClass="danger" />
 
+<div class="row mb-2">
+    <div class="col-md-4">
+        <label>Your current password (required to delete)</label>
+        <RadzenPassword @bind-Value="currentPassword" AutoComplete="false" class="col-md-12"></RadzenPassword>
+    </div>
+</div>
+
 <Grid Model="model" Title="Accounts" ElementsType="UserListItem" OnCreate="@(() => NavigationManager.NavigateTo("/admin/account/register"))" CanEdit="false" OnDelete="@((item) => DeleteAccountAsync(item as UserListItem))" />
 
 @code {
     string route = "api/accounts";
     GridModel<UserListItem> model;
     string error;
+    string currentPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,7 +51,14 @@
 
         try
         {
-            var httpResponseMessage = await HttpClient.DeleteAsync($"{route}/{item.Id}");
+            var httpResponseMessage = await HttpClient.SendAsync(
+                new HttpRequestMessage(HttpMethod.Delete, $"{route}/{item.Id}")
+                {
+                    Content = JsonContent.Create(new DeleteAccountRequest
+                    {
+                        CurrentPassword = currentPassword ?? string.Empty
+                    })
+                });
 
             if (httpResponseMessage != null && httpResponseMessage.IsSuccessStatusCode)
             {
@@ -61,7 +76,7 @@
             }
             else
             {
-                error = "The account could not be deleted. It may already have been removed.";
+                error = "The account could not be deleted. Check your current password and try again.";
             }
         }
         catch (Exception)

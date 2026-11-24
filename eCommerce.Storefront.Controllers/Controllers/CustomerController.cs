@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.Tasks;
+using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 using eCommerce.Storefront.Model;
 using System.Security.Claims;
@@ -61,8 +62,23 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         public async Task<IActionResult> Detail(CustomerView customerView, string currentPassword)
         {
+            if (!CredentialInputValidator.IsAcceptableEmailForLookup(customerView.Email)
+                || !CredentialInputValidator.IsAcceptableName(customerView.FirstName)
+                || !CredentialInputValidator.IsAcceptableName(customerView.SecondName)
+                || !CredentialInputValidator.IsAcceptablePasswordForVerification(currentPassword))
+            {
+                ViewData["IssueMessage"] = "One or more fields exceed the maximum length.";
+
+                return View(new CustomerDetailView
+                {
+                    Customer = customerView,
+                    BasketSummary = await GetBasketSummaryViewAsync()
+                });
+            }
+
             var currentEmail = _cookieAuthentication.GetAuthenticationToken();
             var emailChanging = !string.IsNullOrWhiteSpace(customerView.Email)
                 && !string.Equals(currentEmail, customerView.Email, StringComparison.OrdinalIgnoreCase);

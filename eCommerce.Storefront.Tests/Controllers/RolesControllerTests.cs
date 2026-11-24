@@ -19,6 +19,7 @@ namespace eCommerce.Storefront.Tests.Controllers
 
         private Mock<RoleManager<IdentityRole>> _roleManagerMock;
         private Mock<UserManager<IdentityUser>> _userManagerMock;
+        private Mock<SignInManager<IdentityUser>> _signInManagerMock;
         private RolesController _controller;
 
         [TestInitialize]
@@ -48,10 +49,29 @@ namespace eCommerce.Storefront.Tests.Controllers
             _userManagerMock
                 .Setup(x => x.GetUserId(It.IsAny<ClaimsPrincipal>()))
                 .Returns(CurrentUserId);
+            _userManagerMock
+                .Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
+                .ReturnsAsync(new IdentityUser { Id = CurrentUserId });
+
+            _signInManagerMock = new Mock<SignInManager<IdentityUser>>(
+                _userManagerMock.Object,
+                Mock.Of<IHttpContextAccessor>(),
+                Mock.Of<IUserClaimsPrincipalFactory<IdentityUser>>(),
+                null,
+                null,
+                null,
+                null);
+            _signInManagerMock
+                .Setup(x => x.CheckPasswordSignInAsync(
+                    It.IsAny<IdentityUser>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
 
             _controller = new RolesController(
                 _roleManagerMock.Object,
                 _userManagerMock.Object,
+                _signInManagerMock.Object,
                 Mock.Of<ILogger<RolesController>>())
             {
                 ControllerContext = new ControllerContext
@@ -75,7 +95,13 @@ namespace eCommerce.Storefront.Tests.Controllers
             var result = await _controller.AddOrRemoveRoleUser(
                 RoleId,
                 CurrentUserId,
-                new AddRemoveRoleRequest { RoleId = RoleId, UserId = CurrentUserId, Add = true });
+                new AddRemoveRoleRequest
+                {
+                    RoleId = RoleId,
+                    UserId = CurrentUserId,
+                    Add = true,
+                    CurrentPassword = "correct-password"
+                });
 
             Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));
             _userManagerMock.Verify(
@@ -101,7 +127,13 @@ namespace eCommerce.Storefront.Tests.Controllers
             var result = await _controller.AddOrRemoveRoleUser(
                 RoleId,
                 otherUserId,
-                new AddRemoveRoleRequest { RoleId = RoleId, UserId = otherUserId, Add = true });
+                new AddRemoveRoleRequest
+                {
+                    RoleId = RoleId,
+                    UserId = otherUserId,
+                    Add = true,
+                    CurrentPassword = "correct-password"
+                });
 
             Assert.IsInstanceOfType(result, typeof(OkObjectResult));
             _userManagerMock.Verify(
@@ -110,6 +142,23 @@ namespace eCommerce.Storefront.Tests.Controllers
             _userManagerMock.Verify(
                 x => x.UpdateSecurityStampAsync(It.Is<IdentityUser>(u => u.Id == otherUserId)),
                 Times.Once);
+        }
+
+        [TestMethod]
+        public async Task AddOrRemoveRoleUser_WithoutCurrentPassword_IsRejected()
+        {
+            var result = await _controller.AddOrRemoveRoleUser(
+                RoleId,
+                "admin-2",
+                new AddRemoveRoleRequest { RoleId = RoleId, UserId = "admin-2", Add = true });
+
+            Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));
+            _userManagerMock.Verify(
+                x => x.AddToRoleAsync(It.IsAny<IdentityUser>(), It.IsAny<string>()),
+                Times.Never);
+            _userManagerMock.Verify(
+                x => x.RemoveFromRoleAsync(It.IsAny<IdentityUser>(), It.IsAny<string>()),
+                Times.Never);
         }
     }
 }

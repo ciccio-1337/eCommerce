@@ -136,6 +136,12 @@ namespace eCommerce.Storefront.UI.Web.MVC
             .AddCookie(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 // Cookie settings
+                // The __Secure- prefix is only accepted by browsers when the cookie is
+                // actually marked Secure, which is not the case for plain-HTTP local
+                // development. Use a plain name there so admin login still works.
+                options.Cookie.Name = secureCookiesOnly
+                    ? Infrastructure.SecurityConfiguration.AdminCookieName
+                    : "ecommerce-admin-dev";
                 options.Cookie.HttpOnly = true;
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<double?>("CookieAuthenticationTimeout") ?? 30);
                 options.LoginPath = "/admin/account/login";
@@ -146,9 +152,12 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync
                 };
                 options.Cookie.IsEssential = true;
-                options.Cookie.SameSite = SameSiteMode.Lax;
+                // The admin session is only needed by the backoffice API. Scoping the
+                // cookie to /api keeps it off storefront requests, and Strict prevents
+                // it from being attached to cross-site navigations.
+                options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = secureCookiesOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
-                options.Cookie.Path = "/";
+                options.Cookie.Path = Infrastructure.SecurityConfiguration.AdminCookiePath;
             });
             serviceCollection.AddAntiforgery(options =>
             {
@@ -204,6 +213,8 @@ namespace eCommerce.Storefront.UI.Web.MVC
             serviceCollection.AddScoped<ICachedProductCatalogService, CachedProductCatalogService>();
             // Email
             serviceCollection.AddScoped<IEmailService, SmtpService>();
+            // Per-account cooldown for mail-sending account actions.
+            serviceCollection.AddSingleton<IAccountActionThrottle, AccountActionThrottle>();
 
             return serviceCollection;
         }
@@ -227,10 +238,13 @@ namespace eCommerce.Storefront.UI.Web.MVC
                     context.Response.Headers.Append(HeaderNames.XFrameOptions, "DENY");
                 }
 
-                if (!context.Response.Headers.ContainsKey("Referrer-Policy"))
-                {
-                    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-                }
+                // Token endpoints carry a single-use code in the query string; never
+                // leak it through the Referer header. Everything else keeps the
+                // origin-only policy.
+                context.Response.Headers["Referrer-Policy"] =
+                    Infrastructure.SecurityConfiguration.IsSensitiveTokenPath(context.Request.Path)
+                        ? "no-referrer"
+                        : "strict-origin-when-cross-origin";
 
                 if (!context.Response.Headers.ContainsKey("Content-Security-Policy"))
                 {

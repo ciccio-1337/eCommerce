@@ -11,7 +11,7 @@ namespace eCommerce.Storefront.Model.Customers
         public static partial Regex EmailRegex();
 
         // Keep in sync with CustomerConfiguration (FirstName/SecondName max 100).
-        public const int MaxNameLength = 100;
+        public const int MaxNameLength = InputLimits.MaxNameLength;
 
         private readonly IList<DeliveryAddress> _deliveryAddressBook = [];
         private Basket.Basket _basket;
@@ -75,6 +75,10 @@ namespace eCommerce.Storefront.Model.Customers
             if (!EmailRegex().IsMatch(Email ?? string.Empty))
             {
                 AddBrokenRule(new BusinessRule() { Property = nameof(Email), Rule = "A customer must have a valid email address." });
+            }
+            else if (Email.Length > InputLimits.MaxEmailLength)
+            {
+                AddBrokenRule(new BusinessRule() { Property = nameof(Email), Rule = $"An email address must be at most {InputLimits.MaxEmailLength} characters." });
             }
 
             if (string.IsNullOrWhiteSpace(UserId))

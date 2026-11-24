@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
+using eCommerce.Storefront.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -25,6 +26,16 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
         public async Task<User> LoginAsync(string email, string password)
         {
+            // Reject oversized credentials before Identity hashes them. PBKDF2 runs
+            // over the whole password, so an unbounded value is a cheap CPU burn.
+            if (!CredentialInputValidator.IsAcceptableEmailForLookup(email)
+                || !CredentialInputValidator.IsAcceptablePasswordForVerification(password))
+            {
+                _logger.LogWarning("Storefront sign-in refused: credential length is outside the accepted bounds.");
+
+                throw new InvalidOperationException("Sorry we could not log you in. Please try again.");
+            }
+
             var user = new User();
             var identityUser = await _signInManager.UserManager.FindByEmailAsync(email ?? string.Empty);
 
@@ -89,6 +100,12 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                 return false;
             }
 
+            if (!CredentialInputValidator.IsAcceptableEmailForLookup(email)
+                || !CredentialInputValidator.IsAcceptablePasswordForVerification(password))
+            {
+                return false;
+            }
+
             var identityUser = await _signInManager.UserManager.FindByEmailAsync(email);
 
             if (identityUser is null)
@@ -105,6 +122,14 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
 
         public async Task<User> RegisterUserAsync(string email, string password, bool confirmEmail, IEnumerable<string> roles)
         {
+            if (!CredentialInputValidator.IsAcceptableEmail(email)
+                || !CredentialInputValidator.IsAcceptablePassword(password))
+            {
+                throw new InvalidOperationException(
+                    $"An email address must be at most {InputLimits.MaxEmailLength} characters and "
+                    + $"a password at most {InputLimits.MaxPasswordLength} characters.");
+            }
+
             var user = new User();
             var identityUser = new IdentityUser
             {
@@ -163,7 +188,10 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
                     if (string.Equals(firstError.Code, "DuplicateUserName", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(firstError.Code, "DuplicateEmail", StringComparison.OrdinalIgnoreCase))
                     {
-                        throw new InvalidOperationException("Registration could not be completed. If you already have an account, please log in.");
+                        // The caller turns this into the same "check your email"
+                        // response as a successful registration, so the endpoint is
+                        // not an account-enumeration oracle.
+                        throw new AccountAlreadyExistsException();
                     }
 
                     throw new InvalidOperationException(firstError.Description);
@@ -216,6 +244,39 @@ namespace eCommerce.Storefront.Controllers.Services.Implementations
             }
 
             return await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(identityUser);
+        }
+
+        public async Task<string> GeneratePasswordResetTokenAsync(string userId)
+        {
+            var identityUser = await _signInManager.UserManager.FindByIdAsync(userId);
+
+            if (identityUser is null)
+            {
+                return null;
+            }
+
+            return await _signInManager.UserManager.GeneratePasswordResetTokenAsync(identityUser);
+        }
+
+        public async Task<bool> ResetPasswordAsync(string userId, string code, string password)
+        {
+            if (string.IsNullOrWhiteSpace(userId)
+                || string.IsNullOrWhiteSpace(code)
+                || !CredentialInputValidator.IsAcceptablePassword(password))
+            {
+                return false;
+            }
+
+            var identityUser = await _signInManager.UserManager.FindByIdAsync(userId);
+
+            if (identityUser is null)
+            {
+                return false;
+            }
+
+            var result = await _signInManager.UserManager.ResetPasswordAsync(identityUser, code, password);
+
+            return result.Succeeded;
         }
     }
 }

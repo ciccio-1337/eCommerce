@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Backoffice.Shared.Model.Roles;
+using eCommerce.Storefront.Model;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -17,10 +18,12 @@ namespace eCommerce.Backoffice.Server.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     public class RolesController(RoleManager<IdentityRole> roleManager,
         UserManager<IdentityUser> userManager,
+        SignInManager<IdentityUser> signInManager,
         ILogger<RolesController> logger) : ControllerBase
     {
         private readonly RoleManager<IdentityRole> _roleManager = roleManager;
         private readonly UserManager<IdentityUser> _userManager = userManager;
+        private readonly SignInManager<IdentityUser> _signInManager = signInManager;
         private readonly ILogger<RolesController> _logger = logger;
 
         [HttpGet]
@@ -136,6 +139,7 @@ namespace eCommerce.Backoffice.Server.Controllers
         }
 
         [HttpPut("{roleId}/user/{userId}")]
+        [RequestSizeLimit(16 * 1024)]
         public async Task<IActionResult> AddOrRemoveRoleUser(string roleId, string userId, AddRemoveRoleRequest addRemoveRoleRequest)
         {
             if (roleId != addRemoveRoleRequest.RoleId)
@@ -146,6 +150,14 @@ namespace eCommerce.Backoffice.Server.Controllers
             if (userId != addRemoveRoleRequest.UserId)
             {
                 return BadRequest();
+            }
+
+            // Granting or revoking a role is a privilege change. A stolen admin
+            // cookie must not be enough on its own; require the acting
+            // administrator's password again.
+            if (!await IsStepUpValidAsync(addRemoveRoleRequest.CurrentPassword))
+            {
+                return BadRequest("Enter your current password to change role assignments.");
             }
 
             var role = await _roleManager.FindByIdAsync(addRemoveRoleRequest.RoleId);
@@ -247,6 +259,28 @@ namespace eCommerce.Backoffice.Server.Controllers
             }
 
             return NoContent();
+        }
+
+        /// <summary>
+        /// Verifies the acting administrator's password before a privilege change.
+        /// Failures count towards Identity lockout.
+        /// </summary>
+        private async Task<bool> IsStepUpValidAsync(string currentPassword)
+        {
+            if (string.IsNullOrEmpty(currentPassword)
+                || currentPassword.Length > InputLimits.MaxPasswordLength)
+            {
+                return false;
+            }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            if (currentUser is null)
+            {
+                return false;
+            }
+
+            return (await _signInManager.CheckPasswordSignInAsync(currentUser, currentPassword, lockoutOnFailure: true)).Succeeded;
         }
 
         private static bool IsBuiltInRole(string roleName) =>

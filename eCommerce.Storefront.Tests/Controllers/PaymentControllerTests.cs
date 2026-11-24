@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Controllers;
@@ -131,13 +130,14 @@ namespace eCommerce.Storefront.Tests.Controllers
         }
 
         [TestMethod]
-        public void CreatePaymentFor_AcceptsGetAndPost()
+        public void CreatePaymentFor_IsPostOnly()
         {
+            // Payment initiation must not be reachable by GET: a scanner, link
+            // preview, or top-level navigation could auto-submit the PayPal form.
             var method = typeof(PaymentController).GetMethod(nameof(PaymentController.CreatePaymentFor));
-            var attribute = method!.GetCustomAttribute<AcceptVerbsAttribute>();
 
-            Assert.IsNotNull(attribute);
-            CollectionAssert.AreEquivalent(new[] { "GET", "POST" }, attribute.HttpMethods.ToArray());
+            Assert.IsNotNull(method!.GetCustomAttribute<HttpPostAttribute>());
+            Assert.IsNull(method.GetCustomAttribute<AcceptVerbsAttribute>());
         }
 
         [TestMethod]

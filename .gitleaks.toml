@@ -3,31 +3,52 @@
 # Extends the default gitleaks rules and only allow-lists values that are
 # documented, non-secret placeholders in the repository. Anything that looks
 # like a real credential must be reported.
+#
+# This file must NEVER contain a literal credential. The historical values that
+# were committed before the security hardening are allow-listed by commit hash
+# and by path (the immutable EF migration snapshots) until the git history is
+# rewritten. Remove the `commits` entries after the rewrite; the migration
+# paths can stay because migrations are historical artifacts.
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Documented development placeholders and explicitly burned historical values"
+description = "Documented development placeholders and immutable historical artifacts"
 regexes = [
   '''PLACEHOLDER''',
   '''(?i)changeme''',
   '''(?i)your[-_]?(password|secret|token|key)''',
   '''sb-[a-z0-9]+@business\.example\.com''',
-  # ---------------------------------------------------------------------------
-  # BURNED HISTORICAL SECRETS — present in commits before 184fc32.
-  # These entries exist only so the full-history scanner can run while the
-  # operational work (rotate every value, rewrite history, force-push) is
-  # pending. They MUST be removed once the history has been purged.
-  # ---------------------------------------------------------------------------
-  '''Ciccio_110590''',
-  '''YawZitNzuASTzARiZIJpFhHGAQ8MVq9gK2BHDYm9cvY=''',
-  '''f260761961044d299a49b608b898e62e3ed0e5a0b96046ecbbc3a1598e32f3a3''',
-  # ASP.NET Identity password hashes (Admin-1234 and the 2021 SeedData account).
-  # The `+` characters are escaped because allow-list entries are regexes.
-  '''AQAAAAIAAYagAAAAEIV3gNJplD9fTYjDhH/lOnFcVVF16\+jxwjD6hHx3OPFjOsbJOZsZE9smVDPFxDbZbw==''',
-  '''AQAAAAEAACcQAAAAEMlv8lrB6gzwN\+Icpe4qmD0BQqw72MxJM9VwCUwzrdBcuBJtF8tiIGaim10UtNy51g==''',
-  # Stable primary key of the admin user seeded by the 2021 migrations and
-  # removed by 20261030110352_RemoveSeededAdminUser. It is an identifier, not a
-  # credential, but generic-api-key flags the keyValue call.
-  '''3d5bc7f9-e445-46fe-b284-894c3f0a1873'''
+]
+paths = [
+  # The 2021 seed inserted an administrator whose password hash is embedded in
+  # these immutable migration files. The account is removed by
+  # 20261030110352_RemoveSeededAdminUser; the hash is retained only because EF
+  # migrations must not be rewritten.
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20220225191914_876B8763-3291-4714-80F2-FE7E6A7EF2EB\.cs''',
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20220225191914_876B8763-3291-4714-80F2-FE7E6A7EF2EB\.Designer\.cs''',
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20260914135828_ResolveCircularBasketCustomerRelationship\.cs''',
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20260914135828_ResolveCircularBasketCustomerRelationship\.Designer\.cs''',
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20260915175805_ApplyFourthPassFixes\.Designer\.cs''',
+  '''eCommerce\.Storefront\.Repository\.EntityFrameworkCore/Migrations/20261030110352_RemoveSeededAdminUser\.cs''',
+  # Local databases are ignored by git; a deleted one may still be in history.
+  '''(?i).*\.db$''',
+]
+commits = [
+  # Burned values that were removed by the hardening commits. These entries keep
+  # the full-history scan green until the history is rewritten (OPERATIONAL).
+  "07dcddb8781aa1111dd9a000dfbadb6abe5ee15f",
+  "184fc32e9b4b46704afaf12807a1f947d9bff041",
+  "1b1cdc863599faf5abc8e5a1fe559075920cbb28",
+  "35f914cfae0179b04c63cb5033f9599826e6723c",
+  "63bf3d5ed7dcccbea078ac07edf744ee96b18e39",
+  "66ffe50ff306efa4253a3e9e823793ded1319d55",
+  "6df20acb8cdd7684022f59abcbcbcced65085d23",
+  "7f2d543d6bbc6a41474ad91bff369b82caec42fc",
+  "87d12a81c75f5fe76dfa2048bbd633dc601ce093",
+  "a71f8b2b0adc80b9565bf12198f6661fce70ecb7",
+  "b01fd5b1d04d722b8a6d7e7f99a52cb7d5f94212",
+  "b7ca2128a365735984a5ed2007d3cf01ac564785",
+  "d5b9e4fe883457d9726e174118a7c8c82e3faf56",
+  "f810fc3ac93f2c3f61448940211ee6b776fcc7fb",
 ]

@@ -47,12 +47,29 @@ maintained.
   and basket mutations have a separate catalog limit.
 - **Bounded anonymous input.** Product search clamps paging and refinement
   counts; basket quantities and line counts are bounded.
-- **No account enumeration.** Forgot-password and change-password responses do
-  not reveal whether an account exists, and unknown accounts perform the same
-  password-hashing work.
+- **No account enumeration.** Forgot-password, registration, and
+  change-password responses do not reveal whether an account exists; duplicate
+  registrations return the same "check your email" page, and unknown accounts
+  perform the same password-hashing work.
+- **Double opt-in registration.** The password chosen at registration is
+  discarded when the email owner confirms the address; they set the password
+  from the confirmation page. This prevents an attacker from pre-registering a
+  victim's address with a password they know.
+- **Step-up for destructive admin actions.** Creating an administrator,
+  deleting an account, and granting/revoking a role require the acting
+  administrator's current password in addition to the session cookie.
 - **Canonical links.** Emails containing security tokens use
-  `App:PublicBaseUrl`, never the request `Host` header.
+  `App:PublicBaseUrl`, never the request `Host` header. Token pages send
+  `Referrer-Policy: no-referrer`.
 - **SMTP over TLS.** `MailSettings:Smtp:Network:EnableSsl` defaults to `true`.
+- **Database TLS.** Outside development the PostgreSQL connection must use
+  `SSL Mode=VerifyCA` or `VerifyFull`; startup fails closed otherwise.
+- **HSTS.** HTTPS responses send a one-year `Strict-Transport-Security` header
+  with `includeSubDomains` and `preload`.
+- **Scoped admin cookie.** Outside development the backoffice cookie is named
+  `__Secure-ecommerce-admin`, uses `SameSite=Strict`, and is scoped to `/api` so
+  it is not sent with storefront requests. Local HTTP development uses a plain
+  name because browsers reject the `__Secure-` prefix without the Secure flag.
 - **CSP and hardening headers.** The application sends a Content-Security-Policy
   with a per-request script nonce (no `script-src 'unsafe-inline'` or
   `'unsafe-eval'`; only `'wasm-unsafe-eval'` is kept for Blazor),
@@ -78,7 +95,9 @@ secret store. The following settings are security-sensitive:
 | `AllowedHosts` | Explicit host allow-list; must not be `*` in production |
 | `DataProtection:KeysPath` | Persistent data-protection key directory |
 | `DataProtection:CertificateThumbprint` | Certificate used to encrypt persisted keys (mandatory outside development) |
+| `ReverseProxy:Enabled` | Set to `true` when running behind a proxy; requires a trusted proxy/network list |
 | `ReverseProxy:KnownProxies` | Trusted reverse proxies for forwarded headers |
+| `ReverseProxy:KnownNetworks` | Trusted proxy networks for forwarded headers |
 | `MailSettings:Smtp:Network:*` | SMTP host and credentials |
 
 Example production environment variables:
@@ -89,11 +108,15 @@ export AllowedHosts='shop.example.com;www.shop.example.com'
 export App__PublicBaseUrl=https://shop.example.com
 export Admin__Email=admin@example.com
 export Admin__Password='<strong unique password>'
-export ConnectionStrings__DefaultConnection='Host=db;Database=ecommerce;Username=ecommerce;Password=<secret>'
+export ConnectionStrings__DefaultConnection='Host=db;Database=ecommerce;Username=ecommerce;Password=<secret>;SSL Mode=VerifyFull'
 export DataProtection__KeysPath=/var/lib/ecommerce/keys
 export DataProtection__CertificateThumbprint='<certificate thumbprint>'
+export ReverseProxy__Enabled=true
 export ReverseProxy__KnownProxies__0=10.0.0.10
 ```
+
+Use a least-privilege database role (not `postgres`) that owns only the
+application schema.
 
 The data-protection key directory and local databases are ignored by git and
 must be backed up securely. Losing the keys invalidates all cookies and
@@ -116,15 +139,21 @@ git push --force --tags
 
 Coordinate the force-push with every collaborator and re-clone afterwards.
 Enable secret scanning and push protection on the hosting platform. CI runs a
-full-history gitleaks scan; the explicitly burned values in `.gitleaks.toml`
-are temporary allow-list entries and must be deleted after the rewrite.
+full-history gitleaks scan. `.gitleaks.toml` never contains a literal
+credential: the historical values are allow-listed by commit hash until the
+rewrite, and the immutable EF migration snapshots are allow-listed by path.
+Delete the `commits` entries after the rewrite and re-run the full-history
+scan.
 
 ## Deployment checklist
 
 1. Set an explicit `AllowedHosts` list and `App:PublicBaseUrl`.
 2. Provision the first administrator with `Admin:Email`/`Admin:Password`, then
    remove those variables. `Admin:Email` must not already belong to a registered
-   account (the bootstrap refuses to promote existing users).
+   account (the bootstrap refuses to promote existing users). Registering the
+   configured address first is a denial-of-service against bootstrap; if it
+   happens, delete the unconfirmed account or choose another address. There is
+   no automatic promotion path by design.
 3. Persist `DataProtection:KeysPath` on a volume that survives restarts.
 4. Configure `DataProtection:CertificateThumbprint` (or development-only
    plaintext keys if running locally); non-development startup fails closed
@@ -135,5 +164,8 @@ are temporary allow-list entries and must be deleted after the rewrite.
    already does), with a read-only root filesystem, no added capabilities, and
    only port 8080 exposed.
 7. Configure SMTP with TLS enabled.
-7. Run `dotnet list package --vulnerable --include-transitive` and the gitleaks
+8. Set `ReverseProxy:Enabled=true` and the trusted proxy/network list whenever
+   the app runs behind a load balancer; otherwise per-client rate limiting keys
+   on the proxy address.
+9. Run `dotnet list package --vulnerable --include-transitive` and the gitleaks
    scan as part of every release.

@@ -42,6 +42,17 @@
                         </div>
                     </div>
 
+                    <br />
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label>Your current password (step-up)</label>
+                        </div>
+                        <div class="col-md-12">
+                            <RadzenPassword @bind-Value="model.CurrentPassword" AutoComplete="false" class="col-md-12"></RadzenPassword>
+                        </div>
+                    </div>
+
                     <hr />
                     <DataAnnotationsValidator />
                     <ValidationSummary />

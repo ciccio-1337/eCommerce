@@ -11,6 +11,8 @@ namespace eCommerce.Storefront.Controllers.Services.Interfaces
         Task<User> RegisterUserAsync(string email, string password, bool confirmEmail, IEnumerable<string> roles);
         Task<bool> ConfirmEmailAsync(string userId, string code);
         Task<string> GenerateEmailConfirmationTokenAsync(string userId);
+        Task<string> GeneratePasswordResetTokenAsync(string userId);
+        Task<bool> ResetPasswordAsync(string userId, string code, string password);
         Task DeleteUserAsync(string userId);
     }
 }

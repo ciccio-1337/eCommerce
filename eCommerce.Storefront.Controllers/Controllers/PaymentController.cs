@@ -139,11 +139,11 @@ namespace eCommerce.Storefront.Controllers.Controllers
             }
         }
 
-        // The action only reads the order and renders the PayPal form, so both a
-        // direct GET (order-history "Pay" link) and the POST form on the order page
-        // are valid. It must accept GET because RedirectToAction after PlaceOrder is
-        // replayed by the browser as GET; a POST-only action produced a 405.
-        [AcceptVerbs("GET", "POST")]
+        // Payment initiation must not happen on a GET: a scanner, link preview, or
+        // top-level navigation could otherwise auto-submit the PayPal form. The
+        // order pages use an antiforgery-protected POST form; after PlaceOrder the
+        // customer lands on the order detail page, which contains that form.
+        [HttpPost]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreatePaymentFor(long orderId)
         {

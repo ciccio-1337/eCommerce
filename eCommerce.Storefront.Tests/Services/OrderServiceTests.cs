@@ -73,6 +73,42 @@ namespace eCommerce.Storefront.Tests.Services
         }
 
         [TestMethod]
+        public async Task CreateOrderAsync_WhenBasketBelongsToAnotherCustomer_ThrowsBasketDoesNotExistException()
+        {
+            var request = new CreateOrderRequest { CustomerEmail = "test@test.com", BasketId = Guid.NewGuid(), DeliveryId = 1 };
+            var customer = new Customer { Id = 1, Email = "test@test.com", FirstName = "Test", SecondName = "Test", UserId = "123" };
+            var basket = new Basket { Id = request.BasketId };
+            basket.SetCustomer(new Customer { Id = 2, Email = "other@test.com", FirstName = "Other", SecondName = "Other", UserId = "456" });
+            _customerRepositoryMock.Setup(x => x.FindByAsync("test@test.com")).ReturnsAsync(customer);
+            _basketRepositoryMock.Setup(x => x.FindByAsync(request.BasketId)).ReturnsAsync(basket);
+
+            await Assert.ThrowsExactlyAsync<BasketDoesNotExistException>(() => _orderService.CreateOrderAsync(request));
+            _orderRepositoryMock.Verify(x => x.AddAsync(It.IsAny<Order>()), Times.Never);
+        }
+
+        [TestMethod]
+        public async Task SetOrderPaymentAsync_WhenCustomerDoesNotOwnOrder_ThrowsOrderNotFoundException()
+        {
+            var request = new SetOrderPaymentRequest
+            {
+                OrderId = 5,
+                CustomerEmail = "attacker@test.com",
+                PaymentToken = "token",
+                Amount = 10m
+            };
+            var order = new Order { Id = 5, Customer = new Customer { Id = 1, Email = "owner@test.com", FirstName = "Owner", SecondName = "Owner", UserId = "1" } };
+            _orderRepositoryMock.Setup(x => x.FindByAsync(5)).ReturnsAsync(order);
+            _customerRepositoryMock
+                .Setup(x => x.FindByAsync("attacker@test.com"))
+                .ReturnsAsync(new Customer { Id = 2, Email = "attacker@test.com", FirstName = "A", SecondName = "B", UserId = "2" });
+
+            await Assert.ThrowsExactlyAsync<OrderNotFoundException>(() => _orderService.SetOrderPaymentAsync(request));
+            _orderRepositoryMock.Verify(
+                x => x.SetPaymentConditionallyAsync(It.IsAny<long>(), It.IsAny<Payment>()),
+                Times.Never);
+        }
+
+        [TestMethod]
         public async Task GetOrderAsync_WhenOrderNotFound_ReturnsEmptyResponse()
         {
             var request = new GetOrderRequest { OrderId = 1 };

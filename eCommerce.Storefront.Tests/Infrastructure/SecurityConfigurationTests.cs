@@ -56,6 +56,126 @@ namespace eCommerce.Storefront.Tests.Infrastructure
                     null));
         }
 
+        [TestMethod]
+        public void ValidateAllowedHosts_RejectsWildcardOutsideDevelopment()
+        {
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                SecurityConfiguration.ValidateAllowedHosts(
+                    EnvironmentNamed(Environments.Production),
+                    "*,example.com"));
+        }
+
+        [TestMethod]
+        public void ValidateAllowedHosts_RejectsEmptyListOutsideDevelopment()
+        {
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                SecurityConfiguration.ValidateAllowedHosts(
+                    EnvironmentNamed(Environments.Production),
+                    "   "));
+        }
+
+        [TestMethod]
+        public void ValidateAllowedHosts_AcceptsExplicitListOutsideDevelopment()
+        {
+            SecurityConfiguration.ValidateAllowedHosts(
+                EnvironmentNamed(Environments.Production),
+                "example.com;www.example.com");
+        }
+
+        [TestMethod]
+        public void ValidateForwardedHeaders_FailsClosedWhenProxyEnabledWithoutTrustList()
+        {
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                SecurityConfiguration.ValidateForwardedHeadersConfiguration(
+                    EnvironmentNamed(Environments.Production),
+                    reverseProxyEnabled: true,
+                    knownProxyCount: 0,
+                    knownNetworkCount: 0));
+        }
+
+        [TestMethod]
+        public void ValidateForwardedHeaders_AllowsDisabledProxyOrTrustedProxy()
+        {
+            SecurityConfiguration.ValidateForwardedHeadersConfiguration(
+                EnvironmentNamed(Environments.Production),
+                reverseProxyEnabled: false,
+                knownProxyCount: 0,
+                knownNetworkCount: 0);
+
+            SecurityConfiguration.ValidateForwardedHeadersConfiguration(
+                EnvironmentNamed(Environments.Production),
+                reverseProxyEnabled: true,
+                knownProxyCount: 1,
+                knownNetworkCount: 0);
+        }
+
+        [TestMethod]
+        public void ValidateForwardedHeaders_ExemptsDevelopment()
+        {
+            SecurityConfiguration.ValidateForwardedHeadersConfiguration(
+                EnvironmentNamed(Environments.Development),
+                reverseProxyEnabled: true,
+                knownProxyCount: 0,
+                knownNetworkCount: 0);
+        }
+
+        [TestMethod]
+        public void ValidateDatabaseConnectionString_RequiresCertificateValidation()
+        {
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                SecurityConfiguration.ValidateDatabaseConnectionString(
+                    EnvironmentNamed(Environments.Production),
+                    "Host=db;Username=ecommerce;Password=secret;SSL Mode=Prefer"));
+
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                SecurityConfiguration.ValidateDatabaseConnectionString(
+                    EnvironmentNamed(Environments.Production),
+                    "Host=db;Username=ecommerce;Password=secret;SSL Mode=Require"));
+        }
+
+        [TestMethod]
+        public void ValidateDatabaseConnectionString_AcceptsVerifyFull()
+        {
+            SecurityConfiguration.ValidateDatabaseConnectionString(
+                EnvironmentNamed(Environments.Production),
+                "Host=db;Username=ecommerce;Password=secret;SSL Mode=VerifyFull");
+        }
+
+        [TestMethod]
+        public void ValidateDatabaseConnectionString_ExemptsDevelopment()
+        {
+            SecurityConfiguration.ValidateDatabaseConnectionString(
+                EnvironmentNamed(Environments.Development),
+                "Host=db;Username=postgres;Password=secret");
+        }
+
+        [TestMethod]
+        public void ConfigureHsts_SetsLongLivedSubdomainPreloadPolicy()
+        {
+            var options = new Microsoft.AspNetCore.HttpsPolicy.HstsOptions();
+
+            SecurityConfiguration.ConfigureHsts(options);
+
+            Assert.AreEqual(TimeSpan.FromDays(365), options.MaxAge);
+            Assert.IsTrue(options.IncludeSubDomains);
+            Assert.IsTrue(options.Preload);
+        }
+
+        [TestMethod]
+        public void IsSensitiveTokenPath_MatchesTokenEndpoints()
+        {
+            Assert.IsTrue(SecurityConfiguration.IsSensitiveTokenPath("/AccountRegister/ConfirmEmail"));
+            Assert.IsTrue(SecurityConfiguration.IsSensitiveTokenPath("/AccountRegister/SetPassword"));
+            Assert.IsFalse(SecurityConfiguration.IsSensitiveTokenPath("/AccountLogOn/LogOn"));
+        }
+
+        [TestMethod]
+        public void AdminCookie_IsSecurePrefixedAndScopedToApi()
+        {
+            StringAssert.StartsWith(SecurityConfiguration.AdminCookieName, "__Secure-");
+            Assert.AreEqual("/api", SecurityConfiguration.AdminCookiePath);
+        }
+
         private static IHostEnvironment EnvironmentNamed(string environmentName)
         {
             var environment = new Mock<IHostEnvironment>();

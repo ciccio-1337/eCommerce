@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using eCommerce.Storefront.Model.Products;
 using eCommerce.Storefront.Repository.EntityFrameworkCore.Repositories.Interfaces;
 using eCommerce.Storefront.Services.Implementations;

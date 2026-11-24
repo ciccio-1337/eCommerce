@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using eCommerce.Storefront.Controllers.Controllers;
@@ -20,6 +19,7 @@ namespace eCommerce.Storefront.Tests.Controllers
     {
         private const int MaxPageIndex = 10_000;
         private const int MaxRefinementsPerGroup = 50;
+        private const int MaxRefinementGroups = 10;
 
         private Mock<ICachedProductCatalogService> _catalogServiceMock;
         private ProductController _controller;
@@ -126,6 +126,70 @@ namespace eCommerce.Storefront.Tests.Controllers
             await _controller.GetProducts(request);
 
             Assert.AreEqual(MaxRefinementsPerGroup, _capturedRequest.ColorIds.Length);
+        }
+
+        [TestMethod]
+        public async Task GetProducts_WithTooManyRefinementGroups_ReturnsBadRequest()
+        {
+            var request = new ProductSearchRequest
+            {
+                RefinementGroups = Enumerable.Range(0, MaxRefinementGroups + 1)
+                    .Select(_ => new eCommerce.Storefront.Controllers.DTOs.RefinementGroup
+                    {
+                        GroupId = (int)RefinementGroupings.Color,
+                        SelectedRefinements = []
+                    })
+                    .ToArray()
+            };
+
+            var result = await _controller.GetProducts(request);
+
+            Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));
+            _catalogServiceMock.Verify(
+                x => x.GetProductsByCategoryAsync(It.IsAny<GetProductsByCategoryRequest>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task GetProducts_WithUnknownRefinementGroup_ReturnsBadRequest()
+        {
+            var request = new ProductSearchRequest
+            {
+                RefinementGroups =
+                [
+                    new eCommerce.Storefront.Controllers.DTOs.RefinementGroup
+                    {
+                        GroupId = 999,
+                        SelectedRefinements = []
+                    }
+                ]
+            };
+
+            var result = await _controller.GetProducts(request);
+
+            Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));
+            _catalogServiceMock.Verify(
+                x => x.GetProductsByCategoryAsync(It.IsAny<GetProductsByCategoryRequest>()),
+                Times.Never);
+        }
+
+        [TestMethod]
+        public async Task GetProducts_WithRefinementGroupsAtTheLimit_IsAccepted()
+        {
+            var request = new ProductSearchRequest
+            {
+                RefinementGroups = Enumerable.Range(0, MaxRefinementGroups)
+                    .Select(_ => new eCommerce.Storefront.Controllers.DTOs.RefinementGroup
+                    {
+                        GroupId = (int)RefinementGroupings.Color,
+                        SelectedRefinements = []
+                    })
+                    .ToArray()
+            };
+
+            var result = await _controller.GetProducts(request);
+
+            Assert.IsInstanceOfType(result, typeof(OkObjectResult));
         }
     }
 }

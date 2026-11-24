@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System;
 using System.Linq;
+using eCommerce.Storefront.Controllers.Models;
 using eCommerce.Storefront.Controllers.Services.Interfaces;
 
 namespace eCommerce.Storefront.Controllers.Controllers
@@ -30,9 +31,24 @@ namespace eCommerce.Storefront.Controllers.Controllers
 
         [HttpPost]
         [EnableRateLimiting("auth")]
+        [RequestSizeLimit(16 * 1024)]
         [AllowAnonymous]
         public async Task<IActionResult> LogOn(string email, string password, string returnUrl)
         {
+            // Reject oversized credentials before the hasher runs. The response is
+            // the same generic failure as bad credentials so it reveals nothing.
+            if (!CredentialInputValidator.IsAcceptableEmailForLookup(email)
+                || !CredentialInputValidator.IsAcceptablePasswordForVerification(password))
+            {
+                var oversizedView = InitializeAccountViewWithIssue(
+                    true,
+                    "Sorry we could not log you in. Please try again.");
+
+                oversizedView.CallBackSettings.ReturnUrl = GetReturnActionFrom(returnUrl).ToString();
+
+                return View(oversizedView);
+            }
+
             try
             {
                 var user = await _authenticationService.LoginAsync(email, password);

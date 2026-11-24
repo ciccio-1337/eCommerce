@@ -4,6 +4,14 @@
 @inject HttpClient Http
 
 <h2>Manage Roles</h2>
+
+<div class="row mb-2">
+    <div class="col-md-4">
+        <label>Your current password (required for role changes)</label>
+        <RadzenPassword @bind-Value="currentPassword" AutoComplete="false" class="col-md-12"></RadzenPassword>
+    </div>
+</div>
+
 <div class="row">
 
     <div class="col-4">
@@ -86,6 +94,7 @@
     string buttonTitle = "Save";
     List<RoleUserResponse> roleUserResponse = null;
     string userId = null;
+    string currentPassword;
 
     protected async override Task OnInitializedAsync()
     {
@@ -197,7 +206,7 @@
 
         try
         {
-            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true }))?.Content?.ReadFromJsonAsync<bool>();
+            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{userId}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = userId, Add = true, CurrentPassword = currentPassword }))?.Content?.ReadFromJsonAsync<bool>();
 
             if (!isSuccess)
             {
@@ -230,7 +239,7 @@
 
         try
         {
-            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false }))?.Content?.ReadFromJsonAsync<bool>();
+            var isSuccess = await (await Http.PutAsJsonAsync<AddRemoveRoleRequest>($"api/roles/{model.Id}/user/{id}", new AddRemoveRoleRequest { RoleId = model.Id, UserId = id, Add = false, CurrentPassword = currentPassword }))?.Content?.ReadFromJsonAsync<bool>();
 
             if (!isSuccess)
             {

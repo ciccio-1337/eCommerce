@@ -28,6 +28,15 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
         }
 
         [TestMethod]
+        public void Customer_WithOverlongEmail_IsInvalid()
+        {
+            var email = new string('a', InputLimits.MaxEmailLength) + "@example.com";
+
+            Assert.ThrowsExactly<EntityBaseIsInvalidException>(() =>
+                CreateCustomerWithEmail(email).ThrowExceptionIfInvalid());
+        }
+
+        [TestMethod]
         public void DeliveryAddress_WithFieldsAtTheLimit_IsValid()
         {
             AssertValid(CreateAddress(city: new string('c', DeliveryAddress.MaxFieldLength)));
@@ -66,6 +75,15 @@ namespace eCommerce.Storefront.Tests.CustomerSpecs
                 FirstName = firstName,
                 SecondName = secondName,
                 Email = "john.doe@example.com",
+                UserId = "user-1"
+            };
+
+        private static Customer CreateCustomerWithEmail(string email) =>
+            new()
+            {
+                FirstName = "John",
+                SecondName = "Doe",
+                Email = email,
                 UserId = "user-1"
             };
 

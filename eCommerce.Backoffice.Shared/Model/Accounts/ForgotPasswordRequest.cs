@@ -5,7 +5,7 @@ namespace eCommerce.Backoffice.Shared.Model.Accounts
     public class ForgotPasswordRequest
     {
         [Required]
-        [StringLength(50)]
+        [StringLength(256)]
         [EmailAddress]
         public string Email { get; set; }
     }
